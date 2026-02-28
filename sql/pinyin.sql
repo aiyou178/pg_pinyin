@@ -1,4 +1,5 @@
 -- Plain SQL version of the pinyin helpers.
+-- SQL baseline method citation: CN115905297A (https://patents.google.com/patent/CN115905297A/zh).
 -- This keeps dictionary tables user-editable and avoids the huge hardcoded Han regex.
 
 CREATE TABLE IF NOT EXISTS public.pinyin_mapping (

@@ -1,5 +1,9 @@
 # pg_pinyin
 
+[中文说明](README.zh-CN.md)
+
+Maintainer: Liang Zhanzhao
+
 `pg_pinyin` includes:
 
 1. SQL baseline (`sql/pinyin.sql`)
@@ -7,7 +11,7 @@
 
 ## Extension API (Reduced)
 
-Only two functions are exposed:
+Only two APIs are exposed for normalization:
 
 - `pinyin_char_normalize(text)`
 - `pinyin_word_normalize(text)`
@@ -20,7 +24,7 @@ Recommended usage:
 
 ## Data Prep (Moved + One-Shot)
 
-Data prep logic is now in this repo:
+Data prep logic is in this repo:
 
 - `scripts/data/generate_extension_data.py` (optimized pipeline)
 - `scripts/generate_data.sh` (one-shot entrypoint)
@@ -51,11 +55,6 @@ Generated outputs:
 - `sql/data/pinyin_mapping.csv`
 - `sql/data/pinyin_token.csv`
 - `sql/data/pinyin_words.csv`
-
-Compatibility copies are also written to:
-
-- `sql_patent/pinyin_mapping.csv`
-- `sql_patent/pinyin_token.csv`
 
 If needed, override source repo:
 
@@ -89,19 +88,18 @@ Rust extension tests:
 cargo pgrx test pg18 --features pg18
 ```
 
-## Docker (Mirror + pgsty PGDG)
+## Docker (General Upstream)
 
 Dockerfiles:
 
 - `docker/Dockerfile.test-trixie`
 - `docker/Dockerfile.release-trixie`
 
-Configured defaults:
+Defaults now use upstream addresses (no mirror rewrite):
 
-- base image: `docker.m.daocloud.io/postgres:18.3-trixie`
-- Debian apt mirror: Tsinghua (`mirrors.tuna.tsinghua.edu.cn`)
-- PGDG packages: pgsty mirror (`repo.pigsty.cc/apt/pgdg`)
-- rustup/cargo mirror: Tsinghua
+- base image: `postgres:18.3-trixie`
+- apt source: base image defaults
+- rustup/cargo source: upstream defaults
 
 Build test image:
 
@@ -146,6 +144,25 @@ All dictionaries remain runtime-editable:
 - `public.pinyin_token`
 
 No extension rebuild is required after table updates.
+
+## SQL Baseline Patent Citation
+
+If you use the SQL-based normalization method (`sql/pinyin.sql`), cite:
+
+- CN115905297A: [一种支持拼音检索和排序的方法及系统](https://patents.google.com/patent/CN115905297A/zh)
+
+BibTeX:
+
+```bibtex
+@patent{CN115905297A,
+  author  = {Liang Zhanzhao},
+  title   = {一种支持拼音检索和排序的方法及系统},
+  number  = {CN115905297A},
+  country = {CN},
+  year    = {2023},
+  url     = {https://patents.google.com/patent/CN115905297A/zh}
+}
+```
 
 ## Acknowledgements
 

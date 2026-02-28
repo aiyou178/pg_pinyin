@@ -1,6 +1,6 @@
 [package]
 name = "pg_pinyin"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2024"
 description = "Pinyin normalization and search helpers for PostgreSQL"
 license = "MIT"

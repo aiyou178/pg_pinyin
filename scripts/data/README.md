@@ -19,8 +19,6 @@ The logic is ported from the `aiyou178/pinyin-data` scripts and optimized for th
 - `sql/data/pinyin_token.csv`
 - `sql/data/pinyin_words.csv`
 
-The generator can also write compatibility copies into `sql_patent/` (enabled by default).
-
 ## Usage
 
 ```bash

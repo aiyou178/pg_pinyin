@@ -1,0 +1,106 @@
+name: Release Packages
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build-packages:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version from tag
+        run: |
+          TAG_NAME="${GITHUB_REF_NAME}"
+          VERSION="${TAG_NAME#v}"
+          echo "TAG_NAME=${TAG_NAME}" >> "$GITHUB_ENV"
+          echo "EXT_VERSION=${VERSION}" >> "$GITHUB_ENV"
+          echo "Resolved version: ${VERSION}"
+
+      - name: Verify Cargo and control version
+        run: |
+          CARGO_VERSION="$(awk -F'\"' '/^version = / { print $2; exit }' Cargo.toml)"
+          CONTROL_VERSION="$(awk -F"'" '/^default_version = / { print $2; exit }' pg_pinyin.control)"
+          if [[ "$CARGO_VERSION" != "$EXT_VERSION" ]]; then
+            echo "Cargo.toml version ($CARGO_VERSION) does not match tag version ($EXT_VERSION)" >&2
+            exit 1
+          fi
+          if [[ "$CONTROL_VERSION" != "$EXT_VERSION" ]]; then
+            echo "pg_pinyin.control version ($CONTROL_VERSION) does not match tag version ($EXT_VERSION)" >&2
+            exit 1
+          fi
+
+      - name: Build release image
+        run: docker build -f docker/Dockerfile.release-trixie -t pg-pinyin-release:ci .
+
+      - name: Build DEB packages (PG14-18)
+        run: |
+          mkdir -p dist
+          docker run --rm \
+            --user root \
+            -e EXT_VERSION="${EXT_VERSION}" \
+            -e OUT_DIR=/out \
+            -v "$GITHUB_WORKSPACE:/work" \
+            -v "$GITHUB_WORKSPACE/dist:/out" \
+            --entrypoint /bin/bash \
+            pg-pinyin-release:ci \
+            -lc 'set -euo pipefail; bash /work/scripts/package_debs.sh'
+
+      - name: Install FPM tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ruby ruby-dev build-essential rpm
+          sudo gem install --no-document fpm
+
+      - name: Build RPM packages from DEBs
+        run: |
+          EXT_VERSION="${EXT_VERSION}" OUT_DIR="$GITHUB_WORKSPACE/dist" scripts/package_rpms.sh
+
+      - name: List artifacts
+        run: ls -lah dist
+
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-packages-${{ env.TAG_NAME }}-${{ matrix.arch }}
+          path: |
+            dist/*.deb
+            dist/*.rpm
+
+  publish-release:
+    runs-on: ubuntu-24.04
+    needs: build-packages
+    permissions:
+      contents: write
+    steps:
+      - name: Resolve tag name
+        run: echo "TAG_NAME=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
+
+      - name: Download package artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-packages-${{ env.TAG_NAME }}-*
+          path: dist
+          merge-multiple: true
+
+      - name: List downloaded artifacts
+        run: ls -lah dist
+
+      - name: Publish assets to GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          make_latest: true
+          files: |
+            dist/*.deb
+            dist/*.rpm

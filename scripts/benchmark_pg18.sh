@@ -107,7 +107,7 @@ END AS has_pg_search
 \\if :has_pg_search
   \\echo '[setup] pg_search available; loading SQL word tokenizer baseline (icu_romanize)'
   CREATE EXTENSION IF NOT EXISTS pg_search;
-  \\i '$ROOT_SQL/sql_patent/word.sql'
+  \\i '$ROOT_SQL/sql/word.sql'
 
   \\echo '[benchmark] SQL baseline: icu_romanize(name::pdb.icu)'
   EXPLAIN (ANALYZE, BUFFERS, SUMMARY)

@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - '**'
+    tags-ignore:
+      - 'v*.*.*'
+
+jobs:
+  rust-unit-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run Rust unit tests
+        run: cargo test --lib
+
+  pg-integration-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 80
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build test image
+        run: docker build -f docker/Dockerfile.test-trixie -t pg-pinyin-test:ci .
+
+      - name: Start test container
+        run: |
+          docker run -d --name pg-pinyin-test-${{ matrix.arch }} \
+            -e POSTGRES_HOST_AUTH_METHOD=trust \
+            -e POSTGRES_DB=postgres \
+            -v "$GITHUB_WORKSPACE:/work" \
+            pg-pinyin-test:ci
+
+      - name: Run pgrx and pgTAP tests
+        run: |
+          docker exec -u root pg-pinyin-test-${{ matrix.arch }} bash -lc '
+            set -euo pipefail
+            until pg_isready -h 127.0.0.1 -p 5432 -U postgres >/dev/null 2>&1; do
+              sleep 1
+            done
+            cd /work
+            PG_CONFIG=/usr/lib/postgresql/18/bin/pg_config
+            if [ ! -x "$PG_CONFIG" ]; then
+              PG_CONFIG="$(command -v pg_config)"
+            fi
+            cargo pgrx init --pg18="$PG_CONFIG"
+            cargo pgrx test pg18 --features pg18,pg_test --no-default-features
+            PGURL=postgres://postgres@127.0.0.1:5432/postgres ./test/pgtap/run.sh
+          '
+
+      - name: Container logs
+        if: always()
+        run: docker logs pg-pinyin-test-${{ matrix.arch }} || true
+
+      - name: Cleanup container
+        if: always()
+        run: docker rm -f pg-pinyin-test-${{ matrix.arch }} || true

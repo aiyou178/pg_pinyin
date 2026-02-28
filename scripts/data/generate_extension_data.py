@@ -267,21 +267,6 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="Optional explicit hanzi_pinyin_words.csv path",
     )
-    parser.add_argument(
-        "--legacy-mapping-out",
-        default="sql_patent/pinyin_mapping.csv",
-        help="Optional legacy output path for mapping CSV",
-    )
-    parser.add_argument(
-        "--legacy-token-out",
-        default="sql_patent/pinyin_token.csv",
-        help="Optional legacy output path for token CSV",
-    )
-    parser.add_argument(
-        "--no-legacy-copy",
-        action="store_true",
-        help="Disable writing compatibility copies into sql_patent/",
-    )
     return parser.parse_args()
 
 
@@ -309,10 +294,6 @@ def main() -> int:
     words_source = Path(args.words_source) if args.words_source else None
     word_count, fallback_count = write_words_csv(words_out, source_dir, syllables, words_source)
 
-    if not args.no_legacy_copy:
-        write_mapping_csv(Path(args.legacy_mapping_out), char_map)
-        write_token_csv(Path(args.legacy_token_out), token_rows)
-
     print(f"[ok] characters: {len(char_map)}")
     print(f"[ok] token rows: {len(token_rows)}")
     if words_source:
@@ -321,8 +302,6 @@ def main() -> int:
         print(f"[ok] words source: {source_dir / 'hanzi_pinyin_words.csv'}")
     print(f"[ok] words: {word_count} (fallback segmentation: {fallback_count})")
     print(f"[ok] wrote: {mapping_out}, {token_out}, {words_out}")
-    if not args.no_legacy_copy:
-        print(f"[ok] legacy copies: {args.legacy_mapping_out}, {args.legacy_token_out}")
 
     return 0
 
