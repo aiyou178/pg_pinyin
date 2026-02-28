@@ -1,0 +1,4 @@
+[submodule "third_party/pinyin-data"]
+	path = third_party/pinyin-data
+	url = https://github.com/mozillazg/pinyin-data.git
+	branch = master

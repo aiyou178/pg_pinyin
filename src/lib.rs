@@ -1,0 +1,611 @@
+#[cfg(feature = "extension")]
+pgrx::pg_module_magic!();
+
+#[cfg(feature = "extension")]
+mod extension {
+    use std::collections::HashMap;
+    use std::mem;
+    use std::sync::{OnceLock, RwLock};
+
+    use pgrx::datum::AnyElement;
+    use pgrx::prelude::*;
+
+    fn spi_json_text(query: &str) -> String {
+        match Spi::get_one::<String>(query) {
+            Ok(Some(value)) => value,
+            Ok(None) => "{}".to_string(),
+            Err(err) => error!("SPI query failed: {err}. query={query}"),
+        }
+    }
+
+    fn fetch_string_map_from_query(query: &str) -> HashMap<String, String> {
+        let json_text = spi_json_text(query);
+        serde_json::from_str::<HashMap<String, String>>(&json_text).unwrap_or_default()
+    }
+
+    #[derive(Default)]
+    struct DictionaryCache {
+        version: i64,
+        loaded: bool,
+        char_map: HashMap<String, String>,
+        word_map: HashMap<String, String>,
+        max_word_len: usize,
+    }
+
+    static DICTIONARY_CACHE: OnceLock<RwLock<DictionaryCache>> = OnceLock::new();
+
+    fn dictionary_cache() -> &'static RwLock<DictionaryCache> {
+        DICTIONARY_CACHE.get_or_init(|| RwLock::new(DictionaryCache::default()))
+    }
+
+    fn fetch_dictionary_version() -> i64 {
+        match Spi::get_one::<i64>(
+            "SELECT COALESCE((SELECT version FROM public.pinyin_dictionary_meta WHERE singleton), 0)",
+        ) {
+            Ok(Some(version)) => version,
+            Ok(None) => 0,
+            Err(_) => 0,
+        }
+    }
+
+    fn load_dictionary_snapshot(version: i64) -> DictionaryCache {
+        let char_map = fetch_string_map_from_query(
+            "SELECT coalesce(jsonb_object_agg(character, pinyin), '{}'::jsonb)::text \
+             FROM public.pinyin_mapping",
+        );
+
+        let word_map = fetch_string_map_from_query(
+            "SELECT coalesce(jsonb_object_agg(word, pinyin), '{}'::jsonb)::text \
+             FROM public.pinyin_words",
+        );
+
+        let max_word_len = word_map
+            .keys()
+            .map(|word| word.chars().count())
+            .max()
+            .unwrap_or(0);
+
+        DictionaryCache {
+            version,
+            loaded: true,
+            char_map,
+            word_map,
+            max_word_len,
+        }
+    }
+
+    fn with_dictionary_cache<R>(f: impl FnOnce(&DictionaryCache) -> R) -> R {
+        let version = fetch_dictionary_version();
+        let lock = dictionary_cache();
+
+        {
+            let cache = lock.read().expect("dictionary cache read lock poisoned");
+            if cache.loaded && cache.version == version {
+                return f(&cache);
+            }
+        }
+
+        let snapshot = load_dictionary_snapshot(version);
+
+        {
+            let mut cache = lock.write().expect("dictionary cache write lock poisoned");
+            if !cache.loaded || cache.version != version {
+                *cache = snapshot;
+            }
+            f(&cache)
+        }
+    }
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    enum PieceKind {
+        AsciiRun,
+        Space,
+        Other,
+    }
+
+    #[derive(Clone, Debug)]
+    struct Piece {
+        value: String,
+        kind: PieceKind,
+    }
+
+    fn split_input(input: &str) -> Vec<Piece> {
+        let mut pieces = Vec::new();
+        let mut ascii_run = String::new();
+
+        for ch in input.chars() {
+            if ch.is_ascii_alphanumeric() {
+                ascii_run.push(ch);
+                continue;
+            }
+
+            if !ascii_run.is_empty() {
+                pieces.push(Piece {
+                    value: mem::take(&mut ascii_run),
+                    kind: PieceKind::AsciiRun,
+                });
+            }
+
+            pieces.push(Piece {
+                value: ch.to_string(),
+                kind: if ch.is_whitespace() {
+                    PieceKind::Space
+                } else {
+                    PieceKind::Other
+                },
+            });
+        }
+
+        if !ascii_run.is_empty() {
+            pieces.push(Piece {
+                value: ascii_run,
+                kind: PieceKind::AsciiRun,
+            });
+        }
+
+        pieces
+    }
+
+    fn normalize_first_pinyin(raw: &str) -> String {
+        let mut first = String::new();
+
+        for part in raw.split('|') {
+            if !part.is_empty() {
+                first = part.to_ascii_lowercase();
+                break;
+            }
+        }
+
+        if first.is_empty() {
+            raw.to_ascii_lowercase()
+        } else {
+            first
+        }
+    }
+
+    fn normalize_pinyin_phrase(raw: &str) -> String {
+        let mut out = Vec::new();
+        for part in raw.split_whitespace() {
+            let token = normalize_first_pinyin(part);
+            if !token.is_empty() {
+                out.push(token);
+            }
+        }
+
+        if out.is_empty() {
+            normalize_first_pinyin(raw)
+        } else {
+            out.join(" ")
+        }
+    }
+
+    fn is_han_token(token: &str) -> bool {
+        if token.is_empty() {
+            return false;
+        }
+
+        let mut chars = token.chars();
+        match (chars.next(), chars.next()) {
+            (Some(ch), None) => !ch.is_whitespace() && !ch.is_ascii_alphanumeric(),
+            _ => false,
+        }
+    }
+
+    fn is_han_char(ch: char) -> bool {
+        !ch.is_whitespace() && !ch.is_ascii_alphanumeric()
+    }
+
+    fn is_han_phrase(token: &str) -> bool {
+        !token.is_empty() && token.chars().all(is_han_char)
+    }
+
+    fn normalize_plain_text(origin: &str) -> String {
+        let pieces = split_input(origin);
+        with_dictionary_cache(|cache| {
+            let mut out = String::new();
+            let mut last_is_space = true;
+
+            for piece in pieces {
+                match piece.kind {
+                    PieceKind::AsciiRun => {
+                        out.push_str(&piece.value.to_ascii_lowercase());
+                        last_is_space = false;
+                    }
+                    PieceKind::Space => {
+                        if !last_is_space {
+                            out.push(' ');
+                            last_is_space = true;
+                        }
+                    }
+                    PieceKind::Other => {
+                        if cache.char_map.contains_key(&piece.value) {
+                            out.push_str(&piece.value);
+                            last_is_space = false;
+                        } else if !last_is_space {
+                            out.push(' ');
+                            last_is_space = true;
+                        }
+                    }
+                }
+            }
+
+            out.trim().to_string()
+        })
+    }
+
+    fn tokenize_plain(normalized: &str) -> Vec<String> {
+        if normalized.is_empty() {
+            return Vec::new();
+        }
+
+        let mut tokens = Vec::new();
+        let mut ascii_run = String::new();
+
+        for ch in normalized.chars() {
+            if ch.is_ascii_alphanumeric() {
+                ascii_run.push(ch.to_ascii_lowercase());
+                continue;
+            }
+
+            if !ascii_run.is_empty() {
+                tokens.push(mem::take(&mut ascii_run));
+            }
+
+            if ch.is_whitespace() {
+                continue;
+            }
+
+            tokens.push(ch.to_string());
+        }
+
+        if !ascii_run.is_empty() {
+            tokens.push(ascii_run);
+        }
+
+        tokens
+    }
+
+    fn normalize_token_list(json_text: String) -> Vec<String> {
+        match serde_json::from_str::<Vec<String>>(&json_text) {
+            Ok(tokens) => tokens
+                .into_iter()
+                .map(|token| token.trim().to_string())
+                .filter(|token| !token.is_empty())
+                .map(|token| {
+                    if token.chars().all(|ch| ch.is_ascii_alphanumeric()) {
+                        token.to_ascii_lowercase()
+                    } else {
+                        token
+                    }
+                })
+                .collect(),
+            Err(err) => error!("failed to parse tokenizer result as JSON array: {err}"),
+        }
+    }
+
+    fn fetch_tokenizer_input_tokens(tokenizer_input: AnyElement) -> Option<Vec<String>> {
+        let args =
+            [unsafe { pgrx::datum::DatumWithOid::new(tokenizer_input, tokenizer_input.oid()) }];
+        let json_text = match Spi::get_one_with_args::<String>(
+            "SELECT COALESCE(jsonb_agg(token ORDER BY ord), '[]'::jsonb)::text \
+             FROM unnest($1::text[]) WITH ORDINALITY AS t(token, ord)",
+            &args,
+        ) {
+            Ok(Some(value)) => value,
+            Ok(None) => "[]".to_string(),
+            Err(_) => return None,
+        };
+
+        Some(normalize_token_list(json_text))
+    }
+
+    fn anyelement_to_text(tokenizer_input: AnyElement) -> Option<String> {
+        let args =
+            [unsafe { pgrx::datum::DatumWithOid::new(tokenizer_input, tokenizer_input.oid()) }];
+        Spi::get_one_with_args::<String>("SELECT $1::text", &args)
+            .ok()
+            .flatten()
+    }
+
+    fn map_token(token: &str, char_map: &HashMap<String, String>) -> String {
+        if token.chars().all(|ch| ch.is_ascii_alphanumeric()) {
+            return token.to_ascii_lowercase();
+        }
+
+        if let Some(mapped) = char_map.get(token) {
+            normalize_pinyin_phrase(mapped)
+        } else {
+            token.to_string()
+        }
+    }
+
+    fn pinyin_char_normalize_impl(origin: &str) -> String {
+        let normalized = normalize_plain_text(origin);
+        let tokens = tokenize_plain(&normalized);
+
+        if tokens.is_empty() {
+            return String::new();
+        }
+
+        with_dictionary_cache(|cache| {
+            let mut out = Vec::with_capacity(tokens.len());
+            for token in tokens {
+                out.push(map_token(&token, &cache.char_map));
+            }
+            out.join(" ")
+        })
+    }
+
+    fn map_word_fallback(token: &str, char_map: &HashMap<String, String>) -> String {
+        if token.chars().all(|ch| ch.is_ascii_alphanumeric()) {
+            return token.to_ascii_lowercase();
+        }
+
+        if token.chars().count() == 1 {
+            return map_token(token, char_map);
+        }
+
+        if !is_han_phrase(token) {
+            return token.to_string();
+        }
+
+        let mut parts = Vec::new();
+        for ch in token.chars() {
+            parts.push(map_token(&ch.to_string(), char_map));
+        }
+        parts.join(" ")
+    }
+
+    fn normalize_word_tokens(mut tokens: Vec<String>) -> String {
+        tokens.retain(|token| !token.is_empty());
+        if tokens.is_empty() {
+            return String::new();
+        }
+
+        with_dictionary_cache(|cache| {
+            let mut out = Vec::with_capacity(tokens.len());
+            let mut idx = 0usize;
+
+            while idx < tokens.len() {
+                if let Some(mapped) = cache.word_map.get(&tokens[idx]) {
+                    out.push(normalize_pinyin_phrase(mapped));
+                    idx += 1;
+                    continue;
+                }
+
+                if cache.max_word_len >= 2 && is_han_token(&tokens[idx]) {
+                    let mut candidate = String::new();
+                    let max_end = usize::min(tokens.len(), idx + cache.max_word_len);
+                    let mut best: Option<(usize, String)> = None;
+
+                    for end in idx..max_end {
+                        if !is_han_token(&tokens[end]) {
+                            break;
+                        }
+
+                        candidate.push_str(&tokens[end]);
+                        let span = end - idx + 1;
+
+                        if span >= 2 {
+                            if let Some(mapped) = cache.word_map.get(&candidate) {
+                                best = Some((span, normalize_pinyin_phrase(mapped)));
+                            }
+                        }
+                    }
+
+                    if let Some((span, mapped)) = best {
+                        out.push(mapped);
+                        idx += span;
+                        continue;
+                    }
+                }
+
+                out.push(map_word_fallback(&tokens[idx], &cache.char_map));
+                idx += 1;
+            }
+
+            out.join(" ")
+        })
+    }
+
+    fn pinyin_word_normalize_impl(origin: &str) -> String {
+        let normalized = normalize_plain_text(origin);
+        let tokens = tokenize_plain(&normalized);
+        normalize_word_tokens(tokens)
+    }
+
+    fn pinyin_word_normalize_tokenizer_impl(tokenizer_input: AnyElement) -> String {
+        if let Some(tokens) = fetch_tokenizer_input_tokens(tokenizer_input) {
+            return normalize_word_tokens(tokens);
+        }
+
+        match anyelement_to_text(tokenizer_input) {
+            Some(text) => pinyin_word_normalize_impl(&text),
+            None => error!("tokenizer input must be castable to text[] or text"),
+        }
+    }
+
+    #[pg_extern(stable, strict, parallel_safe)]
+    fn pinyin_char_normalize(origin: &str) -> String {
+        pinyin_char_normalize_impl(origin)
+    }
+
+    #[pg_extern(stable, strict, parallel_safe)]
+    fn pinyin_word_normalize(origin: &str) -> String {
+        pinyin_word_normalize_impl(origin)
+    }
+
+    #[pg_extern(stable, strict, parallel_safe, name = "pinyin_word_normalize")]
+    fn pinyin_word_normalize_with_tokenizer(tokenizer_input: AnyElement) -> String {
+        pinyin_word_normalize_tokenizer_impl(tokenizer_input)
+    }
+
+    extension_sql!(
+        r#"
+        CREATE TABLE IF NOT EXISTS public.pinyin_mapping (
+          character text PRIMARY KEY,
+          pinyin text NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS public.pinyin_token (
+          character text PRIMARY KEY,
+          category smallint NOT NULL CHECK (category IN (1, 2, 3))
+        );
+
+        CREATE TABLE IF NOT EXISTS public.pinyin_words (
+          word text PRIMARY KEY,
+          pinyin text NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS public.pinyin_dictionary_meta (
+          singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
+          version bigint NOT NULL DEFAULT 1
+        );
+
+        INSERT INTO public.pinyin_dictionary_meta (singleton, version)
+        VALUES (true, 1)
+        ON CONFLICT (singleton) DO NOTHING;
+
+        CREATE OR REPLACE FUNCTION public.pinyin_dictionary_bump_version()
+        RETURNS trigger
+        LANGUAGE plpgsql
+        AS $$
+        BEGIN
+          UPDATE public.pinyin_dictionary_meta
+          SET version = version + 1
+          WHERE singleton;
+          RETURN NULL;
+        END;
+        $$;
+
+        DROP TRIGGER IF EXISTS pinyin_mapping_bump_version ON public.pinyin_mapping;
+        CREATE TRIGGER pinyin_mapping_bump_version
+        AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE ON public.pinyin_mapping
+        FOR EACH STATEMENT
+        EXECUTE FUNCTION public.pinyin_dictionary_bump_version();
+
+        DROP TRIGGER IF EXISTS pinyin_words_bump_version ON public.pinyin_words;
+        CREATE TRIGGER pinyin_words_bump_version
+        AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE ON public.pinyin_words
+        FOR EACH STATEMENT
+        EXECUTE FUNCTION public.pinyin_dictionary_bump_version();
+
+        DROP TRIGGER IF EXISTS pinyin_token_bump_version ON public.pinyin_token;
+        CREATE TRIGGER pinyin_token_bump_version
+        AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE ON public.pinyin_token
+        FOR EACH STATEMENT
+        EXECUTE FUNCTION public.pinyin_dictionary_bump_version();
+
+        INSERT INTO public.pinyin_mapping (character, pinyin)
+        VALUES (' ', ' ')
+        ON CONFLICT (character) DO NOTHING;
+        "#,
+        name = "pinyin_dictionary_tables",
+        bootstrap
+    );
+
+    #[cfg(any(test, feature = "pg_test"))]
+    #[pg_schema]
+    mod tests {
+        use pgrx::prelude::*;
+
+        fn seed_minimal_data() {
+            Spi::run(
+                "TRUNCATE TABLE public.pinyin_mapping; \
+                 TRUNCATE TABLE public.pinyin_token; \
+                 TRUNCATE TABLE public.pinyin_words;",
+            )
+            .expect("failed to truncate dictionary tables");
+
+            Spi::run(
+                "INSERT INTO public.pinyin_mapping (character, pinyin) VALUES
+                   (' ', ' '),
+                   ('我', '|wo|'),
+                   ('们', '|men|'),
+                   ('重', '|tong|zhong|chong|'),
+                   ('起', '|qi|'),
+                   ('郑', '|zheng|'),
+                   ('爽', '|shuang|');",
+            )
+            .expect("failed to seed pinyin_mapping");
+
+            Spi::run(
+                "INSERT INTO public.pinyin_words (word, pinyin) VALUES
+                   ('郑爽', '|zheng| |shuang|')
+                 ON CONFLICT (word) DO UPDATE SET pinyin = EXCLUDED.pinyin;",
+            )
+            .expect("failed to seed pinyin_words");
+        }
+
+        #[pg_test]
+        fn test_pinyin_char_normalize() {
+            seed_minimal_data();
+
+            let converted =
+                Spi::get_one::<String>("SELECT public.pinyin_char_normalize('我ABC们123')")
+                    .expect("SPI failed")
+                    .expect("no row returned");
+            assert_eq!(converted, "wo abc men 123");
+        }
+
+        #[pg_test]
+        fn test_pinyin_word_normalize() {
+            seed_minimal_data();
+
+            let converted =
+                Spi::get_one::<String>("SELECT public.pinyin_word_normalize('郑爽ABC')")
+                    .expect("SPI failed")
+                    .expect("no row returned");
+            assert_eq!(converted, "zheng shuang abc");
+        }
+
+        #[pg_test]
+        fn test_pinyin_word_normalize_with_tokenizer_passthrough() {
+            seed_minimal_data();
+
+            let converted = Spi::get_one::<String>(
+                "SELECT public.pinyin_word_normalize(ARRAY['郑爽', 'ABC']::text[])",
+            )
+            .expect("SPI failed")
+            .expect("no row returned");
+            assert_eq!(converted, "zheng shuang abc");
+        }
+
+        #[pg_test]
+        fn test_dictionary_update_reflected() {
+            seed_minimal_data();
+
+            let before = Spi::get_one::<String>("SELECT public.pinyin_char_normalize('我')")
+                .expect("SPI failed")
+                .expect("no row returned");
+            assert_eq!(before, "wo");
+
+            Spi::run("UPDATE public.pinyin_mapping SET pinyin='|wo2|' WHERE character='我'")
+                .expect("failed to update mapping");
+
+            let after = Spi::get_one::<String>("SELECT public.pinyin_char_normalize('我')")
+                .expect("SPI failed")
+                .expect("no row returned");
+            assert_eq!(after, "wo2");
+        }
+
+        #[pg_test]
+        fn test_polyphone_first_reading() {
+            seed_minimal_data();
+
+            let converted = Spi::get_one::<String>("SELECT public.pinyin_char_normalize('重起')")
+                .expect("SPI failed")
+                .expect("no row returned");
+            assert_eq!(converted, "tong qi");
+        }
+    }
+
+    #[cfg(test)]
+    pub mod pg_test {
+        pub fn setup(_options: Vec<&str>) {}
+
+        pub fn postgres_conf_options() -> Vec<&'static str> {
+            vec![]
+        }
+    }
+}

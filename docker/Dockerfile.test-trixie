@@ -1,0 +1,65 @@
+# Test image for pg_pinyin on PostgreSQL 18 (Debian trixie)
+ARG BASE_IMAGE=docker.m.daocloud.io/postgres:18.3-trixie
+FROM ${BASE_IMAGE}
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG DEBIAN_MIRROR=http://mirrors.tuna.tsinghua.edu.cn
+ARG PGDG_MIRROR=http://repo.pigsty.cc/apt/pgdg
+ARG PG_SEARCH_VERSION=0.21.10
+ARG RUSTUP_DIST_SERVER=https://mirrors.tuna.tsinghua.edu.cn/rustup
+ARG RUSTUP_UPDATE_ROOT=https://mirrors.tuna.tsinghua.edu.cn/rustup/rustup
+
+ENV PATH=/root/.cargo/bin:$PATH \
+    RUSTUP_DIST_SERVER=$RUSTUP_DIST_SERVER \
+    RUSTUP_UPDATE_ROOT=$RUSTUP_UPDATE_ROOT \
+    CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
+
+RUN set -eux; \
+  rm -f /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; \
+  printf 'deb %s/debian trixie main\n' "$DEBIAN_MIRROR" > /etc/apt/sources.list; \
+  printf 'deb %s/debian trixie-updates main\n' "$DEBIAN_MIRROR" >> /etc/apt/sources.list; \
+  printf 'deb %s/debian-security trixie-security main\n' "$DEBIAN_MIRROR" >> /etc/apt/sources.list; \
+  printf 'deb [trusted=yes] %s trixie-pgdg main\n' "$PGDG_MIRROR" > /etc/apt/sources.list.d/pgdg.list; \
+  apt-get -o Acquire::Retries=8 update; \
+  PG18_VERSION="$(apt-cache policy postgresql-server-dev-18 | awk '/Candidate:/ {print $2; exit}')"; \
+  apt-get -o Acquire::Retries=8 install -y --allow-downgrades --fix-missing --no-install-recommends \
+    ca-certificates \
+    curl \
+    pkg-config \
+    clang \
+    llvm-dev \
+    libc6-dev \
+    make \
+    pgtap \
+    "libpq5=${PG18_VERSION}" \
+    "libpq-dev=${PG18_VERSION}" \
+    "postgresql-18=${PG18_VERSION}" \
+    "postgresql-client-18=${PG18_VERSION}" \
+    "postgresql-18-pgtap=$(apt-cache policy postgresql-18-pgtap | awk '/Candidate:/ {print $2; exit}')" \
+    "postgresql-server-dev-18=${PG18_VERSION}"; \
+  ARCH="$(dpkg --print-architecture)"; \
+  case "$ARCH" in amd64|arm64) ;; *) echo "unsupported architecture for pg_search: $ARCH" >&2; exit 1 ;; esac; \
+  PG_SEARCH_DEB="postgresql-18-pg-search_${PG_SEARCH_VERSION}-1PARADEDB-trixie_${ARCH}.deb"; \
+  curl -fsSL -o "/tmp/${PG_SEARCH_DEB}" \
+    "https://github.com/paradedb/paradedb/releases/download/v${PG_SEARCH_VERSION}/${PG_SEARCH_DEB}"; \
+  apt-get -o Acquire::Retries=8 install -y --allow-downgrades --fix-missing "/tmp/${PG_SEARCH_DEB}"; \
+  update-ca-certificates; \
+  rm -rf /var/lib/apt/lists/* /tmp/*
+
+RUN set -eux; \
+  mkdir -p /root/.cargo; \
+  cat > /root/.cargo/config.toml <<'CARGO'
+[source.crates-io]
+replace-with = "tuna"
+
+[source.tuna]
+registry = "sparse+https://mirrors.tuna.tsinghua.edu.cn/crates.io-index/"
+CARGO
+
+RUN set -eux; \
+  curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal; \
+  rustup default stable; \
+  cargo install --locked cargo-pgrx --version 0.17.0
+
+WORKDIR /work
+COPY . /work

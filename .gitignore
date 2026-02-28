@@ -1,0 +1,10 @@
+target/
+
+# Generated benchmark outputs
+benchmark_pg18_report*.txt
+
+# Local/editor/system files
+.DS_Store
+*.log
+__pycache__/
+*.pyc

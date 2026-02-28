@@ -1,0 +1,72 @@
+# Release build image for pg_pinyin packages on Debian trixie (PG14-18)
+ARG BASE_IMAGE=docker.m.daocloud.io/postgres:18.3-trixie
+FROM ${BASE_IMAGE}
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG DEBIAN_MIRROR=http://mirrors.tuna.tsinghua.edu.cn
+ARG PGDG_MIRROR=http://repo.pigsty.cc/apt/pgdg
+ARG RUSTUP_DIST_SERVER=https://mirrors.tuna.tsinghua.edu.cn/rustup
+ARG RUSTUP_UPDATE_ROOT=https://mirrors.tuna.tsinghua.edu.cn/rustup/rustup
+
+ENV PATH=/root/.cargo/bin:$PATH \
+    RUSTUP_DIST_SERVER=$RUSTUP_DIST_SERVER \
+    RUSTUP_UPDATE_ROOT=$RUSTUP_UPDATE_ROOT \
+    CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
+
+RUN set -eux; \
+  rm -f /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; \
+  printf 'deb %s/debian trixie main\n' "$DEBIAN_MIRROR" > /etc/apt/sources.list; \
+  printf 'deb %s/debian trixie-updates main\n' "$DEBIAN_MIRROR" >> /etc/apt/sources.list; \
+  printf 'deb %s/debian-security trixie-security main\n' "$DEBIAN_MIRROR" >> /etc/apt/sources.list; \
+  printf 'deb [trusted=yes] %s trixie-pgdg main\n' "$PGDG_MIRROR" > /etc/apt/sources.list.d/pgdg.list; \
+  apt-get -o Acquire::Retries=8 update; \
+  V14="$(apt-cache policy postgresql-server-dev-14 | awk '/Candidate:/ {print $2; exit}')"; \
+  V15="$(apt-cache policy postgresql-server-dev-15 | awk '/Candidate:/ {print $2; exit}')"; \
+  V16="$(apt-cache policy postgresql-server-dev-16 | awk '/Candidate:/ {print $2; exit}')"; \
+  V17="$(apt-cache policy postgresql-server-dev-17 | awk '/Candidate:/ {print $2; exit}')"; \
+  V18="$(apt-cache policy postgresql-server-dev-18 | awk '/Candidate:/ {print $2; exit}')"; \
+  apt-get -o Acquire::Retries=8 install -y --allow-downgrades --fix-missing --no-install-recommends \
+    ca-certificates \
+    curl \
+    pkg-config \
+    clang \
+    llvm-dev \
+    libc6-dev \
+    dpkg-dev \
+    "postgresql-client-14=${V14}" \
+    "postgresql-client-15=${V15}" \
+    "postgresql-client-16=${V16}" \
+    "postgresql-client-17=${V17}" \
+    "postgresql-client-18=${V18}" \
+    "postgresql-14=${V14}" \
+    "postgresql-15=${V15}" \
+    "postgresql-16=${V16}" \
+    "postgresql-17=${V17}" \
+    "postgresql-18=${V18}" \
+    "postgresql-server-dev-14=${V14}" \
+    "postgresql-server-dev-15=${V15}" \
+    "postgresql-server-dev-16=${V16}" \
+    "postgresql-server-dev-17=${V17}" \
+    "postgresql-server-dev-18=${V18}" \
+    "libpq5=${V18}" \
+    "libpq-dev=${V18}"; \
+  update-ca-certificates; \
+  rm -rf /var/lib/apt/lists/* /tmp/*
+
+RUN set -eux; \
+  mkdir -p /root/.cargo; \
+  cat > /root/.cargo/config.toml <<'CARGO'
+[source.crates-io]
+replace-with = "tuna"
+
+[source.tuna]
+registry = "sparse+https://mirrors.tuna.tsinghua.edu.cn/crates.io-index/"
+CARGO
+
+RUN set -eux; \
+  curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal; \
+  rustup default stable; \
+  cargo install --locked cargo-pgrx --version 0.17.0
+
+WORKDIR /work
+COPY . /work

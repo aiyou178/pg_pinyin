@@ -1,0 +1,37 @@
+[package]
+name = "pg_pinyin"
+version = "0.1.0"
+edition = "2024"
+description = "Pinyin normalization and search helpers for PostgreSQL"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[[bin]]
+name = "pgrx_embed_pg_pinyin"
+path = "src/bin/pgrx_embed_pg_pinyin.rs"
+
+[features]
+default = []
+extension = ["dep:pgrx", "dep:serde_json"]
+pg14 = ["extension", "pgrx/pg14"]
+pg15 = ["extension", "pgrx/pg15"]
+pg16 = ["extension", "pgrx/pg16"]
+pg17 = ["extension", "pgrx/pg17"]
+pg18 = ["extension", "pgrx/pg18"]
+pg_test = ["extension", "dep:pgrx-tests", "pgrx-tests/pg18"]
+
+[dependencies]
+pgrx = { version = "=0.17.0", optional = true }
+pgrx-tests = { version = "=0.17.0", optional = true }
+serde_json = { version = "1.0", optional = true }
+
+[profile.dev]
+panic = "unwind"
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+opt-level = 3
+panic = "unwind"
