@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 # Test image for pg_pinyin on PostgreSQL 18 (Debian trixie)
 ARG BASE_IMAGE=postgres:18.3-trixie
 FROM ${BASE_IMAGE}
@@ -34,7 +35,10 @@ RUN set -eux; \
   update-ca-certificates; \
   rm -rf /var/lib/apt/lists/* /tmp/*
 
-RUN set -eux; \
+RUN --mount=type=cache,target=/root/.cargo/registry \
+  --mount=type=cache,target=/root/.cargo/git \
+  --mount=type=cache,target=/root/.rustup/downloads \
+  set -eux; \
   curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal; \
   rustup default stable; \
   cargo install --locked cargo-pgrx --version 0.17.0

@@ -2,8 +2,6 @@
 
 [English README](readme.md)
 
-维护者：Liang Zhanzhao
-
 `pg_pinyin` 包含两套实现：
 
 1. SQL 基线方案（`sql/pinyin.sql`）
@@ -30,7 +28,8 @@ Rust 扩展在编译时内置以下数据：
 - `sql/data/pinyin_token.csv`
 - `sql/data/pinyin_words.csv`
 
-首次调用时会自动将数据写入 `pinyin` schema 下的字典表。
+在执行 `CREATE EXTENSION pg_pinyin` 时，会把内嵌 CSV 数据通过 PostgreSQL `COPY`
+写入 `pinyin` schema 下的字典表（失败时会回退到 `INSERT`）。
 使用扩展时无需额外执行 `sql/load_data.sql`。
 
 ## 数据准备（一键）
@@ -111,6 +110,13 @@ docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/test:trixie .
 docker build -f docker/Dockerfile.release-trixie -t pg_pinyin/release:trixie .
 ```
 
+Dockerfile 已使用 BuildKit cache mount 缓存 Rust 下载/索引。
+如需显式开启 BuildKit：
+
+```bash
+DOCKER_BUILDKIT=1 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/test:trixie .
+```
+
 ## Benchmark
 
 仅衡量分词/归一化性能（不比较检索性能）：
@@ -122,6 +128,15 @@ docker build -f docker/Dockerfile.release-trixie -t pg_pinyin/release:trixie .
 ```bash
 ROWS=2000 PGURL=postgres://localhost/postgres ./scripts/benchmark_pg18.sh
 ```
+
+## Roadmap
+
+1. 梳理数据生成流水线，并持续扩充词级字典覆盖。
+2. 支持用户自定义词典，并可按指定词典执行归一化。
+3. 提供平滑升级路径（扩展内置词典与用户词典的升级策略）。
+4. 改进英文处理能力（包括 stemming）。
+5. 提供更多不依赖 `pg_search` 的示例。
+6. 持续优化性能与内存平衡（例如评估 frozen hash 相对表查找的收益）。
 
 ## 可在线更新字典表
 

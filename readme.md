@@ -2,8 +2,6 @@
 
 [中文说明](README.zh-CN.md)
 
-Maintainer: Liang Zhanzhao
-
 `pg_pinyin` includes:
 
 1. SQL baseline (`sql/pinyin.sql`)
@@ -30,7 +28,8 @@ The Rust extension now embeds these dictionaries at build time:
 - `sql/data/pinyin_token.csv`
 - `sql/data/pinyin_words.csv`
 
-On first use, it auto-seeds dictionary tables under schema `pinyin`.
+During `CREATE EXTENSION pg_pinyin`, it seeds dictionary tables under schema `pinyin`
+using PostgreSQL `COPY` from embedded CSV payloads (with SQL `INSERT` fallback).
 No separate `sql/load_data.sql` step is required for extension usage.
 
 ## Data Prep (Moved + One-Shot)
@@ -127,6 +126,13 @@ Build release image:
 docker build -f docker/Dockerfile.release-trixie -t pg_pinyin/release:trixie .
 ```
 
+The Dockerfiles use BuildKit cache mounts for Rust download/index caches.
+If needed, ensure BuildKit is enabled:
+
+```bash
+DOCKER_BUILDKIT=1 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/test:trixie .
+```
+
 ## Benchmark
 
 Tokenization-only benchmark script:
@@ -145,6 +151,15 @@ Run:
 ```bash
 ROWS=2000 PGURL=postgres://localhost/postgres ./scripts/benchmark_pg18.sh
 ```
+
+## Roadmap
+
+1. Tidy up the data generation pipeline and expand the word dictionary coverage.
+2. Support user-provided dictionaries and allow normalization against a specific dictionary set.
+3. Provide a smooth upgrade path for extension dictionaries and user dictionaries.
+4. Improve English handling (including stemming).
+5. Provide better examples without `pg_search`.
+6. Improve performance and memory balance (for example, evaluate frozen hash structures vs table lookups).
 
 ## User-Updatable Tables
 

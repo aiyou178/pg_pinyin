@@ -4,10 +4,12 @@ pgrx::pg_module_magic!();
 #[cfg(feature = "extension")]
 mod extension {
     use std::collections::HashMap;
+    use std::fs;
     use std::mem;
+    use std::process;
     use std::sync::{OnceLock, RwLock};
+    use std::time::{SystemTime, UNIX_EPOCH};
 
-    use csv::ReaderBuilder;
     use pgrx::datum::AnyElement;
     use pgrx::prelude::*;
 
@@ -48,21 +50,18 @@ mod extension {
         format!("'{}'", value.replace('\'', "''"))
     }
 
-    fn parse_embedded_string_rows(csv_text: &str, expected_name: &str) -> Vec<(String, String)> {
+    fn parse_embedded_string_rows(csv_text: &str, csv_name: &str) -> Vec<(String, String)> {
         let mut rows = Vec::new();
-        let mut reader = ReaderBuilder::new()
-            .has_headers(false)
-            .from_reader(csv_text.as_bytes());
-        for rec in reader.records() {
-            let record = match rec {
-                Ok(v) => v,
-                Err(err) => error!("failed parsing embedded {expected_name} CSV: {err}"),
-            };
-            let Some(first) = record.get(0) else {
+        for (idx, line) in csv_text.lines().enumerate() {
+            let row = line.trim_end_matches('\r');
+            if row.is_empty() {
                 continue;
-            };
-            let Some(second) = record.get(1) else {
-                continue;
+            }
+            let Some((first, second)) = row.split_once(',') else {
+                error!(
+                    "failed parsing embedded {csv_name} CSV at line {}: invalid two-column format",
+                    idx + 1
+                );
             };
             rows.push((first.to_string(), second.to_string()));
         }
@@ -71,19 +70,16 @@ mod extension {
 
     fn parse_embedded_token_rows(csv_text: &str) -> Vec<(String, i16)> {
         let mut rows = Vec::new();
-        let mut reader = ReaderBuilder::new()
-            .has_headers(false)
-            .from_reader(csv_text.as_bytes());
-        for rec in reader.records() {
-            let record = match rec {
-                Ok(v) => v,
-                Err(err) => error!("failed parsing embedded token CSV: {err}"),
-            };
-            let Some(token) = record.get(0) else {
+        for (idx, line) in csv_text.lines().enumerate() {
+            let row = line.trim_end_matches('\r');
+            if row.is_empty() {
                 continue;
-            };
-            let Some(category_text) = record.get(1) else {
-                continue;
+            }
+            let Some((token, category_text)) = row.split_once(',') else {
+                error!(
+                    "failed parsing embedded token CSV at line {}: invalid two-column format",
+                    idx + 1
+                );
             };
             let category: i16 = match category_text.parse() {
                 Ok(v) => v,
@@ -137,11 +133,35 @@ mod extension {
         }
     }
 
-    fn seed_embedded_dictionary_data() {
-        let mapping_rows = parse_embedded_string_rows(EMBEDDED_MAPPING_CSV, "mapping");
-        let token_rows = parse_embedded_token_rows(EMBEDDED_TOKEN_CSV);
-        let word_rows = parse_embedded_string_rows(EMBEDDED_WORDS_CSV, "word");
+    fn write_temp_csv(prefix: &str, csv_text: &str) -> String {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let path = format!("/tmp/pg_pinyin_{prefix}_{}_{}.csv", process::id(), now);
+        if let Err(err) = fs::write(&path, csv_text) {
+            error!("failed writing temp CSV file {path}: {err}");
+        }
+        path
+    }
 
+    fn try_copy_csv_to_table(
+        table: &str,
+        columns: &str,
+        prefix: &str,
+        csv_text: &str,
+    ) -> Result<(), String> {
+        let path = write_temp_csv(prefix, csv_text);
+        let sql = format!(
+            "COPY {table} ({columns}) FROM {} WITH (FORMAT csv, HEADER false)",
+            sql_literal(&path)
+        );
+        let result = Spi::run(&sql).map_err(|err| err.to_string());
+        let _ = fs::remove_file(&path);
+        result
+    }
+
+    fn seed_embedded_dictionary_data() {
         let truncate_sql = format!(
             "TRUNCATE TABLE {s}.pinyin_mapping; \
              TRUNCATE TABLE {s}.pinyin_token; \
@@ -152,19 +172,54 @@ mod extension {
             error!("failed truncating dictionary tables before seed: {err}");
         }
 
-        bulk_insert_string_rows(
+        let copy_attempt = try_copy_csv_to_table(
             &format!("{DICTIONARY_SCHEMA}.pinyin_mapping"),
-            "character",
-            "pinyin",
-            &mapping_rows,
-        );
-        bulk_insert_token_rows(&format!("{DICTIONARY_SCHEMA}.pinyin_token"), &token_rows);
-        bulk_insert_string_rows(
-            &format!("{DICTIONARY_SCHEMA}.pinyin_words"),
-            "word",
-            "pinyin",
-            &word_rows,
-        );
+            "character, pinyin",
+            "mapping",
+            EMBEDDED_MAPPING_CSV,
+        )
+        .and_then(|_| {
+            try_copy_csv_to_table(
+                &format!("{DICTIONARY_SCHEMA}.pinyin_token"),
+                "character, category",
+                "token",
+                EMBEDDED_TOKEN_CSV,
+            )
+        })
+        .and_then(|_| {
+            try_copy_csv_to_table(
+                &format!("{DICTIONARY_SCHEMA}.pinyin_words"),
+                "word, pinyin",
+                "words",
+                EMBEDDED_WORDS_CSV,
+            )
+        });
+
+        if let Err(copy_err) = copy_attempt {
+            let mapping_rows = parse_embedded_string_rows(EMBEDDED_MAPPING_CSV, "mapping");
+            let token_rows = parse_embedded_token_rows(EMBEDDED_TOKEN_CSV);
+            let word_rows = parse_embedded_string_rows(EMBEDDED_WORDS_CSV, "word");
+
+            if let Err(err) = Spi::run(&truncate_sql) {
+                error!("failed truncating dictionary tables for fallback insert: {err}");
+            }
+
+            bulk_insert_string_rows(
+                &format!("{DICTIONARY_SCHEMA}.pinyin_mapping"),
+                "character",
+                "pinyin",
+                &mapping_rows,
+            );
+            bulk_insert_token_rows(&format!("{DICTIONARY_SCHEMA}.pinyin_token"), &token_rows);
+            bulk_insert_string_rows(
+                &format!("{DICTIONARY_SCHEMA}.pinyin_words"),
+                "word",
+                "pinyin",
+                &word_rows,
+            );
+
+            warning!("COPY-based dictionary seed failed, fallback to INSERT: {copy_err}");
+        }
 
         let space_sql = format!(
             "INSERT INTO {s}.pinyin_mapping (character, pinyin) VALUES (' ', ' ') \
@@ -173,31 +228,6 @@ mod extension {
         );
         if let Err(err) = Spi::run(&space_sql) {
             error!("failed ensuring space mapping row: {err}");
-        }
-
-        let mark_sql = format!(
-            "UPDATE {s}.pinyin_dictionary_meta \
-             SET embedded_loaded = true \
-             WHERE singleton",
-            s = DICTIONARY_SCHEMA
-        );
-        if let Err(err) = Spi::run(&mark_sql) {
-            error!("failed marking embedded dictionary as loaded: {err}");
-        }
-    }
-
-    fn ensure_embedded_dictionary_loaded() {
-        let check_sql = format!(
-            "SELECT NOT COALESCE((SELECT embedded_loaded FROM {s}.pinyin_dictionary_meta WHERE singleton), false)",
-            s = DICTIONARY_SCHEMA
-        );
-        let should_seed = match Spi::get_one::<bool>(&check_sql) {
-            Ok(Some(v)) => v,
-            Ok(None) => true,
-            Err(_) => true,
-        };
-        if should_seed {
-            seed_embedded_dictionary_data();
         }
     }
 
@@ -242,7 +272,6 @@ mod extension {
     }
 
     fn with_dictionary_cache<R>(f: impl FnOnce(&DictionaryCache) -> R) -> R {
-        ensure_embedded_dictionary_loaded();
         let version = fetch_dictionary_version();
         let lock = dictionary_cache();
 
@@ -608,6 +637,12 @@ mod extension {
         pinyin_word_normalize_tokenizer_impl(tokenizer_input)
     }
 
+    #[pg_extern(volatile, parallel_unsafe, name = "pinyin__seed_embedded_data")]
+    fn pinyin_seed_embedded_data_internal() -> bool {
+        seed_embedded_dictionary_data();
+        true
+    }
+
     extension_sql!(
         r#"
         CREATE SCHEMA IF NOT EXISTS pinyin;
@@ -629,15 +664,11 @@ mod extension {
 
         CREATE TABLE IF NOT EXISTS pinyin.pinyin_dictionary_meta (
           singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
-          version bigint NOT NULL DEFAULT 1,
-          embedded_loaded boolean NOT NULL DEFAULT false
+          version bigint NOT NULL DEFAULT 1
         );
 
-        ALTER TABLE pinyin.pinyin_dictionary_meta
-        ADD COLUMN IF NOT EXISTS embedded_loaded boolean NOT NULL DEFAULT false;
-
-        INSERT INTO pinyin.pinyin_dictionary_meta (singleton, version, embedded_loaded)
-        VALUES (true, 1, false)
+        INSERT INTO pinyin.pinyin_dictionary_meta (singleton, version)
+        VALUES (true, 1)
         ON CONFLICT (singleton) DO NOTHING;
 
         CREATE OR REPLACE FUNCTION pinyin.pinyin_dictionary_bump_version()
@@ -675,7 +706,16 @@ mod extension {
         ON CONFLICT (character) DO NOTHING;
         "#,
         name = "pinyin_dictionary_tables",
+        requires = [pinyin_seed_embedded_data_internal],
         bootstrap
+    );
+
+    extension_sql!(
+        r#"
+        SELECT public.pinyin__seed_embedded_data();
+        "#,
+        name = "pinyin_dictionary_seed",
+        requires = [pinyin_seed_embedded_data_internal]
     );
 
     #[cfg(any(test, feature = "pg_test"))]
@@ -773,7 +813,6 @@ mod extension {
             assert_eq!(converted, "tong qi");
         }
     }
-
 }
 
 #[cfg(all(feature = "extension", any(test, feature = "pg_test")))]
