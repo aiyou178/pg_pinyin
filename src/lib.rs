@@ -18,17 +18,11 @@ mod extension {
     const EMBEDDED_TOKEN_CSV: &str = include_str!("../sql/data/pinyin_token.csv");
     const EMBEDDED_WORDS_CSV: &str = include_str!("../sql/data/pinyin_words.csv");
 
-    fn spi_json_text(query: &str) -> String {
-        match Spi::get_one::<String>(query) {
-            Ok(Some(value)) => value,
-            Ok(None) => "{}".to_string(),
-            Err(err) => error!("SPI query failed: {err}. query={query}"),
-        }
-    }
-
-    fn fetch_string_map_from_query(query: &str) -> HashMap<String, String> {
-        let json_text = spi_json_text(query);
-        serde_json::from_str::<HashMap<String, String>>(&json_text).unwrap_or_default()
+    #[derive(Default)]
+    struct CharDictionaryCache {
+        version: i64,
+        loaded: bool,
+        char_map: HashMap<String, String>,
     }
 
     #[derive(Default)]
@@ -50,13 +44,19 @@ mod extension {
     struct SuffixDictionaryCacheEntry {
         signature: SuffixDictionarySignature,
         char_map: HashMap<String, String>,
+        words_loaded: bool,
         word_map: HashMap<String, String>,
         max_word_len: usize,
     }
 
+    static CHAR_DICTIONARY_CACHE: OnceLock<RwLock<CharDictionaryCache>> = OnceLock::new();
     static DICTIONARY_CACHE: OnceLock<RwLock<DictionaryCache>> = OnceLock::new();
     static SUFFIX_DICTIONARY_CACHE: OnceLock<RwLock<HashMap<String, SuffixDictionaryCacheEntry>>> =
         OnceLock::new();
+
+    fn char_dictionary_cache() -> &'static RwLock<CharDictionaryCache> {
+        CHAR_DICTIONARY_CACHE.get_or_init(|| RwLock::new(CharDictionaryCache::default()))
+    }
 
     fn dictionary_cache() -> &'static RwLock<DictionaryCache> {
         DICTIONARY_CACHE.get_or_init(|| RwLock::new(DictionaryCache::default()))
@@ -68,6 +68,58 @@ mod extension {
 
     fn sql_literal(value: &str) -> String {
         format!("'{}'", value.replace('\'', "''"))
+    }
+
+    fn fetch_string_map_from_table(
+        table: &str,
+        key_col: &str,
+        value_col: &str,
+    ) -> HashMap<String, String> {
+        let query = format!(
+            "SELECT {key_col}, {value_col} FROM {schema}.{table}",
+            key_col = key_col,
+            value_col = value_col,
+            schema = DICTIONARY_SCHEMA,
+            table = table,
+        );
+
+        Spi::connect(|client| {
+            let rows = match client.select(&query, None, &[]) {
+                Ok(rows) => rows,
+                Err(err) => error!("SPI query failed: {err}. query={query}"),
+            };
+
+            let mut out = HashMap::with_capacity(rows.len());
+            for row in rows {
+                let key = match row[key_col].value::<String>() {
+                    Ok(Some(v)) => v,
+                    Ok(None) => continue,
+                    Err(err) => error!("SPI row parse failed for {table}.{key_col}: {err}"),
+                };
+                let value = match row[value_col].value::<String>() {
+                    Ok(Some(v)) => v,
+                    Ok(None) => continue,
+                    Err(err) => error!("SPI row parse failed for {table}.{value_col}: {err}"),
+                };
+                out.insert(key, value);
+            }
+
+            out
+        })
+    }
+
+    fn fetch_overlayed_string_map(
+        base_table: &str,
+        key_col: &str,
+        value_col: &str,
+        overlay_table: Option<&str>,
+    ) -> HashMap<String, String> {
+        let mut out = fetch_string_map_from_table(base_table, key_col, value_col);
+        if let Some(overlay) = overlay_table {
+            let overlay_map = fetch_string_map_from_table(overlay, key_col, value_col);
+            out.extend(overlay_map);
+        }
+        out
     }
 
     fn parse_embedded_string_rows(csv_text: &str, csv_name: &str) -> Vec<(String, String)> {
@@ -263,18 +315,44 @@ mod extension {
         }
     }
 
-    fn load_dictionary_snapshot(version: i64) -> DictionaryCache {
-        let char_map = fetch_string_map_from_query(&format!(
-            "SELECT coalesce(jsonb_object_agg(character, pinyin), '{{}}'::jsonb)::text \
-             FROM {s}.pinyin_mapping",
-            s = DICTIONARY_SCHEMA
-        ));
+    fn load_char_dictionary_snapshot(version: i64) -> CharDictionaryCache {
+        let char_map = fetch_string_map_from_table("pinyin_mapping", "character", "pinyin");
+        CharDictionaryCache {
+            version,
+            loaded: true,
+            char_map,
+        }
+    }
 
-        let word_map = fetch_string_map_from_query(&format!(
-            "SELECT coalesce(jsonb_object_agg(word, pinyin), '{{}}'::jsonb)::text \
-             FROM {s}.pinyin_words",
-            s = DICTIONARY_SCHEMA
-        ));
+    fn with_char_dictionary_cache<R>(f: impl FnOnce(&HashMap<String, String>) -> R) -> R {
+        let version = fetch_dictionary_version();
+        let lock = char_dictionary_cache();
+
+        {
+            let cache = lock
+                .read()
+                .expect("char dictionary cache read lock poisoned");
+            if cache.loaded && cache.version == version {
+                return f(&cache.char_map);
+            }
+        }
+
+        let snapshot = load_char_dictionary_snapshot(version);
+
+        {
+            let mut cache = lock
+                .write()
+                .expect("char dictionary cache write lock poisoned");
+            if !cache.loaded || cache.version != version {
+                *cache = snapshot;
+            }
+            f(&cache.char_map)
+        }
+    }
+
+    fn load_dictionary_snapshot(version: i64) -> DictionaryCache {
+        let char_map = fetch_string_map_from_table("pinyin_mapping", "character", "pinyin");
+        let word_map = fetch_string_map_from_table("pinyin_words", "word", "pinyin");
 
         let max_word_len = word_map
             .keys()
@@ -353,70 +431,36 @@ mod extension {
         }
     }
 
-    fn fetch_merged_string_map(
-        base_table: &str,
-        key_col: &str,
-        value_col: &str,
-        overlay_table: Option<&str>,
-    ) -> HashMap<String, String> {
-        if let Some(overlay) = overlay_table {
-            let query = format!(
-                "SELECT COALESCE(jsonb_object_agg({key_col}, {value_col}), '{{}}'::jsonb)::text
-                 FROM (
-                   SELECT DISTINCT ON ({key_col}) {key_col}, {value_col}
-                   FROM (
-                     SELECT {key_col}, {value_col}, 0 AS priority
-                     FROM {schema}.{base_table}
-                     UNION ALL
-                     SELECT {key_col}, {value_col}, 1 AS priority
-                     FROM {schema}.{overlay_table}
-                   ) AS merged
-                   ORDER BY {key_col}, priority DESC
-                 ) AS picked",
-                key_col = key_col,
-                value_col = value_col,
-                schema = DICTIONARY_SCHEMA,
-                base_table = base_table,
-                overlay_table = overlay,
-            );
-            return fetch_string_map_from_query(&query);
-        }
-
-        fetch_string_map_from_query(&format!(
-            "SELECT COALESCE(jsonb_object_agg({key_col}, {value_col}), '{{}}'::jsonb)::text
-             FROM {schema}.{base_table}",
-            key_col = key_col,
-            value_col = value_col,
-            schema = DICTIONARY_SCHEMA,
-            base_table = base_table,
-        ))
+    fn overlay_table_name(base_name: &str, canonical_suffix: Option<&str>) -> Option<String> {
+        canonical_suffix
+            .map(|s| format!("{base_name}{s}"))
+            .filter(|table| table_exists(DICTIONARY_SCHEMA, table))
     }
 
-    fn load_dictionary_from_canonical_suffix(
+    fn load_char_map_from_canonical_suffix(
         canonical_suffix: Option<&str>,
-    ) -> (HashMap<String, String>, HashMap<String, String>, usize) {
-        let overlay_mapping = canonical_suffix
-            .map(|s| format!("pinyin_mapping{s}"))
-            .filter(|table| table_exists(DICTIONARY_SCHEMA, table));
-        let overlay_words = canonical_suffix
-            .map(|s| format!("pinyin_words{s}"))
-            .filter(|table| table_exists(DICTIONARY_SCHEMA, table));
-
-        let char_map = fetch_merged_string_map(
+    ) -> HashMap<String, String> {
+        let overlay_mapping = overlay_table_name("pinyin_mapping", canonical_suffix);
+        fetch_overlayed_string_map(
             "pinyin_mapping",
             "character",
             "pinyin",
             overlay_mapping.as_deref(),
-        );
+        )
+    }
+
+    fn load_word_map_from_canonical_suffix(
+        canonical_suffix: Option<&str>,
+    ) -> (HashMap<String, String>, usize) {
+        let overlay_words = overlay_table_name("pinyin_words", canonical_suffix);
         let word_map =
-            fetch_merged_string_map("pinyin_words", "word", "pinyin", overlay_words.as_deref());
+            fetch_overlayed_string_map("pinyin_words", "word", "pinyin", overlay_words.as_deref());
         let max_word_len = word_map
             .keys()
             .map(|word| word.chars().count())
             .max()
             .unwrap_or(0);
-
-        (char_map, word_map, max_word_len)
+        (word_map, max_word_len)
     }
 
     fn current_suffix_signature() -> SuffixDictionarySignature {
@@ -426,7 +470,7 @@ mod extension {
         }
     }
 
-    fn with_suffix_dictionary_cache<R>(
+    fn with_suffix_char_cache<R>(
         canonical_suffix: &str,
         f: impl FnOnce(&SuffixDictionaryCacheEntry) -> R,
     ) -> R {
@@ -444,8 +488,7 @@ mod extension {
             }
         }
 
-        let (char_map, word_map, max_word_len) =
-            load_dictionary_from_canonical_suffix(Some(canonical_suffix));
+        let char_map = load_char_map_from_canonical_suffix(Some(canonical_suffix));
 
         {
             let mut cache = lock
@@ -456,25 +499,51 @@ mod extension {
                 *entry = SuffixDictionaryCacheEntry {
                     signature,
                     char_map,
-                    word_map,
-                    max_word_len,
+                    words_loaded: false,
+                    word_map: HashMap::new(),
+                    max_word_len: 0,
                 };
             }
             f(entry)
         }
     }
 
-    fn with_dictionary_for_suffix<R>(
-        suffix: &str,
-        f: impl FnOnce(&HashMap<String, String>, &HashMap<String, String>, usize) -> R,
+    fn with_suffix_word_cache<R>(
+        canonical_suffix: &str,
+        f: impl FnOnce(&SuffixDictionaryCacheEntry) -> R,
     ) -> R {
-        match canonicalize_table_suffix(suffix) {
-            Some(canonical_suffix) => with_suffix_dictionary_cache(&canonical_suffix, |entry| {
-                f(&entry.char_map, &entry.word_map, entry.max_word_len)
-            }),
-            None => with_dictionary_cache(|cache| {
-                f(&cache.char_map, &cache.word_map, cache.max_word_len)
-            }),
+        let signature = current_suffix_signature();
+        let lock = suffix_dictionary_cache();
+
+        {
+            let cache = lock
+                .read()
+                .expect("suffix dictionary cache read lock poisoned");
+            if let Some(entry) = cache.get(canonical_suffix) {
+                if entry.signature == signature && entry.words_loaded {
+                    return f(entry);
+                }
+            }
+        }
+
+        let char_map = load_char_map_from_canonical_suffix(Some(canonical_suffix));
+        let (word_map, max_word_len) = load_word_map_from_canonical_suffix(Some(canonical_suffix));
+
+        {
+            let mut cache = lock
+                .write()
+                .expect("suffix dictionary cache write lock poisoned");
+            let entry = cache.entry(canonical_suffix.to_string()).or_default();
+            if entry.signature != signature || !entry.words_loaded {
+                *entry = SuffixDictionaryCacheEntry {
+                    signature,
+                    char_map,
+                    words_loaded: true,
+                    word_map,
+                    max_word_len,
+                };
+            }
+            f(entry)
         }
     }
 
@@ -721,13 +790,18 @@ mod extension {
     }
 
     fn pinyin_char_romanize_impl(origin: &str) -> String {
-        with_dictionary_cache(|cache| pinyin_char_romanize_with_char_map(origin, &cache.char_map))
+        with_char_dictionary_cache(|char_map| pinyin_char_romanize_with_char_map(origin, char_map))
     }
 
     fn pinyin_char_romanize_with_suffix_impl(origin: &str, suffix: &str) -> String {
-        with_dictionary_for_suffix(suffix, |char_map, _, _| {
-            pinyin_char_romanize_with_char_map(origin, char_map)
-        })
+        match canonicalize_table_suffix(suffix) {
+            Some(canonical_suffix) => with_suffix_char_cache(&canonical_suffix, |entry| {
+                pinyin_char_romanize_with_char_map(origin, &entry.char_map)
+            }),
+            None => with_char_dictionary_cache(|char_map| {
+                pinyin_char_romanize_with_char_map(origin, char_map)
+            }),
+        }
     }
 
     fn map_word_fallback(token: &str, char_map: &HashMap<String, String>) -> String {
@@ -844,9 +918,24 @@ mod extension {
     }
 
     fn pinyin_word_romanize_with_suffix_impl(origin: &str, suffix: &str) -> String {
-        with_dictionary_for_suffix(suffix, |char_map, word_map, max_word_len| {
-            pinyin_word_romanize_with_maps(origin, char_map, word_map, max_word_len)
-        })
+        match canonicalize_table_suffix(suffix) {
+            Some(canonical_suffix) => with_suffix_word_cache(&canonical_suffix, |entry| {
+                pinyin_word_romanize_with_maps(
+                    origin,
+                    &entry.char_map,
+                    &entry.word_map,
+                    entry.max_word_len,
+                )
+            }),
+            None => with_dictionary_cache(|cache| {
+                pinyin_word_romanize_with_maps(
+                    origin,
+                    &cache.char_map,
+                    &cache.word_map,
+                    cache.max_word_len,
+                )
+            }),
+        }
     }
 
     fn pinyin_word_romanize_tokenizer_impl(tokenizer_input: AnyElement) -> String {
@@ -864,16 +953,48 @@ mod extension {
         tokenizer_input: AnyElement,
         suffix: &str,
     ) -> String {
+        let canonical_suffix = canonicalize_table_suffix(suffix);
+
         if let Some(tokens) = fetch_tokenizer_input_tokens(tokenizer_input) {
-            return with_dictionary_for_suffix(suffix, |char_map, word_map, max_word_len| {
-                romanize_word_tokens_with_maps(tokens, char_map, word_map, max_word_len)
-            });
+            return match canonical_suffix.as_deref() {
+                Some(canonical_suffix) => with_suffix_word_cache(canonical_suffix, |entry| {
+                    romanize_word_tokens_with_maps(
+                        tokens,
+                        &entry.char_map,
+                        &entry.word_map,
+                        entry.max_word_len,
+                    )
+                }),
+                None => with_dictionary_cache(|cache| {
+                    romanize_word_tokens_with_maps(
+                        tokens,
+                        &cache.char_map,
+                        &cache.word_map,
+                        cache.max_word_len,
+                    )
+                }),
+            };
         }
 
         match anyelement_to_text(tokenizer_input) {
-            Some(text) => with_dictionary_for_suffix(suffix, |char_map, word_map, max_word_len| {
-                pinyin_word_romanize_with_maps(&text, char_map, word_map, max_word_len)
-            }),
+            Some(text) => match canonical_suffix.as_deref() {
+                Some(canonical_suffix) => with_suffix_word_cache(canonical_suffix, |entry| {
+                    pinyin_word_romanize_with_maps(
+                        &text,
+                        &entry.char_map,
+                        &entry.word_map,
+                        entry.max_word_len,
+                    )
+                }),
+                None => with_dictionary_cache(|cache| {
+                    pinyin_word_romanize_with_maps(
+                        &text,
+                        &cache.char_map,
+                        &cache.word_map,
+                        cache.max_word_len,
+                    )
+                }),
+            },
             None => error!("tokenizer input must be castable to text[] or text"),
         }
     }

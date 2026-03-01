@@ -210,10 +210,10 @@ ROWS=2000 USER_TABLE_SUFFIX=_bench PGURL=postgres://postgres@localhost:5432/post
 
 | 场景                                                                                                                     |     Rust 扩展 |      SQL 基线 | 加速比（`SQL` / `Rust`） |
 | ------------------------------------------------------------------------------------------------------------------------ | ------------: | ------------: | -----------------------: |
-| 字级拼音化（`pinyin_char_romanize` vs `characters2romanize`）                                                            |  `344.609 ms` | `9303.897 ms` |                  `27.0x` |
-| 字级拼音化（后缀词典，`pinyin_char_romanize(name, '_bench')` vs `characters2romanize`）                                  | `5377.008 ms` | `9303.897 ms` |                   `1.7x` |
-| 词级拼音化（`pinyin_word_romanize(name::pdb.icu::text[])` vs `icu_romanize(name::pdb.icu::text[])`）                     |   `69.968 ms` |  `313.753 ms` |                   `4.5x` |
-| 词级拼音化（后缀词典，`pinyin_word_romanize(name::pdb.icu::text[], '_bench')` vs `icu_romanize(name::pdb.icu::text[])`） | `5487.158 ms` |  `313.753 ms` |                   `0.1x` |
+| 字级拼音化（`pinyin_char_romanize` vs `characters2romanize`）                                                            |  `334.570 ms` | `9377.595 ms` |                  `28.0x` |
+| 字级拼音化（后缀词典，`pinyin_char_romanize(name, '_bench')` vs `characters2romanize`）                                  |  `151.504 ms` | `9377.595 ms` |                  `61.9x` |
+| 词级拼音化（`pinyin_word_romanize(name::pdb.icu::text[])` vs `icu_romanize(name::pdb.icu::text[])`）                     |   `70.332 ms` |  `238.626 ms` |                   `3.4x` |
+| 词级拼音化（后缀词典，`pinyin_word_romanize(name::pdb.icu::text[], '_bench')` vs `icu_romanize(name::pdb.icu::text[])`） |  `810.859 ms` |  `238.626 ms` |                   `0.3x` |
 
 ## Roadmap
 

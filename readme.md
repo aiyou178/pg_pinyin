@@ -226,10 +226,10 @@ Latest run (PG18, `ROWS=2000`):
 
 | Scenario                                                                                                                         | Rust Extension |  SQL Baseline | Speedup (`SQL` / `Rust`) |
 | -------------------------------------------------------------------------------------------------------------------------------- | -------------: | ------------: | -----------------------: |
-| Char romanization (`pinyin_char_romanize` vs `characters2romanize`)                                                              |   `344.609 ms` | `9303.897 ms` |                  `27.0x` |
-| Char romanization with suffix (`pinyin_char_romanize(name, '_bench')` vs `characters2romanize`)                                  |  `5377.008 ms` | `9303.897 ms` |                   `1.7x` |
-| Word romanization (`pinyin_word_romanize(name::pdb.icu::text[])` vs `icu_romanize(name::pdb.icu::text[])`)                       |    `69.968 ms` |  `313.753 ms` |                   `4.5x` |
-| Word romanization with suffix (`pinyin_word_romanize(name::pdb.icu::text[], '_bench')` vs `icu_romanize(name::pdb.icu::text[])`) |  `5487.158 ms` |  `313.753 ms` |                   `0.1x` |
+| Char romanization (`pinyin_char_romanize` vs `characters2romanize`)                                                              |   `334.570 ms` | `9377.595 ms` |                  `28.0x` |
+| Char romanization with suffix (`pinyin_char_romanize(name, '_bench')` vs `characters2romanize`)                                  |   `151.504 ms` | `9377.595 ms` |                  `61.9x` |
+| Word romanization (`pinyin_word_romanize(name::pdb.icu::text[])` vs `icu_romanize(name::pdb.icu::text[])`)                       |    `70.332 ms` |  `238.626 ms` |                   `3.4x` |
+| Word romanization with suffix (`pinyin_word_romanize(name::pdb.icu::text[], '_bench')` vs `icu_romanize(name::pdb.icu::text[])`) |   `810.859 ms` |  `238.626 ms` |                   `0.3x` |
 
 ## Roadmap
 
