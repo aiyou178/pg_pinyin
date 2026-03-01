@@ -1,5 +1,5 @@
-comment = 'Pinyin normalization and search helpers'
-default_version = '0.0.1'
+comment = 'Pinyin romanization and search helpers'
+default_version = '0.0.2'
 module_pathname = '$libdir/pg_pinyin'
 relocatable = true
 superuser = false

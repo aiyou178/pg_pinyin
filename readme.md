@@ -9,16 +9,19 @@
 
 ## Extension API (Reduced)
 
-Only two APIs are exposed for normalization:
+Only two APIs are exposed for romanization:
 
-- `pinyin_char_normalize(text)`
-- `pinyin_word_normalize(text)`
-- `pinyin_word_normalize(tokenizer_input anyelement)` (overload; use `pdb` tokenizer input such as `name::pdb.icu`)
+- `pinyin_char_romanize(text)`
+- `pinyin_char_romanize(text, suffix text)`
+- `pinyin_word_romanize(text)`
+- `pinyin_word_romanize(text, suffix text)`
+- `pinyin_word_romanize(tokenizer_input anyelement)` (overload; use `pdb` tokenizer input such as `name::pdb.icu::text[]`)
+- `pinyin_word_romanize(tokenizer_input anyelement, suffix text)` (overload with user-table suffix)
 
 Recommended usage:
 
-1. char normalization + `pg_trgm`
-2. word normalization + `pg_search`
+1. char romanization + `pg_trgm`
+2. word romanization + `pg_search`
 
 ## Generated Column Example (Raw SQL)
 
@@ -29,13 +32,50 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE TABLE voice (
   id bigserial PRIMARY KEY,
   description text NOT NULL,
-  pinyin text GENERATED ALWAYS AS (public.pinyin_char_normalize(description)) STORED
+  pinyin text GENERATED ALWAYS AS (public.pinyin_char_romanize(description)) STORED
 );
 
 CREATE INDEX voice_pinyin_trgm_idx ON voice USING gin (pinyin gin_trgm_ops);
 
 INSERT INTO voice (description) VALUES ('郑爽ABC');
 SELECT id, description, pinyin FROM voice;
+```
+
+## User Dictionary Suffix Tables
+
+You can provide custom dictionary tables in schema `pinyin` by suffix:
+
+- `pinyin.pinyin_mapping_suffix1`
+- `pinyin.pinyin_words_suffix1`
+
+When calling `...(..., '_suffix1')`, romanization uses a merged dictionary:
+
+1. base tables (`pinyin_mapping` / `pinyin_words`)
+2. suffix tables (`pinyin_mapping_suffix1` / `pinyin_words_suffix1`) with higher priority
+
+Example:
+
+```sql
+CREATE TABLE IF NOT EXISTS pinyin.pinyin_mapping_suffix1 (
+  character text PRIMARY KEY,
+  pinyin text NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS pinyin.pinyin_words_suffix1 (
+  word text PRIMARY KEY,
+  pinyin text NOT NULL
+);
+
+INSERT INTO pinyin.pinyin_mapping_suffix1 (character, pinyin)
+VALUES ('郑', '|zhengx|')
+ON CONFLICT (character) DO UPDATE SET pinyin = EXCLUDED.pinyin;
+
+INSERT INTO pinyin.pinyin_words_suffix1 (word, pinyin)
+VALUES ('郑爽', '|zhengx| |shuangx|')
+ON CONFLICT (word) DO UPDATE SET pinyin = EXCLUDED.pinyin;
+
+SELECT public.pinyin_char_romanize('郑爽ABC', '_suffix1');
+SELECT public.pinyin_word_romanize('郑爽ABC'::pdb.icu::text[], '_suffix1');
 ```
 
 ## Extension-Bundled Dictionary Data
@@ -159,15 +199,19 @@ Tokenization-only benchmark script:
 
 It measures:
 
-- SQL char tokenizer: `characters2pinyin(name)`
-- Rust char tokenizer: `pinyin_char_normalize(name)`
-- SQL word tokenizer: `icu_romanize(name::pdb.icu)` (if `pg_search` exists)
-- Rust word tokenizer: `pinyin_word_normalize(name::pdb.icu)` when `pg_search` exists, else `pinyin_word_normalize(name)`
+- SQL char tokenizer: `characters2romanize(name)`
+- Rust char tokenizer: `pinyin_char_romanize(name)`
+- Rust char tokenizer (user suffix overlay): `pinyin_char_romanize(name, '_<suffix>')`
+- SQL word tokenizer: `icu_romanize(name::pdb.icu::text[])` (if `pg_search` exists)
+- Rust word tokenizer: `pinyin_word_romanize(name::pdb.icu::text[])` when `pg_search` exists, else `pinyin_word_romanize(name)`
+- Rust word tokenizer (user suffix overlay): `pinyin_word_romanize(name::pdb.icu::text[], '_<suffix>')`
+
+All benchmark queries use `EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)`.
 
 Run:
 
 ```bash
-ROWS=2000 PGURL=postgres://localhost/postgres ./scripts/benchmark_pg18.sh
+ROWS=2000 USER_TABLE_SUFFIX=_bench PGURL=postgres://localhost/postgres ./scripts/benchmark_pg18.sh
 ```
 
 ### Benchmark Session (PG18)
@@ -175,20 +219,22 @@ ROWS=2000 PGURL=postgres://localhost/postgres ./scripts/benchmark_pg18.sh
 Session command:
 
 ```bash
-ROWS=2000 PGURL=postgres://postgres@localhost:5432/postgres ./scripts/benchmark_pg18.sh
+ROWS=2000 USER_TABLE_SUFFIX=_bench PGURL=postgres://postgres@localhost:5432/postgres ./scripts/benchmark_pg18.sh
 ```
 
 Latest run (PG18, `ROWS=2000`):
 
-| Scenario | Rust Extension | SQL Baseline | Speedup (`SQL` / `Rust`) |
-|---|---:|---:|---:|
-| Char normalization (`pinyin_char_normalize` vs `characters2pinyin`) | `373.584 ms` | `9811.999 ms` | `26.3x` |
-| Word normalization (`pinyin_word_normalize(name::pdb.icu)` vs `icu_romanize(name::pdb.icu)`) | `75.561 ms` | `272.250 ms` | `3.6x` |
+| Scenario                                                                                                                         | Rust Extension |  SQL Baseline | Speedup (`SQL` / `Rust`) |
+| -------------------------------------------------------------------------------------------------------------------------------- | -------------: | ------------: | -----------------------: |
+| Char romanization (`pinyin_char_romanize` vs `characters2romanize`)                                                              |   `344.609 ms` | `9303.897 ms` |                  `27.0x` |
+| Char romanization with suffix (`pinyin_char_romanize(name, '_bench')` vs `characters2romanize`)                                  |  `5377.008 ms` | `9303.897 ms` |                   `1.7x` |
+| Word romanization (`pinyin_word_romanize(name::pdb.icu::text[])` vs `icu_romanize(name::pdb.icu::text[])`)                       |    `69.968 ms` |  `313.753 ms` |                   `4.5x` |
+| Word romanization with suffix (`pinyin_word_romanize(name::pdb.icu::text[], '_bench')` vs `icu_romanize(name::pdb.icu::text[])`) |  `5487.158 ms` |  `313.753 ms` |                   `0.1x` |
 
 ## Roadmap
 
 1. Tidy up the data generation pipeline and expand the word dictionary coverage.
-2. Support user-provided dictionaries and allow normalization against a specific dictionary set.
+2. ~~Support user-provided dictionaries and allow romanization against a specific dictionary set.~~
 3. Provide a smooth upgrade path for extension dictionaries and user dictionaries.
 4. Improve English handling (including stemming).
 5. Provide better examples without `pg_search`.
@@ -206,7 +252,7 @@ No extension rebuild is required after table updates.
 
 ## SQL Baseline Patent Citation
 
-If you use the SQL-based normalization method (`sql/pinyin.sql`), cite:
+If you use the SQL-based romanization method (`sql/pinyin.sql`), cite:
 
 - CN115905297A: [一种支持拼音检索和排序的方法及系统](https://patents.google.com/patent/CN115905297A/zh)
 

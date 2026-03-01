@@ -70,8 +70,8 @@ Priority: optional
 Architecture: ${ARCH}
 Maintainer: Liang Zhanzhao <liangzhanzhao1985@gmail.com>
 Depends: postgresql-${pg}
-Description: pinyin normalization extension for PostgreSQL
- Rust+pgrx extension with character and word-level pinyin normalization.
+Description: pinyin romanization extension for PostgreSQL
+ Rust+pgrx extension with character and word-level pinyin romanization.
 CONTROL
 
   out_deb="$OUT_DIR/postgresql-${pg}-pg-pinyin_${EXT_VERSION}_trixie_${ARCH}.deb"

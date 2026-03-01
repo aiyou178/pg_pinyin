@@ -40,10 +40,30 @@ mod extension {
         max_word_len: usize,
     }
 
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+    struct SuffixDictionarySignature {
+        statement_timestamp: i64,
+        base_version: i64,
+    }
+
+    #[derive(Default)]
+    struct SuffixDictionaryCacheEntry {
+        signature: SuffixDictionarySignature,
+        char_map: HashMap<String, String>,
+        word_map: HashMap<String, String>,
+        max_word_len: usize,
+    }
+
     static DICTIONARY_CACHE: OnceLock<RwLock<DictionaryCache>> = OnceLock::new();
+    static SUFFIX_DICTIONARY_CACHE: OnceLock<RwLock<HashMap<String, SuffixDictionaryCacheEntry>>> =
+        OnceLock::new();
 
     fn dictionary_cache() -> &'static RwLock<DictionaryCache> {
         DICTIONARY_CACHE.get_or_init(|| RwLock::new(DictionaryCache::default()))
+    }
+
+    fn suffix_dictionary_cache() -> &'static RwLock<HashMap<String, SuffixDictionaryCacheEntry>> {
+        SUFFIX_DICTIONARY_CACHE.get_or_init(|| RwLock::new(HashMap::new()))
     }
 
     fn sql_literal(value: &str) -> String {
@@ -293,6 +313,171 @@ mod extension {
         }
     }
 
+    fn canonicalize_table_suffix(suffix: &str) -> Option<String> {
+        let trimmed = suffix.trim();
+        if trimmed.is_empty() {
+            return None;
+        }
+
+        let normalized = trimmed.trim_start_matches('_');
+        if normalized.is_empty() {
+            error!("dictionary table suffix cannot be empty");
+        }
+
+        if !normalized
+            .chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+        {
+            error!("dictionary table suffix must contain only [A-Za-z0-9_]");
+        }
+
+        Some(format!("_{}", normalized.to_ascii_lowercase()))
+    }
+
+    fn table_exists(schema: &str, table: &str) -> bool {
+        let query = format!(
+            "SELECT EXISTS (
+               SELECT 1
+               FROM pg_catalog.pg_class AS c
+               JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace
+               WHERE n.nspname = {schema}
+                 AND c.relname = {table}
+                 AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
+             )",
+            schema = sql_literal(schema),
+            table = sql_literal(table),
+        );
+        match Spi::get_one::<bool>(&query) {
+            Ok(Some(v)) => v,
+            _ => false,
+        }
+    }
+
+    fn fetch_merged_string_map(
+        base_table: &str,
+        key_col: &str,
+        value_col: &str,
+        overlay_table: Option<&str>,
+    ) -> HashMap<String, String> {
+        if let Some(overlay) = overlay_table {
+            let query = format!(
+                "SELECT COALESCE(jsonb_object_agg({key_col}, {value_col}), '{{}}'::jsonb)::text
+                 FROM (
+                   SELECT DISTINCT ON ({key_col}) {key_col}, {value_col}
+                   FROM (
+                     SELECT {key_col}, {value_col}, 0 AS priority
+                     FROM {schema}.{base_table}
+                     UNION ALL
+                     SELECT {key_col}, {value_col}, 1 AS priority
+                     FROM {schema}.{overlay_table}
+                   ) AS merged
+                   ORDER BY {key_col}, priority DESC
+                 ) AS picked",
+                key_col = key_col,
+                value_col = value_col,
+                schema = DICTIONARY_SCHEMA,
+                base_table = base_table,
+                overlay_table = overlay,
+            );
+            return fetch_string_map_from_query(&query);
+        }
+
+        fetch_string_map_from_query(&format!(
+            "SELECT COALESCE(jsonb_object_agg({key_col}, {value_col}), '{{}}'::jsonb)::text
+             FROM {schema}.{base_table}",
+            key_col = key_col,
+            value_col = value_col,
+            schema = DICTIONARY_SCHEMA,
+            base_table = base_table,
+        ))
+    }
+
+    fn load_dictionary_from_canonical_suffix(
+        canonical_suffix: Option<&str>,
+    ) -> (HashMap<String, String>, HashMap<String, String>, usize) {
+        let overlay_mapping = canonical_suffix
+            .map(|s| format!("pinyin_mapping{s}"))
+            .filter(|table| table_exists(DICTIONARY_SCHEMA, table));
+        let overlay_words = canonical_suffix
+            .map(|s| format!("pinyin_words{s}"))
+            .filter(|table| table_exists(DICTIONARY_SCHEMA, table));
+
+        let char_map = fetch_merged_string_map(
+            "pinyin_mapping",
+            "character",
+            "pinyin",
+            overlay_mapping.as_deref(),
+        );
+        let word_map =
+            fetch_merged_string_map("pinyin_words", "word", "pinyin", overlay_words.as_deref());
+        let max_word_len = word_map
+            .keys()
+            .map(|word| word.chars().count())
+            .max()
+            .unwrap_or(0);
+
+        (char_map, word_map, max_word_len)
+    }
+
+    fn current_suffix_signature() -> SuffixDictionarySignature {
+        SuffixDictionarySignature {
+            statement_timestamp: unsafe { pg_sys::GetCurrentStatementStartTimestamp() as i64 },
+            base_version: fetch_dictionary_version(),
+        }
+    }
+
+    fn with_suffix_dictionary_cache<R>(
+        canonical_suffix: &str,
+        f: impl FnOnce(&SuffixDictionaryCacheEntry) -> R,
+    ) -> R {
+        let signature = current_suffix_signature();
+        let lock = suffix_dictionary_cache();
+
+        {
+            let cache = lock
+                .read()
+                .expect("suffix dictionary cache read lock poisoned");
+            if let Some(entry) = cache.get(canonical_suffix) {
+                if entry.signature == signature {
+                    return f(entry);
+                }
+            }
+        }
+
+        let (char_map, word_map, max_word_len) =
+            load_dictionary_from_canonical_suffix(Some(canonical_suffix));
+
+        {
+            let mut cache = lock
+                .write()
+                .expect("suffix dictionary cache write lock poisoned");
+            let entry = cache.entry(canonical_suffix.to_string()).or_default();
+            if entry.signature != signature {
+                *entry = SuffixDictionaryCacheEntry {
+                    signature,
+                    char_map,
+                    word_map,
+                    max_word_len,
+                };
+            }
+            f(entry)
+        }
+    }
+
+    fn with_dictionary_for_suffix<R>(
+        suffix: &str,
+        f: impl FnOnce(&HashMap<String, String>, &HashMap<String, String>, usize) -> R,
+    ) -> R {
+        match canonicalize_table_suffix(suffix) {
+            Some(canonical_suffix) => with_suffix_dictionary_cache(&canonical_suffix, |entry| {
+                f(&entry.char_map, &entry.word_map, entry.max_word_len)
+            }),
+            None => with_dictionary_cache(|cache| {
+                f(&cache.char_map, &cache.word_map, cache.max_word_len)
+            }),
+        }
+    }
+
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     enum PieceKind {
         AsciiRun,
@@ -343,7 +528,7 @@ mod extension {
         pieces
     }
 
-    fn normalize_first_pinyin(raw: &str) -> String {
+    fn romanize_first_pinyin(raw: &str) -> String {
         let mut first = String::new();
 
         for part in raw.split('|') {
@@ -360,17 +545,17 @@ mod extension {
         }
     }
 
-    fn normalize_pinyin_phrase(raw: &str) -> String {
+    fn romanize_pinyin_phrase(raw: &str) -> String {
         let mut out = Vec::new();
         for part in raw.split_whitespace() {
-            let token = normalize_first_pinyin(part);
+            let token = romanize_first_pinyin(part);
             if !token.is_empty() {
                 out.push(token);
             }
         }
 
         if out.is_empty() {
-            normalize_first_pinyin(raw)
+            romanize_first_pinyin(raw)
         } else {
             out.join(" ")
         }
@@ -396,49 +581,50 @@ mod extension {
         !token.is_empty() && token.chars().all(is_han_char)
     }
 
-    fn normalize_plain_text(origin: &str) -> String {
+    fn romanize_plain_text_with_char_map(
+        origin: &str,
+        char_map: &HashMap<String, String>,
+    ) -> String {
         let pieces = split_input(origin);
-        with_dictionary_cache(|cache| {
-            let mut out = String::new();
-            let mut last_is_space = true;
+        let mut out = String::new();
+        let mut last_is_space = true;
 
-            for piece in pieces {
-                match piece.kind {
-                    PieceKind::AsciiRun => {
-                        out.push_str(&piece.value.to_ascii_lowercase());
+        for piece in pieces {
+            match piece.kind {
+                PieceKind::AsciiRun => {
+                    out.push_str(&piece.value.to_ascii_lowercase());
+                    last_is_space = false;
+                }
+                PieceKind::Space => {
+                    if !last_is_space {
+                        out.push(' ');
+                        last_is_space = true;
+                    }
+                }
+                PieceKind::Other => {
+                    if char_map.contains_key(&piece.value) {
+                        out.push_str(&piece.value);
                         last_is_space = false;
-                    }
-                    PieceKind::Space => {
-                        if !last_is_space {
-                            out.push(' ');
-                            last_is_space = true;
-                        }
-                    }
-                    PieceKind::Other => {
-                        if cache.char_map.contains_key(&piece.value) {
-                            out.push_str(&piece.value);
-                            last_is_space = false;
-                        } else if !last_is_space {
-                            out.push(' ');
-                            last_is_space = true;
-                        }
+                    } else if !last_is_space {
+                        out.push(' ');
+                        last_is_space = true;
                     }
                 }
             }
+        }
 
-            out.trim().to_string()
-        })
+        out.trim().to_string()
     }
 
-    fn tokenize_plain(normalized: &str) -> Vec<String> {
-        if normalized.is_empty() {
+    fn tokenize_plain(romanized_text: &str) -> Vec<String> {
+        if romanized_text.is_empty() {
             return Vec::new();
         }
 
         let mut tokens = Vec::new();
         let mut ascii_run = String::new();
 
-        for ch in normalized.chars() {
+        for ch in romanized_text.chars() {
             if ch.is_ascii_alphanumeric() {
                 ascii_run.push(ch.to_ascii_lowercase());
                 continue;
@@ -462,7 +648,7 @@ mod extension {
         tokens
     }
 
-    fn normalize_token_list(json_text: String) -> Vec<String> {
+    fn romanize_token_list(json_text: String) -> Vec<String> {
         match serde_json::from_str::<Vec<String>>(&json_text) {
             Ok(tokens) => tokens
                 .into_iter()
@@ -493,7 +679,7 @@ mod extension {
             Err(_) => return None,
         };
 
-        Some(normalize_token_list(json_text))
+        Some(romanize_token_list(json_text))
     }
 
     fn anyelement_to_text(tokenizer_input: AnyElement) -> Option<String> {
@@ -510,26 +696,37 @@ mod extension {
         }
 
         if let Some(mapped) = char_map.get(token) {
-            normalize_pinyin_phrase(mapped)
+            romanize_pinyin_phrase(mapped)
         } else {
             token.to_string()
         }
     }
 
-    fn pinyin_char_normalize_impl(origin: &str) -> String {
-        let normalized = normalize_plain_text(origin);
-        let tokens = tokenize_plain(&normalized);
+    fn pinyin_char_romanize_with_char_map(
+        origin: &str,
+        char_map: &HashMap<String, String>,
+    ) -> String {
+        let romanized_text = romanize_plain_text_with_char_map(origin, char_map);
+        let tokens = tokenize_plain(&romanized_text);
 
         if tokens.is_empty() {
             return String::new();
         }
 
-        with_dictionary_cache(|cache| {
-            let mut out = Vec::with_capacity(tokens.len());
-            for token in tokens {
-                out.push(map_token(&token, &cache.char_map));
-            }
-            out.join(" ")
+        let mut out = Vec::with_capacity(tokens.len());
+        for token in tokens {
+            out.push(map_token(&token, char_map));
+        }
+        out.join(" ")
+    }
+
+    fn pinyin_char_romanize_impl(origin: &str) -> String {
+        with_dictionary_cache(|cache| pinyin_char_romanize_with_char_map(origin, &cache.char_map))
+    }
+
+    fn pinyin_char_romanize_with_suffix_impl(origin: &str, suffix: &str) -> String {
+        with_dictionary_for_suffix(suffix, |char_map, _, _| {
+            pinyin_char_romanize_with_char_map(origin, char_map)
         })
     }
 
@@ -553,88 +750,165 @@ mod extension {
         parts.join(" ")
     }
 
-    fn normalize_word_tokens(mut tokens: Vec<String>) -> String {
+    fn romanize_word_tokens_with_maps(
+        mut tokens: Vec<String>,
+        char_map: &HashMap<String, String>,
+        word_map: &HashMap<String, String>,
+        max_word_len: usize,
+    ) -> String {
+        tokens.retain(|token| !token.is_empty());
+        if tokens.is_empty() {
+            return String::new();
+        }
+
+        let mut out = Vec::with_capacity(tokens.len());
+        let mut idx = 0usize;
+
+        while idx < tokens.len() {
+            if let Some(mapped) = word_map.get(&tokens[idx]) {
+                out.push(romanize_pinyin_phrase(mapped));
+                idx += 1;
+                continue;
+            }
+
+            if max_word_len >= 2 && is_han_token(&tokens[idx]) {
+                let mut candidate = String::new();
+                let max_end = usize::min(tokens.len(), idx + max_word_len);
+                let mut best: Option<(usize, String)> = None;
+
+                for end in idx..max_end {
+                    if !is_han_token(&tokens[end]) {
+                        break;
+                    }
+
+                    candidate.push_str(&tokens[end]);
+                    let span = end - idx + 1;
+
+                    if span >= 2 {
+                        if let Some(mapped) = word_map.get(&candidate) {
+                            best = Some((span, romanize_pinyin_phrase(mapped)));
+                        }
+                    }
+                }
+
+                if let Some((span, mapped)) = best {
+                    out.push(mapped);
+                    idx += span;
+                    continue;
+                }
+            }
+
+            out.push(map_word_fallback(&tokens[idx], char_map));
+            idx += 1;
+        }
+
+        out.join(" ")
+    }
+
+    fn romanize_word_tokens(mut tokens: Vec<String>) -> String {
         tokens.retain(|token| !token.is_empty());
         if tokens.is_empty() {
             return String::new();
         }
 
         with_dictionary_cache(|cache| {
-            let mut out = Vec::with_capacity(tokens.len());
-            let mut idx = 0usize;
-
-            while idx < tokens.len() {
-                if let Some(mapped) = cache.word_map.get(&tokens[idx]) {
-                    out.push(normalize_pinyin_phrase(mapped));
-                    idx += 1;
-                    continue;
-                }
-
-                if cache.max_word_len >= 2 && is_han_token(&tokens[idx]) {
-                    let mut candidate = String::new();
-                    let max_end = usize::min(tokens.len(), idx + cache.max_word_len);
-                    let mut best: Option<(usize, String)> = None;
-
-                    for end in idx..max_end {
-                        if !is_han_token(&tokens[end]) {
-                            break;
-                        }
-
-                        candidate.push_str(&tokens[end]);
-                        let span = end - idx + 1;
-
-                        if span >= 2 {
-                            if let Some(mapped) = cache.word_map.get(&candidate) {
-                                best = Some((span, normalize_pinyin_phrase(mapped)));
-                            }
-                        }
-                    }
-
-                    if let Some((span, mapped)) = best {
-                        out.push(mapped);
-                        idx += span;
-                        continue;
-                    }
-                }
-
-                out.push(map_word_fallback(&tokens[idx], &cache.char_map));
-                idx += 1;
-            }
-
-            out.join(" ")
+            romanize_word_tokens_with_maps(
+                tokens,
+                &cache.char_map,
+                &cache.word_map,
+                cache.max_word_len,
+            )
         })
     }
 
-    fn pinyin_word_normalize_impl(origin: &str) -> String {
-        let normalized = normalize_plain_text(origin);
-        let tokens = tokenize_plain(&normalized);
-        normalize_word_tokens(tokens)
+    fn pinyin_word_romanize_with_maps(
+        origin: &str,
+        char_map: &HashMap<String, String>,
+        word_map: &HashMap<String, String>,
+        max_word_len: usize,
+    ) -> String {
+        let romanized_text = romanize_plain_text_with_char_map(origin, char_map);
+        let tokens = tokenize_plain(&romanized_text);
+        romanize_word_tokens_with_maps(tokens, char_map, word_map, max_word_len)
     }
 
-    fn pinyin_word_normalize_tokenizer_impl(tokenizer_input: AnyElement) -> String {
+    fn pinyin_word_romanize_impl(origin: &str) -> String {
+        with_dictionary_cache(|cache| {
+            pinyin_word_romanize_with_maps(
+                origin,
+                &cache.char_map,
+                &cache.word_map,
+                cache.max_word_len,
+            )
+        })
+    }
+
+    fn pinyin_word_romanize_with_suffix_impl(origin: &str, suffix: &str) -> String {
+        with_dictionary_for_suffix(suffix, |char_map, word_map, max_word_len| {
+            pinyin_word_romanize_with_maps(origin, char_map, word_map, max_word_len)
+        })
+    }
+
+    fn pinyin_word_romanize_tokenizer_impl(tokenizer_input: AnyElement) -> String {
         if let Some(tokens) = fetch_tokenizer_input_tokens(tokenizer_input) {
-            return normalize_word_tokens(tokens);
+            return romanize_word_tokens(tokens);
         }
 
         match anyelement_to_text(tokenizer_input) {
-            Some(text) => pinyin_word_normalize_impl(&text),
+            Some(text) => pinyin_word_romanize_impl(&text),
+            None => error!("tokenizer input must be castable to text[] or text"),
+        }
+    }
+
+    fn pinyin_word_romanize_tokenizer_with_suffix_impl(
+        tokenizer_input: AnyElement,
+        suffix: &str,
+    ) -> String {
+        if let Some(tokens) = fetch_tokenizer_input_tokens(tokenizer_input) {
+            return with_dictionary_for_suffix(suffix, |char_map, word_map, max_word_len| {
+                romanize_word_tokens_with_maps(tokens, char_map, word_map, max_word_len)
+            });
+        }
+
+        match anyelement_to_text(tokenizer_input) {
+            Some(text) => with_dictionary_for_suffix(suffix, |char_map, word_map, max_word_len| {
+                pinyin_word_romanize_with_maps(&text, char_map, word_map, max_word_len)
+            }),
             None => error!("tokenizer input must be castable to text[] or text"),
         }
     }
 
     #[pg_extern(immutable, strict, parallel_safe)]
-    fn pinyin_char_normalize(origin: &str) -> String {
-        pinyin_char_normalize_impl(origin)
+    fn pinyin_char_romanize(origin: &str) -> String {
+        pinyin_char_romanize_impl(origin)
+    }
+
+    #[pg_extern(immutable, strict, parallel_safe, name = "pinyin_char_romanize")]
+    fn pinyin_char_romanize_with_suffix(origin: &str, suffix: &str) -> String {
+        pinyin_char_romanize_with_suffix_impl(origin, suffix)
     }
 
     #[pg_extern(immutable, strict, parallel_safe)]
-    fn pinyin_word_normalize(origin: &str) -> String {
-        pinyin_word_normalize_impl(origin)
+    fn pinyin_word_romanize(origin: &str) -> String {
+        pinyin_word_romanize_impl(origin)
     }
 
-    #[pg_extern(immutable, strict, parallel_safe, name = "pinyin_word_normalize")]
-    fn pinyin_word_normalize_with_tokenizer(tokenizer_input: AnyElement) -> String {
-        pinyin_word_normalize_tokenizer_impl(tokenizer_input)
+    #[pg_extern(immutable, strict, parallel_safe, name = "pinyin_word_romanize")]
+    fn pinyin_word_romanize_with_suffix(origin: &str, suffix: &str) -> String {
+        pinyin_word_romanize_with_suffix_impl(origin, suffix)
+    }
+
+    #[pg_extern(immutable, strict, parallel_safe, name = "pinyin_word_romanize")]
+    fn pinyin_word_romanize_with_tokenizer(tokenizer_input: AnyElement) -> String {
+        pinyin_word_romanize_tokenizer_impl(tokenizer_input)
+    }
+
+    #[pg_extern(immutable, strict, parallel_safe, name = "pinyin_word_romanize")]
+    fn pinyin_word_romanize_with_tokenizer_and_suffix(
+        tokenizer_input: AnyElement,
+        suffix: &str,
+    ) -> String {
+        pinyin_word_romanize_tokenizer_with_suffix_impl(tokenizer_input, suffix)
     }
 
     #[pg_extern(volatile, parallel_unsafe, name = "pinyin__seed_embedded_data")]
@@ -751,34 +1025,73 @@ mod extension {
             .expect("failed to seed pinyin_words");
         }
 
+        fn seed_suffix_tables(suffix: &str) {
+            let mapping_table = format!("pinyin.pinyin_mapping{}", suffix);
+            let words_table = format!("pinyin.pinyin_words{}", suffix);
+
+            Spi::run(&format!(
+                "CREATE TABLE IF NOT EXISTS {mapping_table} (
+                   character text PRIMARY KEY,
+                   pinyin text NOT NULL
+                 )"
+            ))
+            .expect("failed to create suffix mapping table");
+
+            Spi::run(&format!(
+                "CREATE TABLE IF NOT EXISTS {words_table} (
+                   word text PRIMARY KEY,
+                   pinyin text NOT NULL
+                 )"
+            ))
+            .expect("failed to create suffix words table");
+
+            Spi::run(&format!(
+                "TRUNCATE TABLE {mapping_table}; TRUNCATE TABLE {words_table};"
+            ))
+            .expect("failed to truncate suffix tables");
+
+            Spi::run(&format!(
+                "INSERT INTO {mapping_table} (character, pinyin) VALUES
+                   ('郑', '|zhengx|')
+                 ON CONFLICT (character) DO UPDATE SET pinyin = EXCLUDED.pinyin"
+            ))
+            .expect("failed to seed suffix mapping");
+
+            Spi::run(&format!(
+                "INSERT INTO {words_table} (word, pinyin) VALUES
+                   ('郑爽', '|zhengx| |shuangx|')
+                 ON CONFLICT (word) DO UPDATE SET pinyin = EXCLUDED.pinyin"
+            ))
+            .expect("failed to seed suffix words");
+        }
+
         #[pg_test]
-        fn test_pinyin_char_normalize() {
+        fn test_pinyin_char_romanize() {
             seed_minimal_data();
 
             let converted =
-                Spi::get_one::<String>("SELECT public.pinyin_char_normalize('我ABC们123')")
+                Spi::get_one::<String>("SELECT public.pinyin_char_romanize('我ABC们123')")
                     .expect("SPI failed")
                     .expect("no row returned");
             assert_eq!(converted, "wo abc men 123");
         }
 
         #[pg_test]
-        fn test_pinyin_word_normalize() {
+        fn test_pinyin_word_romanize() {
             seed_minimal_data();
 
-            let converted =
-                Spi::get_one::<String>("SELECT public.pinyin_word_normalize('郑爽ABC')")
-                    .expect("SPI failed")
-                    .expect("no row returned");
+            let converted = Spi::get_one::<String>("SELECT public.pinyin_word_romanize('郑爽ABC')")
+                .expect("SPI failed")
+                .expect("no row returned");
             assert_eq!(converted, "zheng shuang abc");
         }
 
         #[pg_test]
-        fn test_pinyin_word_normalize_with_tokenizer_passthrough() {
+        fn test_pinyin_word_romanize_with_tokenizer_passthrough() {
             seed_minimal_data();
 
             let converted = Spi::get_one::<String>(
-                "SELECT public.pinyin_word_normalize(ARRAY['郑爽', 'ABC']::text[])",
+                "SELECT public.pinyin_word_romanize(ARRAY['郑爽', 'ABC']::text[])",
             )
             .expect("SPI failed")
             .expect("no row returned");
@@ -789,7 +1102,7 @@ mod extension {
         fn test_dictionary_update_reflected() {
             seed_minimal_data();
 
-            let before = Spi::get_one::<String>("SELECT public.pinyin_char_normalize('我')")
+            let before = Spi::get_one::<String>("SELECT public.pinyin_char_romanize('我')")
                 .expect("SPI failed")
                 .expect("no row returned");
             assert_eq!(before, "wo");
@@ -797,7 +1110,7 @@ mod extension {
             Spi::run("UPDATE pinyin.pinyin_mapping SET pinyin='|wo2|' WHERE character='我'")
                 .expect("failed to update mapping");
 
-            let after = Spi::get_one::<String>("SELECT public.pinyin_char_normalize('我')")
+            let after = Spi::get_one::<String>("SELECT public.pinyin_char_romanize('我')")
                 .expect("SPI failed")
                 .expect("no row returned");
             assert_eq!(after, "wo2");
@@ -807,40 +1120,67 @@ mod extension {
         fn test_polyphone_first_reading() {
             seed_minimal_data();
 
-            let converted = Spi::get_one::<String>("SELECT public.pinyin_char_normalize('重起')")
+            let converted = Spi::get_one::<String>("SELECT public.pinyin_char_romanize('重起')")
                 .expect("SPI failed")
                 .expect("no row returned");
             assert_eq!(converted, "tong qi");
         }
 
         #[pg_test]
-        fn test_normalize_functions_are_immutable() {
+        fn test_romanize_functions_are_immutable() {
             let char_volatile = Spi::get_one::<String>(
                 "SELECT p.provolatile::text
                  FROM pg_proc AS p
-                 WHERE p.oid = 'public.pinyin_char_normalize(text)'::regprocedure",
+                 WHERE p.oid = 'public.pinyin_char_romanize(text)'::regprocedure",
             )
             .expect("SPI failed")
             .expect("no row returned");
             assert_eq!(char_volatile, "i");
 
+            let char_suffix_volatile = Spi::get_one::<String>(
+                "SELECT p.provolatile::text
+                 FROM pg_proc AS p
+                 WHERE p.oid = 'public.pinyin_char_romanize(text,text)'::regprocedure",
+            )
+            .expect("SPI failed")
+            .expect("no row returned");
+            assert_eq!(char_suffix_volatile, "i");
+
             let word_volatile = Spi::get_one::<String>(
                 "SELECT p.provolatile::text
                  FROM pg_proc AS p
-                 WHERE p.oid = 'public.pinyin_word_normalize(text)'::regprocedure",
+                 WHERE p.oid = 'public.pinyin_word_romanize(text)'::regprocedure",
             )
             .expect("SPI failed")
             .expect("no row returned");
             assert_eq!(word_volatile, "i");
 
+            let word_suffix_volatile = Spi::get_one::<String>(
+                "SELECT p.provolatile::text
+                 FROM pg_proc AS p
+                 WHERE p.oid = 'public.pinyin_word_romanize(text,text)'::regprocedure",
+            )
+            .expect("SPI failed")
+            .expect("no row returned");
+            assert_eq!(word_suffix_volatile, "i");
+
             let word_tokenizer_volatile = Spi::get_one::<String>(
                 "SELECT p.provolatile::text
                  FROM pg_proc AS p
-                 WHERE p.oid = 'public.pinyin_word_normalize(anyelement)'::regprocedure",
+                 WHERE p.oid = 'public.pinyin_word_romanize(anyelement)'::regprocedure",
             )
             .expect("SPI failed")
             .expect("no row returned");
             assert_eq!(word_tokenizer_volatile, "i");
+
+            let word_tokenizer_suffix_volatile = Spi::get_one::<String>(
+                "SELECT p.provolatile::text
+                 FROM pg_proc AS p
+                 WHERE p.oid = 'public.pinyin_word_romanize(anyelement,text)'::regprocedure",
+            )
+            .expect("SPI failed")
+            .expect("no row returned");
+            assert_eq!(word_tokenizer_suffix_volatile, "i");
         }
 
         #[pg_test]
@@ -851,7 +1191,7 @@ mod extension {
                 "CREATE TEMP TABLE pinyin_generated_demo (
                    id bigserial PRIMARY KEY,
                    description text NOT NULL,
-                   pinyin text GENERATED ALWAYS AS (public.pinyin_char_normalize(description)) STORED
+                   pinyin text GENERATED ALWAYS AS (public.pinyin_char_romanize(description)) STORED
                  )",
             )
             .expect("failed to create generated column demo table");
@@ -865,6 +1205,70 @@ mod extension {
             .expect("SPI failed")
             .expect("no row returned");
             assert_eq!(pinyin, "zheng shuang abc");
+        }
+
+        #[pg_test]
+        fn test_suffix_overlay_priority() {
+            seed_minimal_data();
+            seed_suffix_tables("_suffix1");
+
+            let base_char = Spi::get_one::<String>("SELECT public.pinyin_char_romanize('郑爽ABC')")
+                .expect("SPI failed")
+                .expect("no row returned");
+            assert_eq!(base_char, "zheng shuang abc");
+
+            let suffix_char =
+                Spi::get_one::<String>("SELECT public.pinyin_char_romanize('郑爽ABC', '_suffix1')")
+                    .expect("SPI failed")
+                    .expect("no row returned");
+            assert_eq!(suffix_char, "zhengx shuang abc");
+
+            let suffix_word =
+                Spi::get_one::<String>("SELECT public.pinyin_word_romanize('郑爽ABC', '_suffix1')")
+                    .expect("SPI failed")
+                    .expect("no row returned");
+            assert_eq!(suffix_word, "zhengx shuangx abc");
+        }
+
+        #[pg_test]
+        fn test_suffix_overlay_update_reflected_next_statement() {
+            seed_minimal_data();
+            seed_suffix_tables("_suffix1");
+
+            let before =
+                Spi::get_one::<String>("SELECT public.pinyin_char_romanize('郑爽ABC', '_suffix1')")
+                    .expect("SPI failed")
+                    .expect("no row returned");
+            assert_eq!(before, "zhengx shuang abc");
+
+            Spi::run(
+                "UPDATE pinyin.pinyin_mapping_suffix1
+                 SET pinyin = '|zhengy|'
+                 WHERE character = '郑'",
+            )
+            .expect("failed to update suffix mapping");
+
+            let after =
+                Spi::get_one::<String>("SELECT public.pinyin_char_romanize('郑爽ABC', '_suffix1')")
+                    .expect("SPI failed")
+                    .expect("no row returned");
+            assert_eq!(after, "zhengy shuang abc");
+        }
+
+        #[pg_test]
+        fn test_suffix_overlay_fallback_to_base_when_missing() {
+            seed_minimal_data();
+
+            let base_word = Spi::get_one::<String>("SELECT public.pinyin_word_romanize('郑爽ABC')")
+                .expect("SPI failed")
+                .expect("no row returned");
+
+            let missing_suffix_word =
+                Spi::get_one::<String>("SELECT public.pinyin_word_romanize('郑爽ABC', '_nosuch')")
+                    .expect("SPI failed")
+                    .expect("no row returned");
+
+            assert_eq!(missing_suffix_word, base_word);
         }
     }
 }

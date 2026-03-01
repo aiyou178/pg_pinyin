@@ -73,7 +73,7 @@ AS $$
   FROM regexp_matches(input, '([0-9A-Za-z]+|.)', 'g') WITH ORDINALITY AS t(m, ord);
 $$;
 
-CREATE OR REPLACE FUNCTION public.normalize2text(characters text)
+CREATE OR REPLACE FUNCTION public.romanize2text(characters text)
 RETURNS text
 LANGUAGE sql
 STABLE
@@ -88,7 +88,7 @@ AS $$
         WHEN s.token ~ '^\\s$' THEN ' '
         WHEN m.character IS NOT NULL THEN s.token
         ELSE ' '
-      END AS normalized
+      END AS romanized_token
     FROM public.pinyin__split_tokens(characters) AS s
     LEFT JOIN pinyin.pinyin_mapping AS m
       ON m.character = s.token
@@ -97,41 +97,41 @@ AS $$
     SELECT
       ord,
       CASE
-        WHEN normalized = ' ' AND lag(normalized) OVER (ORDER BY ord) = ' ' THEN NULL
-        ELSE normalized
-      END AS normalized
+        WHEN romanized_token = ' ' AND lag(romanized_token) OVER (ORDER BY ord) = ' ' THEN NULL
+        ELSE romanized_token
+      END AS romanized_token
     FROM pieces
   )
-  SELECT COALESCE(string_agg(normalized, '' ORDER BY ord), '')
+  SELECT COALESCE(string_agg(romanized_token, '' ORDER BY ord), '')
   FROM collapsed
-  WHERE normalized IS NOT NULL;
+  WHERE romanized_token IS NOT NULL;
 $$;
 
-CREATE OR REPLACE FUNCTION public.normalize2array(characters text)
+CREATE OR REPLACE FUNCTION public.romanize2array(characters text)
 RETURNS text[]
 LANGUAGE sql
 STABLE
 STRICT
 PARALLEL SAFE
 AS $$
-  WITH normalized AS (
-    SELECT public.normalize2text(characters) AS value
+  WITH romanized_text AS (
+    SELECT public.romanize2text(characters) AS value
   ),
   pieces AS (
     SELECT
       (regexp_matches(value, '([0-9A-Za-z]+|.)', 'g'))[1] AS token,
       row_number() OVER () AS ord,
       value
-    FROM normalized
+    FROM romanized_text
   )
   SELECT CASE
-    WHEN (SELECT value FROM normalized) = '' THEN ARRAY['']::text[]
+    WHEN (SELECT value FROM romanized_text) = '' THEN ARRAY['']::text[]
     ELSE COALESCE(array_agg(token ORDER BY ord), ARRAY['']::text[])
   END
   FROM pieces;
 $$;
 
-CREATE OR REPLACE FUNCTION public.characters2pinyin(characters text)
+CREATE OR REPLACE FUNCTION public.characters2romanize(characters text)
 RETURNS text
 LANGUAGE sql
 STABLE
@@ -146,7 +146,7 @@ AS $$
   ),
   char_fallback AS (
     SELECT string_agg(COALESCE(m.pinyin, CONCAT('|', t.token, '|')), ' ' ORDER BY t.ord) AS value
-    FROM unnest(public.normalize2array(characters)) WITH ORDINALITY AS t(token, ord)
+    FROM unnest(public.romanize2array(characters)) WITH ORDINALITY AS t(token, ord)
     LEFT JOIN pinyin.pinyin_mapping AS m
       ON m.character = t.token
   )

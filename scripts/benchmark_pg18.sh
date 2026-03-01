@@ -8,9 +8,20 @@ OUT_FILE="${1:-$ROOT_DIR/benchmark_pg18_report.txt}"
 MAPPING_FILE="${MAPPING_FILE:-$ROOT_DIR/sql/data/pinyin_mapping.csv}"
 TOKEN_FILE="${TOKEN_FILE:-$ROOT_DIR/sql/data/pinyin_token.csv}"
 WORDS_FILE="${WORDS_FILE:-$ROOT_DIR/sql/data/pinyin_words.csv}"
+USER_TABLE_SUFFIX="${USER_TABLE_SUFFIX:-_bench}"
 
 if ! [[ "$ROWS" =~ ^[0-9]+$ ]]; then
   echo "ROWS must be an integer, got: $ROWS" >&2
+  exit 2
+fi
+
+USER_SUFFIX_NORMALIZED="${USER_TABLE_SUFFIX#_}"
+if [[ -z "$USER_SUFFIX_NORMALIZED" ]]; then
+  echo "USER_TABLE_SUFFIX cannot be empty" >&2
+  exit 2
+fi
+if ! [[ "$USER_SUFFIX_NORMALIZED" =~ ^[A-Za-z0-9_]+$ ]]; then
+  echo "USER_TABLE_SUFFIX must contain only [A-Za-z0-9_], got: $USER_TABLE_SUFFIX" >&2
   exit 2
 fi
 
@@ -33,6 +44,7 @@ ROOT_SQL=${ROOT_DIR//\'/\'\'}
 MAPPING_SQL=${MAPPING_FILE//\'/\'\'}
 TOKEN_SQL=${TOKEN_FILE//\'/\'\'}
 WORDS_SQL=${WORDS_FILE//\'/\'\'}
+SUFFIX_SQL=${USER_SUFFIX_NORMALIZED//\'/\'\'}
 TMP_SQL="$(mktemp)"
 trap 'rm -f "$TMP_SQL"' EXIT
 
@@ -55,6 +67,40 @@ TRUNCATE TABLE pinyin.pinyin_words;
 INSERT INTO pinyin.pinyin_mapping (character, pinyin)
 VALUES (' ', ' ')
 ON CONFLICT (character) DO NOTHING;
+
+\\echo '[setup] preparing suffix user dictionary tables (same size as base)'
+SELECT format('pinyin_mapping_%s', '$SUFFIX_SQL') AS mapping_table_name,
+       format('pinyin_words_%s', '$SUFFIX_SQL') AS words_table_name
+\\gset
+
+SELECT format(
+  'CREATE TABLE IF NOT EXISTS pinyin.%I (character text PRIMARY KEY, pinyin text NOT NULL)',
+  :'mapping_table_name'
+) AS ddl
+\\gexec
+
+SELECT format(
+  'CREATE TABLE IF NOT EXISTS pinyin.%I (word text PRIMARY KEY, pinyin text NOT NULL)',
+  :'words_table_name'
+) AS ddl
+\\gexec
+
+SELECT format('TRUNCATE TABLE pinyin.%I', :'mapping_table_name') AS ddl
+\\gexec
+SELECT format('TRUNCATE TABLE pinyin.%I', :'words_table_name') AS ddl
+\\gexec
+
+SELECT format(
+  'INSERT INTO pinyin.%I (character, pinyin) SELECT character, pinyin FROM pinyin.pinyin_mapping',
+  :'mapping_table_name'
+) AS ddl
+\\gexec
+
+SELECT format(
+  'INSERT INTO pinyin.%I (word, pinyin) SELECT word, pinyin FROM pinyin.pinyin_words',
+  :'words_table_name'
+) AS ddl
+\\gexec
 
 \\echo '[setup] generating benchmark dataset'
 DROP TABLE IF EXISTS public.bench_names;
@@ -85,14 +131,19 @@ ANALYZE public.bench_names;
 
 \\echo ''
 \\echo '=== Tokenization Benchmark: Character Mode ==='
-\\echo '[benchmark] SQL baseline: characters2pinyin(name)'
-EXPLAIN (ANALYZE, BUFFERS, SUMMARY)
-SELECT sum(length(public.characters2pinyin(name)))
+\\echo '[benchmark] SQL baseline: characters2romanize(name)'
+EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)
+SELECT sum(length(public.characters2romanize(name)))
 FROM public.bench_names;
 
-\\echo '[benchmark] Rust extension: pinyin_char_normalize(name)'
-EXPLAIN (ANALYZE, BUFFERS, SUMMARY)
-SELECT sum(length(public.pinyin_char_normalize(name)))
+\\echo '[benchmark] Rust extension: pinyin_char_romanize(name)'
+EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)
+SELECT sum(length(public.pinyin_char_romanize(name)))
+FROM public.bench_names;
+
+\\echo '[benchmark] Rust extension (suffix): pinyin_char_romanize(name, ''_$SUFFIX_SQL'')'
+EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)
+SELECT sum(length(public.pinyin_char_romanize(name, '_$SUFFIX_SQL')))
 FROM public.bench_names;
 
 \\echo ''
@@ -109,24 +160,32 @@ END AS has_pg_search
   CREATE EXTENSION IF NOT EXISTS pg_search;
   \\i '$ROOT_SQL/sql/word.sql'
 
-  \\echo '[benchmark] SQL baseline: icu_romanize(name::pdb.icu)'
-  EXPLAIN (ANALYZE, BUFFERS, SUMMARY)
-  SELECT sum(length(public.icu_romanize(name::pdb.icu)))
+  \\echo '[benchmark] SQL baseline: icu_romanize(name::pdb.icu::text[])'
+  EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)
+  SELECT sum(length(public.icu_romanize(name::pdb.icu::text[])))
   FROM public.bench_names;
-  \\echo '[benchmark] Rust extension: pinyin_word_normalize(name::pdb.icu)'
-  EXPLAIN (ANALYZE, BUFFERS, SUMMARY)
-  SELECT sum(length(public.pinyin_word_normalize(name::pdb.icu)))
+  \\echo '[benchmark] Rust extension: pinyin_word_romanize(name::pdb.icu::text[])'
+  EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)
+  SELECT sum(length(public.pinyin_word_romanize(name::pdb.icu::text[])))
+  FROM public.bench_names;
+  \\echo '[benchmark] Rust extension (suffix): pinyin_word_romanize(name::pdb.icu::text[], ''_$SUFFIX_SQL'')'
+  EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)
+  SELECT sum(length(public.pinyin_word_romanize(name::pdb.icu::text[], '_$SUFFIX_SQL')))
   FROM public.bench_names;
 \\else
   \\echo '[skip] pg_search is not available; SQL word tokenizer baseline (icu_romanize) skipped.'
-  \\echo '[benchmark] Rust extension: pinyin_word_normalize(name)'
-  EXPLAIN (ANALYZE, BUFFERS, SUMMARY)
-  SELECT sum(length(public.pinyin_word_normalize(name)))
+  \\echo '[benchmark] Rust extension: pinyin_word_romanize(name)'
+  EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)
+  SELECT sum(length(public.pinyin_word_romanize(name)))
+  FROM public.bench_names;
+  \\echo '[benchmark] Rust extension (suffix): pinyin_word_romanize(name, ''_$SUFFIX_SQL'')'
+  EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)
+  SELECT sum(length(public.pinyin_word_romanize(name, '_$SUFFIX_SQL')))
   FROM public.bench_names;
 \\endif
 SQL
 
-echo "[benchmark] running with PGURL=$PGURL, ROWS=$ROWS"
+echo "[benchmark] running with PGURL=$PGURL, ROWS=$ROWS, USER_TABLE_SUFFIX=_$USER_SUFFIX_NORMALIZED"
 psql "$PGURL" -f "$TMP_SQL" | tee "$OUT_FILE"
 
 echo "[benchmark] report written to: $OUT_FILE"

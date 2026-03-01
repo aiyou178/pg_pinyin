@@ -50,7 +50,7 @@ for deb in "${DEBS[@]}"; do
     --iteration "1" \
     --architecture "$RPM_ARCH" \
     --maintainer "Liang Zhanzhao <liangzhanzhao1985@gmail.com>" \
-    --description "pinyin normalization extension for PostgreSQL" \
+    --description "pinyin romanization extension for PostgreSQL" \
     --chdir "$root" \
     --package "$OUT_DIR" \
     usr

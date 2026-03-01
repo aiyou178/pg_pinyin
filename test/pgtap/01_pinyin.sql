@@ -27,19 +27,19 @@ VALUES ('郑爽', '|zheng| |shuang|');
 
 SELECT plan(15);
 
-SELECT is(public.normalize2text('我们'), '我们', 'normalize2text keeps mapped Han chars');
-SELECT is(public.normalize2text('我ABC们123'), '我ABC们123', 'normalize2text keeps ASCII runs');
-SELECT is(public.normalize2text('我!!!们'), '我 们', 'normalize2text collapses unknown chars to one space');
+SELECT is(public.romanize2text('我们'), '我们', 'romanize2text keeps mapped Han chars');
+SELECT is(public.romanize2text('我ABC们123'), '我ABC们123', 'romanize2text keeps ASCII runs');
+SELECT is(public.romanize2text('我!!!们'), '我 们', 'romanize2text collapses unknown chars to one space');
 
 SELECT is(
-  public.normalize2array('我ABC们123')::text,
+  public.romanize2array('我ABC们123')::text,
   ARRAY['我', 'ABC', '们', '123']::text[]::text,
-  'normalize2array splits into Han chars and ASCII runs'
+  'romanize2array splits into Han chars and ASCII runs'
 );
 
-SELECT is(public.characters2pinyin('我ABC们123'), '|wo| |ABC| |men| |123|', 'characters2pinyin maps Han chars and keeps ASCII');
-SELECT is(public.characters2pinyin('重起'), '|tong|zhong|chong| |qi|', 'characters2pinyin keeps polyphone mapping string');
-SELECT is(public.characters2pinyin('郑爽'), '|zheng| |shuang|', 'characters2pinyin applies full-word override from pinyin_words');
+SELECT is(public.characters2romanize('我ABC们123'), '|wo| |ABC| |men| |123|', 'characters2romanize maps Han chars and keeps ASCII');
+SELECT is(public.characters2romanize('重起'), '|tong|zhong|chong| |qi|', 'characters2romanize keeps polyphone mapping string');
+SELECT is(public.characters2romanize('郑爽'), '|zheng| |shuang|', 'characters2romanize applies full-word override from pinyin_words');
 
 SELECT is(
   public.pinyin_search('zh sh', false, false),
@@ -70,9 +70,9 @@ SELECT is(
   'pinyin_isearch merges zh/ch/sh when enabled'
 );
 
-SELECT ok(public.normalize2text(NULL) IS NULL, 'normalize2text(NULL) returns NULL');
-SELECT ok(public.normalize2array(NULL) IS NULL, 'normalize2array(NULL) returns NULL');
-SELECT ok(public.characters2pinyin(NULL) IS NULL, 'characters2pinyin(NULL) returns NULL');
+SELECT ok(public.romanize2text(NULL) IS NULL, 'romanize2text(NULL) returns NULL');
+SELECT ok(public.romanize2array(NULL) IS NULL, 'romanize2array(NULL) returns NULL');
+SELECT ok(public.characters2romanize(NULL) IS NULL, 'characters2romanize(NULL) returns NULL');
 
 SELECT * FROM finish();
 

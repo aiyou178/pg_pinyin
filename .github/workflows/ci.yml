@@ -47,7 +47,7 @@ jobs:
             cargo pgrx init --pg18="$PG_CONFIG"
             cargo pgrx install -v --features pg18 --no-default-features --pg-config "$PG_CONFIG"
             psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U postgres -d postgres -c "CREATE EXTENSION IF NOT EXISTS pg_pinyin;"
-            out="$(psql -At -h 127.0.0.1 -p 5432 -U postgres -d postgres -c "SELECT public.pinyin_word_normalize(\$\$郑爽ABC\$\$)")"
+            out="$(psql -At -h 127.0.0.1 -p 5432 -U postgres -d postgres -c "SELECT public.pinyin_word_romanize(\$\$郑爽ABC\$\$)")"
             test "$out" = "zheng shuang abc"
             PGURL=postgres://postgres@127.0.0.1:5432/postgres ./test/pgtap/run.sh
           '

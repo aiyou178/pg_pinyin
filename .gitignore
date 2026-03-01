@@ -8,3 +8,4 @@ benchmark_pg18_report*.txt
 *.log
 __pycache__/
 *.pyc
+_bmad/

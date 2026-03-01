@@ -9,16 +9,19 @@
 
 ## 扩展接口（精简）
 
-仅提供两类归一化能力：
+仅提供两类拼音化能力：
 
-- `pinyin_char_normalize(text)`
-- `pinyin_word_normalize(text)`
-- `pinyin_word_normalize(tokenizer_input anyelement)`（重载，支持 `pdb` tokenizer 输入，如 `name::pdb.icu`）
+- `pinyin_char_romanize(text)`
+- `pinyin_char_romanize(text, suffix text)`
+- `pinyin_word_romanize(text)`
+- `pinyin_word_romanize(text, suffix text)`
+- `pinyin_word_romanize(tokenizer_input anyelement)`（重载，支持 `pdb` tokenizer 输入，如 `name::pdb.icu::text[]`）
+- `pinyin_word_romanize(tokenizer_input anyelement, suffix text)`（带用户词典后缀的重载）
 
 推荐组合：
 
-1. 字级归一化 + `pg_trgm`
-2. 词级归一化 + `pg_search`
+1. 字级拼音化 + `pg_trgm`
+2. 词级拼音化 + `pg_search`
 
 ## 生成列用法示例（Raw SQL）
 
@@ -29,13 +32,50 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE TABLE voice (
   id bigserial PRIMARY KEY,
   description text NOT NULL,
-  pinyin text GENERATED ALWAYS AS (public.pinyin_char_normalize(description)) STORED
+  pinyin text GENERATED ALWAYS AS (public.pinyin_char_romanize(description)) STORED
 );
 
 CREATE INDEX voice_pinyin_trgm_idx ON voice USING gin (pinyin gin_trgm_ops);
 
 INSERT INTO voice (description) VALUES ('郑爽ABC');
 SELECT id, description, pinyin FROM voice;
+```
+
+## 用户词典后缀表
+
+你可以在 `pinyin` schema 下提供后缀表：
+
+- `pinyin.pinyin_mapping_suffix1`
+- `pinyin.pinyin_words_suffix1`
+
+当调用 `...(..., '_suffix1')` 时，拼音化会使用合并后的词典：
+
+1. 基础表（`pinyin_mapping` / `pinyin_words`）
+2. 后缀表（`pinyin_mapping_suffix1` / `pinyin_words_suffix1`），并且后缀表优先级更高
+
+示例：
+
+```sql
+CREATE TABLE IF NOT EXISTS pinyin.pinyin_mapping_suffix1 (
+  character text PRIMARY KEY,
+  pinyin text NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS pinyin.pinyin_words_suffix1 (
+  word text PRIMARY KEY,
+  pinyin text NOT NULL
+);
+
+INSERT INTO pinyin.pinyin_mapping_suffix1 (character, pinyin)
+VALUES ('郑', '|zhengx|')
+ON CONFLICT (character) DO UPDATE SET pinyin = EXCLUDED.pinyin;
+
+INSERT INTO pinyin.pinyin_words_suffix1 (word, pinyin)
+VALUES ('郑爽', '|zhengx| |shuangx|')
+ON CONFLICT (word) DO UPDATE SET pinyin = EXCLUDED.pinyin;
+
+SELECT public.pinyin_char_romanize('郑爽ABC', '_suffix1');
+SELECT public.pinyin_word_romanize('郑爽ABC'::pdb.icu::text[], '_suffix1');
 ```
 
 ## 扩展内置词典数据
@@ -137,14 +177,25 @@ DOCKER_BUILDKIT=1 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/tes
 
 ## Benchmark
 
-仅衡量分词/归一化性能（不比较检索性能）：
+仅衡量分词/拼音化性能（不比较检索性能）：
 
 - `scripts/benchmark_pg18.sh`
+
+脚本会覆盖以下场景：
+
+- SQL 字级：`characters2romanize(name)`
+- Rust 字级：`pinyin_char_romanize(name)`
+- Rust 字级（用户后缀词典叠加）：`pinyin_char_romanize(name, '_<suffix>')`
+- SQL 词级：`icu_romanize(name::pdb.icu::text[])`（当存在 `pg_search`）
+- Rust 词级：`pinyin_word_romanize(name::pdb.icu::text[])`（有 `pg_search`）或 `pinyin_word_romanize(name)`（无 `pg_search`）
+- Rust 词级（用户后缀词典叠加）：`pinyin_word_romanize(name::pdb.icu::text[], '_<suffix>')`
+
+所有基准查询都使用 `EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)`，包含内存占用。
 
 运行示例：
 
 ```bash
-ROWS=2000 PGURL=postgres://localhost/postgres ./scripts/benchmark_pg18.sh
+ROWS=2000 USER_TABLE_SUFFIX=_bench PGURL=postgres://localhost/postgres ./scripts/benchmark_pg18.sh
 ```
 
 ### Benchmark Session（PG18）
@@ -152,20 +203,22 @@ ROWS=2000 PGURL=postgres://localhost/postgres ./scripts/benchmark_pg18.sh
 会话命令：
 
 ```bash
-ROWS=2000 PGURL=postgres://postgres@localhost:5432/postgres ./scripts/benchmark_pg18.sh
+ROWS=2000 USER_TABLE_SUFFIX=_bench PGURL=postgres://postgres@localhost:5432/postgres ./scripts/benchmark_pg18.sh
 ```
 
 最新一次结果（PG18，`ROWS=2000`）：
 
-| 场景 | Rust 扩展 | SQL 基线 | 加速比（`SQL` / `Rust`） |
-|---|---:|---:|---:|
-| 字级归一化（`pinyin_char_normalize` vs `characters2pinyin`） | `373.584 ms` | `9811.999 ms` | `26.3x` |
-| 词级归一化（`pinyin_word_normalize(name::pdb.icu)` vs `icu_romanize(name::pdb.icu)`） | `75.561 ms` | `272.250 ms` | `3.6x` |
+| 场景                                                                                                                     |     Rust 扩展 |      SQL 基线 | 加速比（`SQL` / `Rust`） |
+| ------------------------------------------------------------------------------------------------------------------------ | ------------: | ------------: | -----------------------: |
+| 字级拼音化（`pinyin_char_romanize` vs `characters2romanize`）                                                            |  `344.609 ms` | `9303.897 ms` |                  `27.0x` |
+| 字级拼音化（后缀词典，`pinyin_char_romanize(name, '_bench')` vs `characters2romanize`）                                  | `5377.008 ms` | `9303.897 ms` |                   `1.7x` |
+| 词级拼音化（`pinyin_word_romanize(name::pdb.icu::text[])` vs `icu_romanize(name::pdb.icu::text[])`）                     |   `69.968 ms` |  `313.753 ms` |                   `4.5x` |
+| 词级拼音化（后缀词典，`pinyin_word_romanize(name::pdb.icu::text[], '_bench')` vs `icu_romanize(name::pdb.icu::text[])`） | `5487.158 ms` |  `313.753 ms` |                   `0.1x` |
 
 ## Roadmap
 
 1. 梳理数据生成流水线，并持续扩充词级字典覆盖。
-2. 支持用户自定义词典，并可按指定词典执行归一化。
+2. ~~支持用户自定义词典，并可按指定词典执行拼音化。~~
 3. 提供平滑升级路径（扩展内置词典与用户词典的升级策略）。
 4. 改进英文处理能力（包括 stemming）。
 5. 提供更多不依赖 `pg_search` 的示例。
