@@ -20,6 +20,24 @@
 1. 字级归一化 + `pg_trgm`
 2. 词级归一化 + `pg_search`
 
+## 生成列用法示例（Raw SQL）
+
+```sql
+CREATE EXTENSION IF NOT EXISTS pg_pinyin;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+CREATE TABLE voice (
+  id bigserial PRIMARY KEY,
+  description text NOT NULL,
+  pinyin text GENERATED ALWAYS AS (public.pinyin_char_normalize(description)) STORED
+);
+
+CREATE INDEX voice_pinyin_trgm_idx ON voice USING gin (pinyin gin_trgm_ops);
+
+INSERT INTO voice (description) VALUES ('郑爽ABC');
+SELECT id, description, pinyin FROM voice;
+```
+
 ## 扩展内置词典数据
 
 Rust 扩展在编译时内置以下数据：
@@ -128,6 +146,21 @@ DOCKER_BUILDKIT=1 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/tes
 ```bash
 ROWS=2000 PGURL=postgres://localhost/postgres ./scripts/benchmark_pg18.sh
 ```
+
+### Benchmark Session（PG18）
+
+会话命令：
+
+```bash
+ROWS=2000 PGURL=postgres://postgres@localhost:5432/postgres ./scripts/benchmark_pg18.sh
+```
+
+最新一次结果（PG18，`ROWS=2000`）：
+
+| 场景 | Rust 扩展 | SQL 基线 | 加速比（`SQL` / `Rust`） |
+|---|---:|---:|---:|
+| 字级归一化（`pinyin_char_normalize` vs `characters2pinyin`） | `373.584 ms` | `9811.999 ms` | `26.3x` |
+| 词级归一化（`pinyin_word_normalize(name::pdb.icu)` vs `icu_romanize(name::pdb.icu)`） | `75.561 ms` | `272.250 ms` | `3.6x` |
 
 ## Roadmap
 

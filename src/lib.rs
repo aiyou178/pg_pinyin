@@ -622,17 +622,17 @@ mod extension {
         }
     }
 
-    #[pg_extern(stable, strict, parallel_safe)]
+    #[pg_extern(immutable, strict, parallel_safe)]
     fn pinyin_char_normalize(origin: &str) -> String {
         pinyin_char_normalize_impl(origin)
     }
 
-    #[pg_extern(stable, strict, parallel_safe)]
+    #[pg_extern(immutable, strict, parallel_safe)]
     fn pinyin_word_normalize(origin: &str) -> String {
         pinyin_word_normalize_impl(origin)
     }
 
-    #[pg_extern(stable, strict, parallel_safe, name = "pinyin_word_normalize")]
+    #[pg_extern(immutable, strict, parallel_safe, name = "pinyin_word_normalize")]
     fn pinyin_word_normalize_with_tokenizer(tokenizer_input: AnyElement) -> String {
         pinyin_word_normalize_tokenizer_impl(tokenizer_input)
     }
@@ -811,6 +811,60 @@ mod extension {
                 .expect("SPI failed")
                 .expect("no row returned");
             assert_eq!(converted, "tong qi");
+        }
+
+        #[pg_test]
+        fn test_normalize_functions_are_immutable() {
+            let char_volatile = Spi::get_one::<String>(
+                "SELECT p.provolatile::text
+                 FROM pg_proc AS p
+                 WHERE p.oid = 'public.pinyin_char_normalize(text)'::regprocedure",
+            )
+            .expect("SPI failed")
+            .expect("no row returned");
+            assert_eq!(char_volatile, "i");
+
+            let word_volatile = Spi::get_one::<String>(
+                "SELECT p.provolatile::text
+                 FROM pg_proc AS p
+                 WHERE p.oid = 'public.pinyin_word_normalize(text)'::regprocedure",
+            )
+            .expect("SPI failed")
+            .expect("no row returned");
+            assert_eq!(word_volatile, "i");
+
+            let word_tokenizer_volatile = Spi::get_one::<String>(
+                "SELECT p.provolatile::text
+                 FROM pg_proc AS p
+                 WHERE p.oid = 'public.pinyin_word_normalize(anyelement)'::regprocedure",
+            )
+            .expect("SPI failed")
+            .expect("no row returned");
+            assert_eq!(word_tokenizer_volatile, "i");
+        }
+
+        #[pg_test]
+        fn test_generated_column_usage_raw_sql() {
+            seed_minimal_data();
+
+            Spi::run(
+                "CREATE TEMP TABLE pinyin_generated_demo (
+                   id bigserial PRIMARY KEY,
+                   description text NOT NULL,
+                   pinyin text GENERATED ALWAYS AS (public.pinyin_char_normalize(description)) STORED
+                 )",
+            )
+            .expect("failed to create generated column demo table");
+
+            Spi::run("INSERT INTO pinyin_generated_demo (description) VALUES ('郑爽ABC')")
+                .expect("failed to insert demo row");
+
+            let pinyin = Spi::get_one::<String>(
+                "SELECT pinyin FROM pinyin_generated_demo WHERE description = '郑爽ABC'",
+            )
+            .expect("SPI failed")
+            .expect("no row returned");
+            assert_eq!(pinyin, "zheng shuang abc");
         }
     }
 }

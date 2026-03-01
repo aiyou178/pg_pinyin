@@ -20,6 +20,24 @@ Recommended usage:
 1. char normalization + `pg_trgm`
 2. word normalization + `pg_search`
 
+## Generated Column Example (Raw SQL)
+
+```sql
+CREATE EXTENSION IF NOT EXISTS pg_pinyin;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+CREATE TABLE voice (
+  id bigserial PRIMARY KEY,
+  description text NOT NULL,
+  pinyin text GENERATED ALWAYS AS (public.pinyin_char_normalize(description)) STORED
+);
+
+CREATE INDEX voice_pinyin_trgm_idx ON voice USING gin (pinyin gin_trgm_ops);
+
+INSERT INTO voice (description) VALUES ('郑爽ABC');
+SELECT id, description, pinyin FROM voice;
+```
+
 ## Extension-Bundled Dictionary Data
 
 The Rust extension now embeds these dictionaries at build time:
@@ -151,6 +169,21 @@ Run:
 ```bash
 ROWS=2000 PGURL=postgres://localhost/postgres ./scripts/benchmark_pg18.sh
 ```
+
+### Benchmark Session (PG18)
+
+Session command:
+
+```bash
+ROWS=2000 PGURL=postgres://postgres@localhost:5432/postgres ./scripts/benchmark_pg18.sh
+```
+
+Latest run (PG18, `ROWS=2000`):
+
+| Scenario | Rust Extension | SQL Baseline | Speedup (`SQL` / `Rust`) |
+|---|---:|---:|---:|
+| Char normalization (`pinyin_char_normalize` vs `characters2pinyin`) | `373.584 ms` | `9811.999 ms` | `26.3x` |
+| Word normalization (`pinyin_word_normalize(name::pdb.icu)` vs `icu_romanize(name::pdb.icu)`) | `75.561 ms` | `272.250 ms` | `3.6x` |
 
 ## Roadmap
 
