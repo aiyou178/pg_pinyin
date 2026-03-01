@@ -34,7 +34,12 @@ INSERT INTO pinyin.pinyin_mapping_suffix1 (character, pinyin) VALUES
 INSERT INTO pinyin.pinyin_words_suffix1 (word, pinyin) VALUES
   ('郑爽', '|zhengx| |shuangx|');
 
-SELECT plan(9);
+SELECT plan(10);
+
+SELECT ok(
+  public.pinyin_register_suffix('_suffix1'),
+  'register suffix dictionary for trigger-based versioning'
+);
 
 SELECT is(
   public.pinyin_char_romanize('郑爽ABC'),

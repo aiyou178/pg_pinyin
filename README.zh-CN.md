@@ -211,23 +211,24 @@ ROWS=2000 USER_TABLE_SUFFIX=_bench PGURL=postgres://postgres@localhost:5432/post
 
 字级模式：
 
-| 场景                                                                                     |       Cold |       Warm |
-| ---------------------------------------------------------------------------------------- | ---------: | ---------: |
-| SQL 基线（`characters2romanize`）                                                        | `8991.042` | `8785.796` |
-| Rust（`pinyin_char_romanize`）                                                           |   `82.898` |   `27.589` |
-| Rust + 后缀词典（`pinyin_char_romanize(name, '_bench')`）                                |  `165.197` |  `156.524` |
+| 场景                                                                                     |       Cold |       Warm | 相对 SQL 提升（`cold` / `warm`） |
+| ---------------------------------------------------------------------------------------- | ---------: | ---------: | -------------------------------: |
+| SQL 基线（`characters2romanize`）                                                        | `9360.465` | `9669.367` |                      `1.0x / 1.0x` |
+| Rust（`pinyin_char_romanize`）                                                           |   `79.272` |   `27.318` |                    `118.1x / 353.9x` |
+| Rust + 后缀词典（`pinyin_char_romanize(name, '_bench')`）                                |  `138.693` |   `11.000` |                     `67.5x / 879.0x` |
 
 词级模式（`pg_search` tokenizer 输入）：
 
-| 场景                                                                                     |      Cold |      Warm |
-| ---------------------------------------------------------------------------------------- | --------: | --------: |
-| SQL 基线（`icu_romanize(name::pdb.icu::text[])`）                                        | `244.098` | `232.573` |
-| Rust（`pinyin_word_romanize(name::pdb.icu::text[])`）                                    | `334.847` |  `66.377` |
-| Rust + 后缀词典（`pinyin_word_romanize(name::pdb.icu::text[], '_bench')`）              | `785.521` | `928.066` |
-| Rust 纯文本（`pinyin_word_romanize(name)`）                                              | `331.157` |  `38.073` |
+| 场景                                                                                     |      Cold |      Warm | 相对 SQL 提升（`cold` / `warm`） |
+| ---------------------------------------------------------------------------------------- | --------: | --------: | -------------------------------: |
+| SQL 基线（`icu_romanize(name::pdb.icu::text[])`）                                        | `242.998` | `233.098` |                      `1.0x / 1.0x` |
+| Rust（`pinyin_word_romanize(name::pdb.icu::text[])`）                                    | `336.220` |  `68.312` |                      `0.7x / 3.4x` |
+| Rust + 后缀词典（`pinyin_word_romanize(name::pdb.icu::text[], '_bench')`）              | `723.940` |  `47.809` |                      `0.3x / 4.9x` |
+| Rust 纯文本（`pinyin_word_romanize(name)`）                                              | `351.177` |  `36.041` |                      `0.7x / 6.5x` |
 
 以上数值为 `EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)` 的 `Execution Time`（毫秒）。
 Rust 基线路径的 `cold` 在执行前会先 bump 一次字典版本，用于模拟首次加载缓存。
+后缀词典的 warm 性能依赖 `public.pinyin_register_suffix('_suffix')`，该函数会为后缀表安装版本 bump trigger。
 
 ## Roadmap
 

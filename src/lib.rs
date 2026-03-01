@@ -36,8 +36,15 @@ mod extension {
 
     #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
     struct SuffixDictionarySignature {
-        statement_timestamp: i64,
         base_version: i64,
+        suffix_version: i64,
+        statement_timestamp: i64,
+    }
+
+    #[derive(Clone, Copy, Debug, Default)]
+    struct SuffixSignatureMemoEntry {
+        statement_timestamp: i64,
+        signature: SuffixDictionarySignature,
     }
 
     #[derive(Default)]
@@ -53,6 +60,8 @@ mod extension {
     static DICTIONARY_CACHE: OnceLock<RwLock<DictionaryCache>> = OnceLock::new();
     static SUFFIX_DICTIONARY_CACHE: OnceLock<RwLock<HashMap<String, SuffixDictionaryCacheEntry>>> =
         OnceLock::new();
+    static SUFFIX_SIGNATURE_MEMO: OnceLock<RwLock<HashMap<String, SuffixSignatureMemoEntry>>> =
+        OnceLock::new();
 
     fn char_dictionary_cache() -> &'static RwLock<CharDictionaryCache> {
         CHAR_DICTIONARY_CACHE.get_or_init(|| RwLock::new(CharDictionaryCache::default()))
@@ -64,6 +73,10 @@ mod extension {
 
     fn suffix_dictionary_cache() -> &'static RwLock<HashMap<String, SuffixDictionaryCacheEntry>> {
         SUFFIX_DICTIONARY_CACHE.get_or_init(|| RwLock::new(HashMap::new()))
+    }
+
+    fn suffix_signature_memo() -> &'static RwLock<HashMap<String, SuffixSignatureMemoEntry>> {
+        SUFFIX_SIGNATURE_MEMO.get_or_init(|| RwLock::new(HashMap::new()))
     }
 
     fn sql_literal(value: &str) -> String {
@@ -431,6 +444,20 @@ mod extension {
         }
     }
 
+    fn fetch_suffix_dictionary_version(canonical_suffix: &str) -> Option<i64> {
+        let sql = format!(
+            "SELECT version
+             FROM {s}.pinyin_suffix_dictionary_meta
+             WHERE suffix = {suffix}",
+            s = DICTIONARY_SCHEMA,
+            suffix = sql_literal(canonical_suffix),
+        );
+        match Spi::get_one::<i64>(&sql) {
+            Ok(Some(version)) => Some(version),
+            _ => None,
+        }
+    }
+
     fn overlay_table_name(base_name: &str, canonical_suffix: Option<&str>) -> Option<String> {
         canonical_suffix
             .map(|s| format!("{base_name}{s}"))
@@ -463,18 +490,116 @@ mod extension {
         (word_map, max_word_len)
     }
 
-    fn current_suffix_signature() -> SuffixDictionarySignature {
-        SuffixDictionarySignature {
-            statement_timestamp: unsafe { pg_sys::GetCurrentStatementStartTimestamp() as i64 },
-            base_version: fetch_dictionary_version(),
+    fn current_suffix_signature(canonical_suffix: &str) -> SuffixDictionarySignature {
+        let statement_timestamp = unsafe { pg_sys::GetCurrentStatementStartTimestamp() as i64 };
+        let memo_lock = suffix_signature_memo();
+
+        {
+            let memo = memo_lock
+                .read()
+                .expect("suffix signature memo read lock poisoned");
+            if let Some(entry) = memo.get(canonical_suffix) {
+                if entry.statement_timestamp == statement_timestamp {
+                    return entry.signature;
+                }
+            }
         }
+        let suffix_version = fetch_suffix_dictionary_version(canonical_suffix);
+
+        let signature = SuffixDictionarySignature {
+            base_version: fetch_dictionary_version(),
+            suffix_version: suffix_version.unwrap_or(0),
+            statement_timestamp: if suffix_version.is_some() {
+                0
+            } else {
+                statement_timestamp
+            },
+        };
+
+        {
+            let mut memo = memo_lock
+                .write()
+                .expect("suffix signature memo write lock poisoned");
+            memo.insert(
+                canonical_suffix.to_string(),
+                SuffixSignatureMemoEntry {
+                    statement_timestamp,
+                    signature,
+                },
+            );
+        }
+
+        signature
+    }
+
+    fn make_suffix_trigger_name(prefix: &str, canonical_suffix: &str) -> String {
+        let normalized = canonical_suffix.trim_start_matches('_');
+        let mut name = format!("{prefix}_{normalized}");
+        if name.len() > 63 {
+            name.truncate(63);
+        }
+        name
+    }
+
+    fn register_suffix_dictionary_impl(suffix: &str) -> bool {
+        let canonical_suffix = match canonicalize_table_suffix(suffix) {
+            Some(value) => value,
+            None => error!("suffix cannot be empty"),
+        };
+
+        let upsert_meta_sql = format!(
+            "INSERT INTO {s}.pinyin_suffix_dictionary_meta (suffix, version)
+             VALUES ({suffix}, 1)
+             ON CONFLICT (suffix) DO NOTHING",
+            s = DICTIONARY_SCHEMA,
+            suffix = sql_literal(&canonical_suffix),
+        );
+        if let Err(err) = Spi::run(&upsert_meta_sql) {
+            error!("failed to register suffix meta row: {err}");
+        }
+
+        for (base_table, trigger_prefix) in [
+            ("pinyin_mapping", "pinyin_map_suffix_bump"),
+            ("pinyin_words", "pinyin_word_suffix_bump"),
+        ] {
+            let table = format!("{base_table}{canonical_suffix}");
+            if !table_exists(DICTIONARY_SCHEMA, &table) {
+                continue;
+            }
+
+            let trigger_name = make_suffix_trigger_name(trigger_prefix, &canonical_suffix);
+            let drop_sql = format!(
+                "DROP TRIGGER IF EXISTS {trigger} ON {schema}.{table}",
+                trigger = trigger_name,
+                schema = DICTIONARY_SCHEMA,
+                table = table,
+            );
+            if let Err(err) = Spi::run(&drop_sql) {
+                error!("failed dropping existing suffix trigger {trigger_name}: {err}");
+            }
+
+            let create_sql = format!(
+                "CREATE TRIGGER {trigger}
+                 AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE ON {schema}.{table}
+                 FOR EACH STATEMENT
+                 EXECUTE FUNCTION {schema}.pinyin_suffix_dictionary_bump_version()",
+                trigger = trigger_name,
+                schema = DICTIONARY_SCHEMA,
+                table = table,
+            );
+            if let Err(err) = Spi::run(&create_sql) {
+                error!("failed creating suffix trigger {trigger_name}: {err}");
+            }
+        }
+
+        true
     }
 
     fn with_suffix_char_cache<R>(
         canonical_suffix: &str,
         f: impl FnOnce(&SuffixDictionaryCacheEntry) -> R,
     ) -> R {
-        let signature = current_suffix_signature();
+        let signature = current_suffix_signature(canonical_suffix);
         let lock = suffix_dictionary_cache();
 
         {
@@ -512,7 +637,7 @@ mod extension {
         canonical_suffix: &str,
         f: impl FnOnce(&SuffixDictionaryCacheEntry) -> R,
     ) -> R {
-        let signature = current_suffix_signature();
+        let signature = current_suffix_signature(canonical_suffix);
         let lock = suffix_dictionary_cache();
 
         {
@@ -1032,6 +1157,11 @@ mod extension {
         pinyin_word_romanize_tokenizer_with_suffix_impl(tokenizer_input, suffix)
     }
 
+    #[pg_extern(volatile, strict, parallel_unsafe, name = "pinyin_register_suffix")]
+    fn pinyin_register_suffix(suffix: &str) -> bool {
+        register_suffix_dictionary_impl(suffix)
+    }
+
     #[pg_extern(volatile, parallel_unsafe, name = "pinyin__seed_embedded_data")]
     fn pinyin_seed_embedded_data_internal() -> bool {
         seed_embedded_dictionary_data();
@@ -1062,6 +1192,11 @@ mod extension {
           version bigint NOT NULL DEFAULT 1
         );
 
+        CREATE TABLE IF NOT EXISTS pinyin.pinyin_suffix_dictionary_meta (
+          suffix text PRIMARY KEY,
+          version bigint NOT NULL DEFAULT 1
+        );
+
         INSERT INTO pinyin.pinyin_dictionary_meta (singleton, version)
         VALUES (true, 1)
         ON CONFLICT (singleton) DO NOTHING;
@@ -1074,6 +1209,30 @@ mod extension {
           UPDATE pinyin.pinyin_dictionary_meta
           SET version = version + 1
           WHERE singleton;
+          RETURN NULL;
+        END;
+        $$;
+
+        CREATE OR REPLACE FUNCTION pinyin.pinyin_suffix_dictionary_bump_version()
+        RETURNS trigger
+        LANGUAGE plpgsql
+        AS $$
+        DECLARE
+          suffix_text text;
+        BEGIN
+          IF TG_TABLE_NAME LIKE 'pinyin_mapping\_%' ESCAPE '\' THEN
+            suffix_text := substring(TG_TABLE_NAME from '^pinyin_mapping(.*)$');
+          ELSIF TG_TABLE_NAME LIKE 'pinyin_words\_%' ESCAPE '\' THEN
+            suffix_text := substring(TG_TABLE_NAME from '^pinyin_words(.*)$');
+          ELSE
+            RETURN NULL;
+          END IF;
+
+          INSERT INTO pinyin.pinyin_suffix_dictionary_meta (suffix, version)
+          VALUES (suffix_text, 1)
+          ON CONFLICT (suffix)
+          DO UPDATE SET version = pinyin.pinyin_suffix_dictionary_meta.version + 1;
+
           RETURN NULL;
         END;
         $$;
@@ -1184,6 +1343,12 @@ mod extension {
                  ON CONFLICT (word) DO UPDATE SET pinyin = EXCLUDED.pinyin"
             ))
             .expect("failed to seed suffix words");
+
+            Spi::run(&format!(
+                "SELECT public.pinyin_register_suffix('{}')",
+                suffix
+            ))
+            .expect("failed to register suffix dictionary triggers");
         }
 
         #[pg_test]

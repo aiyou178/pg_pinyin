@@ -102,6 +102,8 @@ SELECT format(
 ) AS ddl
 \\gexec
 
+SELECT public.pinyin_register_suffix('_$SUFFIX_SQL');
+
 \\echo '[setup] generating benchmark dataset'
 DROP TABLE IF EXISTS public.bench_names;
 CREATE TABLE public.bench_names (
