@@ -183,12 +183,13 @@ DOCKER_BUILDKIT=1 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/tes
 
 脚本会覆盖以下场景：
 
-- SQL 字级：`characters2romanize(name)`
-- Rust 字级：`pinyin_char_romanize(name)`
-- Rust 字级（用户后缀词典叠加）：`pinyin_char_romanize(name, '_<suffix>')`
-- SQL 词级：`icu_romanize(name::pdb.icu::text[])`（当存在 `pg_search`）
-- Rust 词级：`pinyin_word_romanize(name::pdb.icu::text[])`（有 `pg_search`）或 `pinyin_word_romanize(name)`（无 `pg_search`）
-- Rust 词级（用户后缀词典叠加）：`pinyin_word_romanize(name::pdb.icu::text[], '_<suffix>')`
+- SQL 字级：`characters2romanize(name)`（`cold` + `warm`）
+- Rust 字级：`pinyin_char_romanize(name)`（`cold` + `warm`）
+- Rust 字级（用户后缀词典叠加）：`pinyin_char_romanize(name, '_<suffix>')`（`cold` + `warm`）
+- SQL 词级：`icu_romanize(name::pdb.icu::text[])`（`cold` + `warm`，当存在 `pg_search`）
+- Rust 词级（tokenizer 输入）：`pinyin_word_romanize(name::pdb.icu::text[])`（`cold` + `warm`）
+- Rust 词级（后缀词典叠加）：`pinyin_word_romanize(name::pdb.icu::text[], '_<suffix>')`（`cold` + `warm`）
+- Rust 词级（纯文本输入）：`pinyin_word_romanize(name)`（`cold` + `warm`）
 
 所有基准查询都使用 `EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)`，包含内存占用。
 
@@ -206,14 +207,27 @@ ROWS=2000 USER_TABLE_SUFFIX=_bench PGURL=postgres://localhost/postgres ./scripts
 ROWS=2000 USER_TABLE_SUFFIX=_bench PGURL=postgres://postgres@localhost:5432/postgres ./scripts/benchmark_pg18.sh
 ```
 
-最新一次结果（PG18，`ROWS=2000`）：
+最新一次结果（PG18，`ROWS=2000`，2026-03-01）：
 
-| 场景                                                                                                                     |     Rust 扩展 |      SQL 基线 | 加速比（`SQL` / `Rust`） |
-| ------------------------------------------------------------------------------------------------------------------------ | ------------: | ------------: | -----------------------: |
-| 字级拼音化（`pinyin_char_romanize` vs `characters2romanize`）                                                            |  `334.570 ms` | `9377.595 ms` |                  `28.0x` |
-| 字级拼音化（后缀词典，`pinyin_char_romanize(name, '_bench')` vs `characters2romanize`）                                  |  `151.504 ms` | `9377.595 ms` |                  `61.9x` |
-| 词级拼音化（`pinyin_word_romanize(name::pdb.icu::text[])` vs `icu_romanize(name::pdb.icu::text[])`）                     |   `70.332 ms` |  `238.626 ms` |                   `3.4x` |
-| 词级拼音化（后缀词典，`pinyin_word_romanize(name::pdb.icu::text[], '_bench')` vs `icu_romanize(name::pdb.icu::text[])`） |  `810.859 ms` |  `238.626 ms` |                   `0.3x` |
+字级模式：
+
+| 场景                                                                                     |       Cold |       Warm |
+| ---------------------------------------------------------------------------------------- | ---------: | ---------: |
+| SQL 基线（`characters2romanize`）                                                        | `8991.042` | `8785.796` |
+| Rust（`pinyin_char_romanize`）                                                           |   `82.898` |   `27.589` |
+| Rust + 后缀词典（`pinyin_char_romanize(name, '_bench')`）                                |  `165.197` |  `156.524` |
+
+词级模式（`pg_search` tokenizer 输入）：
+
+| 场景                                                                                     |      Cold |      Warm |
+| ---------------------------------------------------------------------------------------- | --------: | --------: |
+| SQL 基线（`icu_romanize(name::pdb.icu::text[])`）                                        | `244.098` | `232.573` |
+| Rust（`pinyin_word_romanize(name::pdb.icu::text[])`）                                    | `334.847` |  `66.377` |
+| Rust + 后缀词典（`pinyin_word_romanize(name::pdb.icu::text[], '_bench')`）              | `785.521` | `928.066` |
+| Rust 纯文本（`pinyin_word_romanize(name)`）                                              | `331.157` |  `38.073` |
+
+以上数值为 `EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)` 的 `Execution Time`（毫秒）。
+Rust 基线路径的 `cold` 在执行前会先 bump 一次字典版本，用于模拟首次加载缓存。
 
 ## Roadmap
 

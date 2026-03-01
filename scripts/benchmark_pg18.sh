@@ -130,24 +130,40 @@ CROSS JOIN dict;
 ANALYZE public.bench_names;
 
 \\echo ''
-\\echo '=== Tokenization Benchmark: Character Mode ==='
-\\echo '[benchmark] SQL baseline: characters2romanize(name)'
+\\echo '=== Full Tokenization Benchmark: Character Mode ==='
+\\echo '[benchmark][cold] SQL baseline: characters2romanize(name)'
 EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)
 SELECT sum(length(public.characters2romanize(name)))
 FROM public.bench_names;
 
-\\echo '[benchmark] Rust extension: pinyin_char_romanize(name)'
+\\echo '[benchmark][warm] SQL baseline: characters2romanize(name)'
+EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)
+SELECT sum(length(public.characters2romanize(name)))
+FROM public.bench_names;
+
+\\echo '[benchmark][cold] Rust extension: pinyin_char_romanize(name)'
+UPDATE pinyin.pinyin_mapping SET pinyin = pinyin WHERE character = ' ';
 EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)
 SELECT sum(length(public.pinyin_char_romanize(name)))
 FROM public.bench_names;
 
-\\echo '[benchmark] Rust extension (suffix): pinyin_char_romanize(name, ''_$SUFFIX_SQL'')'
+\\echo '[benchmark][warm] Rust extension: pinyin_char_romanize(name)'
+EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)
+SELECT sum(length(public.pinyin_char_romanize(name)))
+FROM public.bench_names;
+
+\\echo '[benchmark][cold] Rust extension (suffix): pinyin_char_romanize(name, ''_$SUFFIX_SQL'')'
+EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)
+SELECT sum(length(public.pinyin_char_romanize(name, '_$SUFFIX_SQL')))
+FROM public.bench_names;
+
+\\echo '[benchmark][warm] Rust extension (suffix): pinyin_char_romanize(name, ''_$SUFFIX_SQL'')'
 EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)
 SELECT sum(length(public.pinyin_char_romanize(name, '_$SUFFIX_SQL')))
 FROM public.bench_names;
 
 \\echo ''
-\\echo '=== Tokenization Benchmark: Word Mode ==='
+\\echo '=== Full Tokenization Benchmark: Word Mode ==='
 \\set has_pg_search 0
 SELECT CASE
   WHEN EXISTS (SELECT 1 FROM pg_available_extensions WHERE name = 'pg_search') THEN 1
@@ -160,25 +176,66 @@ END AS has_pg_search
   CREATE EXTENSION IF NOT EXISTS pg_search;
   \\i '$ROOT_SQL/sql/word.sql'
 
-  \\echo '[benchmark] SQL baseline: icu_romanize(name::pdb.icu::text[])'
+  \\echo '[benchmark][cold] SQL baseline: icu_romanize(name::pdb.icu::text[])'
   EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)
   SELECT sum(length(public.icu_romanize(name::pdb.icu::text[])))
   FROM public.bench_names;
-  \\echo '[benchmark] Rust extension: pinyin_word_romanize(name::pdb.icu::text[])'
+
+  \\echo '[benchmark][warm] SQL baseline: icu_romanize(name::pdb.icu::text[])'
+  EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)
+  SELECT sum(length(public.icu_romanize(name::pdb.icu::text[])))
+  FROM public.bench_names;
+
+  \\echo '[benchmark][cold] Rust extension: pinyin_word_romanize(name::pdb.icu::text[])'
+  UPDATE pinyin.pinyin_mapping SET pinyin = pinyin WHERE character = ' ';
   EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)
   SELECT sum(length(public.pinyin_word_romanize(name::pdb.icu::text[])))
   FROM public.bench_names;
-  \\echo '[benchmark] Rust extension (suffix): pinyin_word_romanize(name::pdb.icu::text[], ''_$SUFFIX_SQL'')'
+
+  \\echo '[benchmark][warm] Rust extension: pinyin_word_romanize(name::pdb.icu::text[])'
+  EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)
+  SELECT sum(length(public.pinyin_word_romanize(name::pdb.icu::text[])))
+  FROM public.bench_names;
+
+  \\echo '[benchmark][cold] Rust extension (suffix): pinyin_word_romanize(name::pdb.icu::text[], ''_$SUFFIX_SQL'')'
   EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)
   SELECT sum(length(public.pinyin_word_romanize(name::pdb.icu::text[], '_$SUFFIX_SQL')))
   FROM public.bench_names;
-\\else
-  \\echo '[skip] pg_search is not available; SQL word tokenizer baseline (icu_romanize) skipped.'
-  \\echo '[benchmark] Rust extension: pinyin_word_romanize(name)'
+
+  \\echo '[benchmark][warm] Rust extension (suffix): pinyin_word_romanize(name::pdb.icu::text[], ''_$SUFFIX_SQL'')'
+  EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)
+  SELECT sum(length(public.pinyin_word_romanize(name::pdb.icu::text[], '_$SUFFIX_SQL')))
+  FROM public.bench_names;
+
+  \\echo '[benchmark][cold] Rust extension (plain text): pinyin_word_romanize(name)'
+  UPDATE pinyin.pinyin_mapping SET pinyin = pinyin WHERE character = ' ';
   EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)
   SELECT sum(length(public.pinyin_word_romanize(name)))
   FROM public.bench_names;
-  \\echo '[benchmark] Rust extension (suffix): pinyin_word_romanize(name, ''_$SUFFIX_SQL'')'
+
+  \\echo '[benchmark][warm] Rust extension (plain text): pinyin_word_romanize(name)'
+  EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)
+  SELECT sum(length(public.pinyin_word_romanize(name)))
+  FROM public.bench_names;
+\\else
+  \\echo '[skip] pg_search is not available; SQL word tokenizer baseline (icu_romanize) skipped.'
+  \\echo '[benchmark][cold] Rust extension: pinyin_word_romanize(name)'
+  UPDATE pinyin.pinyin_mapping SET pinyin = pinyin WHERE character = ' ';
+  EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)
+  SELECT sum(length(public.pinyin_word_romanize(name)))
+  FROM public.bench_names;
+
+  \\echo '[benchmark][warm] Rust extension: pinyin_word_romanize(name)'
+  EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)
+  SELECT sum(length(public.pinyin_word_romanize(name)))
+  FROM public.bench_names;
+
+  \\echo '[benchmark][cold] Rust extension (suffix): pinyin_word_romanize(name, ''_$SUFFIX_SQL'')'
+  EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)
+  SELECT sum(length(public.pinyin_word_romanize(name, '_$SUFFIX_SQL')))
+  FROM public.bench_names;
+
+  \\echo '[benchmark][warm] Rust extension (suffix): pinyin_word_romanize(name, ''_$SUFFIX_SQL'')'
   EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)
   SELECT sum(length(public.pinyin_word_romanize(name, '_$SUFFIX_SQL')))
   FROM public.bench_names;

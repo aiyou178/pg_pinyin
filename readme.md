@@ -199,12 +199,13 @@ Tokenization-only benchmark script:
 
 It measures:
 
-- SQL char tokenizer: `characters2romanize(name)`
-- Rust char tokenizer: `pinyin_char_romanize(name)`
-- Rust char tokenizer (user suffix overlay): `pinyin_char_romanize(name, '_<suffix>')`
-- SQL word tokenizer: `icu_romanize(name::pdb.icu::text[])` (if `pg_search` exists)
-- Rust word tokenizer: `pinyin_word_romanize(name::pdb.icu::text[])` when `pg_search` exists, else `pinyin_word_romanize(name)`
-- Rust word tokenizer (user suffix overlay): `pinyin_word_romanize(name::pdb.icu::text[], '_<suffix>')`
+- SQL char tokenizer: `characters2romanize(name)` (`cold` + `warm`)
+- Rust char tokenizer: `pinyin_char_romanize(name)` (`cold` + `warm`)
+- Rust char tokenizer (user suffix overlay): `pinyin_char_romanize(name, '_<suffix>')` (`cold` + `warm`)
+- SQL word tokenizer: `icu_romanize(name::pdb.icu::text[])` (`cold` + `warm`, if `pg_search` exists)
+- Rust word tokenizer with tokenizer input: `pinyin_word_romanize(name::pdb.icu::text[])` (`cold` + `warm`)
+- Rust word tokenizer with suffix overlay: `pinyin_word_romanize(name::pdb.icu::text[], '_<suffix>')` (`cold` + `warm`)
+- Rust word tokenizer with plain text input: `pinyin_word_romanize(name)` (`cold` + `warm`)
 
 All benchmark queries use `EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)`.
 
@@ -222,14 +223,27 @@ Session command:
 ROWS=2000 USER_TABLE_SUFFIX=_bench PGURL=postgres://postgres@localhost:5432/postgres ./scripts/benchmark_pg18.sh
 ```
 
-Latest run (PG18, `ROWS=2000`):
+Latest run (PG18, `ROWS=2000`, 2026-03-01):
 
-| Scenario                                                                                                                         | Rust Extension |  SQL Baseline | Speedup (`SQL` / `Rust`) |
-| -------------------------------------------------------------------------------------------------------------------------------- | -------------: | ------------: | -----------------------: |
-| Char romanization (`pinyin_char_romanize` vs `characters2romanize`)                                                              |   `334.570 ms` | `9377.595 ms` |                  `28.0x` |
-| Char romanization with suffix (`pinyin_char_romanize(name, '_bench')` vs `characters2romanize`)                                  |   `151.504 ms` | `9377.595 ms` |                  `61.9x` |
-| Word romanization (`pinyin_word_romanize(name::pdb.icu::text[])` vs `icu_romanize(name::pdb.icu::text[])`)                       |    `70.332 ms` |  `238.626 ms` |                   `3.4x` |
-| Word romanization with suffix (`pinyin_word_romanize(name::pdb.icu::text[], '_bench')` vs `icu_romanize(name::pdb.icu::text[])`) |   `810.859 ms` |  `238.626 ms` |                   `0.3x` |
+Character mode:
+
+| Scenario                                                                                          |       Cold |       Warm |
+| ------------------------------------------------------------------------------------------------- | ---------: | ---------: |
+| SQL baseline (`characters2romanize`)                                                              | `8991.042` | `8785.796` |
+| Rust (`pinyin_char_romanize`)                                                                     |   `82.898` |   `27.589` |
+| Rust + suffix (`pinyin_char_romanize(name, '_bench')`)                                            |  `165.197` |  `156.524` |
+
+Word mode (`pg_search` tokenizer input):
+
+| Scenario                                                                                          |       Cold |       Warm |
+| ------------------------------------------------------------------------------------------------- | ---------: | ---------: |
+| SQL baseline (`icu_romanize(name::pdb.icu::text[])`)                                              |  `244.098` |  `232.573` |
+| Rust (`pinyin_word_romanize(name::pdb.icu::text[])`)                                              |  `334.847` |   `66.377` |
+| Rust + suffix (`pinyin_word_romanize(name::pdb.icu::text[], '_bench')`)                          |  `785.521` |  `928.066` |
+| Rust plain text (`pinyin_word_romanize(name)`)                                                    |  `331.157` |   `38.073` |
+
+Times above are `Execution Time` in milliseconds from `EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)`.
+`cold` runs for Rust base paths force a dictionary version bump before execution to simulate first-use cache load.
 
 ## Roadmap
 
