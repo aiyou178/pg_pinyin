@@ -17,7 +17,7 @@ AS $$
       input_tokens.token,
       pinyin_words.pinyin
     FROM input_tokens
-    LEFT JOIN public.pinyin_words
+    LEFT JOIN pinyin.pinyin_words
       ON input_tokens.token = pinyin_words.word
   ),
   char_candidates AS (
@@ -39,7 +39,7 @@ AS $$
       char_candidates.ord,
       COALESCE(pinyin_mapping.pinyin, char_candidates.ch) AS pinyin
     FROM char_candidates
-    LEFT JOIN public.pinyin_mapping
+    LEFT JOIN pinyin.pinyin_mapping
       ON char_candidates.ch = pinyin_mapping.character
   ),
   char_agg AS (

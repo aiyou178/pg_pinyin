@@ -46,13 +46,13 @@ CREATE EXTENSION IF NOT EXISTS pg_pinyin;
 \\i '$ROOT_SQL/sql/pinyin.sql'
 
 \\echo '[setup] loading mapping/token dictionaries'
-TRUNCATE TABLE public.pinyin_mapping;
-TRUNCATE TABLE public.pinyin_token;
-TRUNCATE TABLE public.pinyin_words;
-\\copy public.pinyin_mapping (character, pinyin) FROM '$MAPPING_SQL' WITH (FORMAT csv, HEADER false)
-\\copy public.pinyin_token (character, category) FROM '$TOKEN_SQL' WITH (FORMAT csv, HEADER false)
-\\copy public.pinyin_words (word, pinyin) FROM '$WORDS_SQL' WITH (FORMAT csv, HEADER false)
-INSERT INTO public.pinyin_mapping (character, pinyin)
+TRUNCATE TABLE pinyin.pinyin_mapping;
+TRUNCATE TABLE pinyin.pinyin_token;
+TRUNCATE TABLE pinyin.pinyin_words;
+\\copy pinyin.pinyin_mapping (character, pinyin) FROM '$MAPPING_SQL' WITH (FORMAT csv, HEADER false)
+\\copy pinyin.pinyin_token (character, category) FROM '$TOKEN_SQL' WITH (FORMAT csv, HEADER false)
+\\copy pinyin.pinyin_words (word, pinyin) FROM '$WORDS_SQL' WITH (FORMAT csv, HEADER false)
+INSERT INTO pinyin.pinyin_mapping (character, pinyin)
 VALUES (' ', ' ')
 ON CONFLICT (character) DO NOTHING;
 

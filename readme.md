@@ -22,6 +22,17 @@ Recommended usage:
 1. char normalization + `pg_trgm`
 2. word normalization + `pg_search`
 
+## Extension-Bundled Dictionary Data
+
+The Rust extension now embeds these dictionaries at build time:
+
+- `sql/data/pinyin_mapping.csv`
+- `sql/data/pinyin_token.csv`
+- `sql/data/pinyin_words.csv`
+
+On first use, it auto-seeds dictionary tables under schema `pinyin`.
+No separate `sql/load_data.sql` step is required for extension usage.
+
 ## Data Prep (Moved + One-Shot)
 
 Data prep logic is in this repo:
@@ -139,9 +150,9 @@ ROWS=2000 PGURL=postgres://localhost/postgres ./scripts/benchmark_pg18.sh
 
 All dictionaries remain runtime-editable:
 
-- `public.pinyin_mapping`
-- `public.pinyin_words`
-- `public.pinyin_token`
+- `pinyin.pinyin_mapping`
+- `pinyin.pinyin_words`
+- `pinyin.pinyin_token`
 
 No extension rebuild is required after table updates.
 

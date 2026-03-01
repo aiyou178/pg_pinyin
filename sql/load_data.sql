@@ -17,26 +17,26 @@
 \\quit 1
 \\endif
 
-TRUNCATE TABLE public.pinyin_mapping;
-TRUNCATE TABLE public.pinyin_token;
-TRUNCATE TABLE public.pinyin_words;
+TRUNCATE TABLE pinyin.pinyin_mapping;
+TRUNCATE TABLE pinyin.pinyin_token;
+TRUNCATE TABLE pinyin.pinyin_words;
 
-COPY public.pinyin_mapping (character, pinyin)
+COPY pinyin.pinyin_mapping (character, pinyin)
 FROM :'mapping_file'
 WITH (FORMAT csv, HEADER false, DELIMITER ',');
 
-COPY public.pinyin_token (character, category)
+COPY pinyin.pinyin_token (character, category)
 FROM :'token_file'
 WITH (FORMAT csv, HEADER false, DELIMITER ',');
 
 \\if :{?words_file}
-COPY public.pinyin_words (word, pinyin)
+COPY pinyin.pinyin_words (word, pinyin)
 FROM :'words_file'
 WITH (FORMAT csv, HEADER false, DELIMITER ',');
 \\else
 \\echo 'words_file not provided, pinyin_words stays empty'
 \\endif
 
-INSERT INTO public.pinyin_mapping (character, pinyin)
+INSERT INTO pinyin.pinyin_mapping (character, pinyin)
 VALUES (' ', ' ')
 ON CONFLICT (character) DO NOTHING;

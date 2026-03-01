@@ -3,11 +3,11 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap;
 \ir ../../sql/pinyin.sql
 
-TRUNCATE TABLE public.pinyin_mapping;
-TRUNCATE TABLE public.pinyin_token;
-TRUNCATE TABLE public.pinyin_words;
+TRUNCATE TABLE pinyin.pinyin_mapping;
+TRUNCATE TABLE pinyin.pinyin_token;
+TRUNCATE TABLE pinyin.pinyin_words;
 
-INSERT INTO public.pinyin_mapping (character, pinyin) VALUES
+INSERT INTO pinyin.pinyin_mapping (character, pinyin) VALUES
   (' ', ' '),
   ('我', '|wo|'),
   ('们', '|men|'),
@@ -16,13 +16,13 @@ INSERT INTO public.pinyin_mapping (character, pinyin) VALUES
   ('郑', '|zheng|'),
   ('爽', '|shuang|');
 
-INSERT INTO public.pinyin_token (character, category) VALUES
+INSERT INTO pinyin.pinyin_token (character, category) VALUES
   ('wang', 1), ('chong', 1), ('yang', 1),
   ('zh', 2), ('ch', 2), ('sh', 2),
   ('w', 2), ('c', 2), ('h', 2), ('y', 2),
   ('xi', 1), ('an', 1);
 
-INSERT INTO public.pinyin_words (word, pinyin)
+INSERT INTO pinyin.pinyin_words (word, pinyin)
 VALUES ('郑爽', '|zheng| |shuang|');
 
 SELECT plan(15);
@@ -31,9 +31,9 @@ SELECT is(public.normalize2text('我们'), '我们', 'normalize2text keeps mappe
 SELECT is(public.normalize2text('我ABC们123'), '我ABC们123', 'normalize2text keeps ASCII runs');
 SELECT is(public.normalize2text('我!!!们'), '我 们', 'normalize2text collapses unknown chars to one space');
 
-SELECT is_deeply(
-  public.normalize2array('我ABC们123'),
-  ARRAY['我', 'ABC', '们', '123']::text[],
+SELECT is(
+  public.normalize2array('我ABC们123')::text,
+  ARRAY['我', 'ABC', '们', '123']::text[]::text,
   'normalize2array splits into Han chars and ASCII runs'
 );
 

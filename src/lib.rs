@@ -7,8 +7,14 @@ mod extension {
     use std::mem;
     use std::sync::{OnceLock, RwLock};
 
+    use csv::ReaderBuilder;
     use pgrx::datum::AnyElement;
     use pgrx::prelude::*;
+
+    const DICTIONARY_SCHEMA: &str = "pinyin";
+    const EMBEDDED_MAPPING_CSV: &str = include_str!("../sql/data/pinyin_mapping.csv");
+    const EMBEDDED_TOKEN_CSV: &str = include_str!("../sql/data/pinyin_token.csv");
+    const EMBEDDED_WORDS_CSV: &str = include_str!("../sql/data/pinyin_words.csv");
 
     fn spi_json_text(query: &str) -> String {
         match Spi::get_one::<String>(query) {
@@ -38,10 +44,169 @@ mod extension {
         DICTIONARY_CACHE.get_or_init(|| RwLock::new(DictionaryCache::default()))
     }
 
+    fn sql_literal(value: &str) -> String {
+        format!("'{}'", value.replace('\'', "''"))
+    }
+
+    fn parse_embedded_string_rows(csv_text: &str, expected_name: &str) -> Vec<(String, String)> {
+        let mut rows = Vec::new();
+        let mut reader = ReaderBuilder::new()
+            .has_headers(false)
+            .from_reader(csv_text.as_bytes());
+        for rec in reader.records() {
+            let record = match rec {
+                Ok(v) => v,
+                Err(err) => error!("failed parsing embedded {expected_name} CSV: {err}"),
+            };
+            let Some(first) = record.get(0) else {
+                continue;
+            };
+            let Some(second) = record.get(1) else {
+                continue;
+            };
+            rows.push((first.to_string(), second.to_string()));
+        }
+        rows
+    }
+
+    fn parse_embedded_token_rows(csv_text: &str) -> Vec<(String, i16)> {
+        let mut rows = Vec::new();
+        let mut reader = ReaderBuilder::new()
+            .has_headers(false)
+            .from_reader(csv_text.as_bytes());
+        for rec in reader.records() {
+            let record = match rec {
+                Ok(v) => v,
+                Err(err) => error!("failed parsing embedded token CSV: {err}"),
+            };
+            let Some(token) = record.get(0) else {
+                continue;
+            };
+            let Some(category_text) = record.get(1) else {
+                continue;
+            };
+            let category: i16 = match category_text.parse() {
+                Ok(v) => v,
+                Err(_) => error!("invalid token category in embedded CSV: {category_text}"),
+            };
+            rows.push((token.to_string(), category));
+        }
+        rows
+    }
+
+    fn bulk_insert_string_rows(
+        table: &str,
+        key_col: &str,
+        value_col: &str,
+        rows: &[(String, String)],
+    ) {
+        for chunk in rows.chunks(400) {
+            let mut values = String::new();
+            for (idx, (key, value)) in chunk.iter().enumerate() {
+                if idx > 0 {
+                    values.push(',');
+                }
+                values.push_str(&format!("({}, {})", sql_literal(key), sql_literal(value)));
+            }
+            let sql = format!(
+                "INSERT INTO {table} ({key_col}, {value_col}) VALUES {values} \
+                 ON CONFLICT ({key_col}) DO UPDATE SET {value_col} = EXCLUDED.{value_col}"
+            );
+            if let Err(err) = Spi::run(&sql) {
+                error!("failed bulk insert into {table}: {err}");
+            }
+        }
+    }
+
+    fn bulk_insert_token_rows(table: &str, rows: &[(String, i16)]) {
+        for chunk in rows.chunks(400) {
+            let mut values = String::new();
+            for (idx, (token, category)) in chunk.iter().enumerate() {
+                if idx > 0 {
+                    values.push(',');
+                }
+                values.push_str(&format!("({}, {})", sql_literal(token), category));
+            }
+            let sql = format!(
+                "INSERT INTO {table} (character, category) VALUES {values} \
+                 ON CONFLICT (character) DO UPDATE SET category = EXCLUDED.category"
+            );
+            if let Err(err) = Spi::run(&sql) {
+                error!("failed bulk insert into {table}: {err}");
+            }
+        }
+    }
+
+    fn seed_embedded_dictionary_data() {
+        let mapping_rows = parse_embedded_string_rows(EMBEDDED_MAPPING_CSV, "mapping");
+        let token_rows = parse_embedded_token_rows(EMBEDDED_TOKEN_CSV);
+        let word_rows = parse_embedded_string_rows(EMBEDDED_WORDS_CSV, "word");
+
+        let truncate_sql = format!(
+            "TRUNCATE TABLE {s}.pinyin_mapping; \
+             TRUNCATE TABLE {s}.pinyin_token; \
+             TRUNCATE TABLE {s}.pinyin_words;",
+            s = DICTIONARY_SCHEMA
+        );
+        if let Err(err) = Spi::run(&truncate_sql) {
+            error!("failed truncating dictionary tables before seed: {err}");
+        }
+
+        bulk_insert_string_rows(
+            &format!("{DICTIONARY_SCHEMA}.pinyin_mapping"),
+            "character",
+            "pinyin",
+            &mapping_rows,
+        );
+        bulk_insert_token_rows(&format!("{DICTIONARY_SCHEMA}.pinyin_token"), &token_rows);
+        bulk_insert_string_rows(
+            &format!("{DICTIONARY_SCHEMA}.pinyin_words"),
+            "word",
+            "pinyin",
+            &word_rows,
+        );
+
+        let space_sql = format!(
+            "INSERT INTO {s}.pinyin_mapping (character, pinyin) VALUES (' ', ' ') \
+             ON CONFLICT (character) DO NOTHING",
+            s = DICTIONARY_SCHEMA
+        );
+        if let Err(err) = Spi::run(&space_sql) {
+            error!("failed ensuring space mapping row: {err}");
+        }
+
+        let mark_sql = format!(
+            "UPDATE {s}.pinyin_dictionary_meta \
+             SET embedded_loaded = true \
+             WHERE singleton",
+            s = DICTIONARY_SCHEMA
+        );
+        if let Err(err) = Spi::run(&mark_sql) {
+            error!("failed marking embedded dictionary as loaded: {err}");
+        }
+    }
+
+    fn ensure_embedded_dictionary_loaded() {
+        let check_sql = format!(
+            "SELECT NOT COALESCE((SELECT embedded_loaded FROM {s}.pinyin_dictionary_meta WHERE singleton), false)",
+            s = DICTIONARY_SCHEMA
+        );
+        let should_seed = match Spi::get_one::<bool>(&check_sql) {
+            Ok(Some(v)) => v,
+            Ok(None) => true,
+            Err(_) => true,
+        };
+        if should_seed {
+            seed_embedded_dictionary_data();
+        }
+    }
+
     fn fetch_dictionary_version() -> i64 {
-        match Spi::get_one::<i64>(
-            "SELECT COALESCE((SELECT version FROM public.pinyin_dictionary_meta WHERE singleton), 0)",
-        ) {
+        let sql = format!(
+            "SELECT COALESCE((SELECT version FROM {s}.pinyin_dictionary_meta WHERE singleton), 0)",
+            s = DICTIONARY_SCHEMA
+        );
+        match Spi::get_one::<i64>(&sql) {
             Ok(Some(version)) => version,
             Ok(None) => 0,
             Err(_) => 0,
@@ -49,15 +214,17 @@ mod extension {
     }
 
     fn load_dictionary_snapshot(version: i64) -> DictionaryCache {
-        let char_map = fetch_string_map_from_query(
-            "SELECT coalesce(jsonb_object_agg(character, pinyin), '{}'::jsonb)::text \
-             FROM public.pinyin_mapping",
-        );
+        let char_map = fetch_string_map_from_query(&format!(
+            "SELECT coalesce(jsonb_object_agg(character, pinyin), '{{}}'::jsonb)::text \
+             FROM {s}.pinyin_mapping",
+            s = DICTIONARY_SCHEMA
+        ));
 
-        let word_map = fetch_string_map_from_query(
-            "SELECT coalesce(jsonb_object_agg(word, pinyin), '{}'::jsonb)::text \
-             FROM public.pinyin_words",
-        );
+        let word_map = fetch_string_map_from_query(&format!(
+            "SELECT coalesce(jsonb_object_agg(word, pinyin), '{{}}'::jsonb)::text \
+             FROM {s}.pinyin_words",
+            s = DICTIONARY_SCHEMA
+        ));
 
         let max_word_len = word_map
             .keys()
@@ -75,6 +242,7 @@ mod extension {
     }
 
     fn with_dictionary_cache<R>(f: impl FnOnce(&DictionaryCache) -> R) -> R {
+        ensure_embedded_dictionary_loaded();
         let version = fetch_dictionary_version();
         let lock = dictionary_cache();
 
@@ -442,61 +610,67 @@ mod extension {
 
     extension_sql!(
         r#"
-        CREATE TABLE IF NOT EXISTS public.pinyin_mapping (
+        CREATE SCHEMA IF NOT EXISTS pinyin;
+
+        CREATE TABLE IF NOT EXISTS pinyin.pinyin_mapping (
           character text PRIMARY KEY,
           pinyin text NOT NULL
         );
 
-        CREATE TABLE IF NOT EXISTS public.pinyin_token (
+        CREATE TABLE IF NOT EXISTS pinyin.pinyin_token (
           character text PRIMARY KEY,
           category smallint NOT NULL CHECK (category IN (1, 2, 3))
         );
 
-        CREATE TABLE IF NOT EXISTS public.pinyin_words (
+        CREATE TABLE IF NOT EXISTS pinyin.pinyin_words (
           word text PRIMARY KEY,
           pinyin text NOT NULL
         );
 
-        CREATE TABLE IF NOT EXISTS public.pinyin_dictionary_meta (
+        CREATE TABLE IF NOT EXISTS pinyin.pinyin_dictionary_meta (
           singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
-          version bigint NOT NULL DEFAULT 1
+          version bigint NOT NULL DEFAULT 1,
+          embedded_loaded boolean NOT NULL DEFAULT false
         );
 
-        INSERT INTO public.pinyin_dictionary_meta (singleton, version)
-        VALUES (true, 1)
+        ALTER TABLE pinyin.pinyin_dictionary_meta
+        ADD COLUMN IF NOT EXISTS embedded_loaded boolean NOT NULL DEFAULT false;
+
+        INSERT INTO pinyin.pinyin_dictionary_meta (singleton, version, embedded_loaded)
+        VALUES (true, 1, false)
         ON CONFLICT (singleton) DO NOTHING;
 
-        CREATE OR REPLACE FUNCTION public.pinyin_dictionary_bump_version()
+        CREATE OR REPLACE FUNCTION pinyin.pinyin_dictionary_bump_version()
         RETURNS trigger
         LANGUAGE plpgsql
         AS $$
         BEGIN
-          UPDATE public.pinyin_dictionary_meta
+          UPDATE pinyin.pinyin_dictionary_meta
           SET version = version + 1
           WHERE singleton;
           RETURN NULL;
         END;
         $$;
 
-        DROP TRIGGER IF EXISTS pinyin_mapping_bump_version ON public.pinyin_mapping;
+        DROP TRIGGER IF EXISTS pinyin_mapping_bump_version ON pinyin.pinyin_mapping;
         CREATE TRIGGER pinyin_mapping_bump_version
-        AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE ON public.pinyin_mapping
+        AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE ON pinyin.pinyin_mapping
         FOR EACH STATEMENT
-        EXECUTE FUNCTION public.pinyin_dictionary_bump_version();
+        EXECUTE FUNCTION pinyin.pinyin_dictionary_bump_version();
 
-        DROP TRIGGER IF EXISTS pinyin_words_bump_version ON public.pinyin_words;
+        DROP TRIGGER IF EXISTS pinyin_words_bump_version ON pinyin.pinyin_words;
         CREATE TRIGGER pinyin_words_bump_version
-        AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE ON public.pinyin_words
+        AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE ON pinyin.pinyin_words
         FOR EACH STATEMENT
-        EXECUTE FUNCTION public.pinyin_dictionary_bump_version();
+        EXECUTE FUNCTION pinyin.pinyin_dictionary_bump_version();
 
-        DROP TRIGGER IF EXISTS pinyin_token_bump_version ON public.pinyin_token;
+        DROP TRIGGER IF EXISTS pinyin_token_bump_version ON pinyin.pinyin_token;
         CREATE TRIGGER pinyin_token_bump_version
-        AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE ON public.pinyin_token
+        AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE ON pinyin.pinyin_token
         FOR EACH STATEMENT
-        EXECUTE FUNCTION public.pinyin_dictionary_bump_version();
+        EXECUTE FUNCTION pinyin.pinyin_dictionary_bump_version();
 
-        INSERT INTO public.pinyin_mapping (character, pinyin)
+        INSERT INTO pinyin.pinyin_mapping (character, pinyin)
         VALUES (' ', ' ')
         ON CONFLICT (character) DO NOTHING;
         "#,
@@ -511,14 +685,14 @@ mod extension {
 
         fn seed_minimal_data() {
             Spi::run(
-                "TRUNCATE TABLE public.pinyin_mapping; \
-                 TRUNCATE TABLE public.pinyin_token; \
-                 TRUNCATE TABLE public.pinyin_words;",
+                "TRUNCATE TABLE pinyin.pinyin_mapping; \
+                 TRUNCATE TABLE pinyin.pinyin_token; \
+                 TRUNCATE TABLE pinyin.pinyin_words;",
             )
             .expect("failed to truncate dictionary tables");
 
             Spi::run(
-                "INSERT INTO public.pinyin_mapping (character, pinyin) VALUES
+                "INSERT INTO pinyin.pinyin_mapping (character, pinyin) VALUES
                    (' ', ' '),
                    ('我', '|wo|'),
                    ('们', '|men|'),
@@ -530,7 +704,7 @@ mod extension {
             .expect("failed to seed pinyin_mapping");
 
             Spi::run(
-                "INSERT INTO public.pinyin_words (word, pinyin) VALUES
+                "INSERT INTO pinyin.pinyin_words (word, pinyin) VALUES
                    ('郑爽', '|zheng| |shuang|')
                  ON CONFLICT (word) DO UPDATE SET pinyin = EXCLUDED.pinyin;",
             )
@@ -580,7 +754,7 @@ mod extension {
                 .expect("no row returned");
             assert_eq!(before, "wo");
 
-            Spi::run("UPDATE public.pinyin_mapping SET pinyin='|wo2|' WHERE character='我'")
+            Spi::run("UPDATE pinyin.pinyin_mapping SET pinyin='|wo2|' WHERE character='我'")
                 .expect("failed to update mapping");
 
             let after = Spi::get_one::<String>("SELECT public.pinyin_char_normalize('我')")
@@ -600,12 +774,13 @@ mod extension {
         }
     }
 
-    #[cfg(test)]
-    pub mod pg_test {
-        pub fn setup(_options: Vec<&str>) {}
+}
 
-        pub fn postgres_conf_options() -> Vec<&'static str> {
-            vec![]
-        }
+#[cfg(all(feature = "extension", any(test, feature = "pg_test")))]
+pub mod pg_test {
+    pub fn setup(_options: Vec<&str>) {}
+
+    pub fn postgresql_conf_options() -> Vec<&'static str> {
+        vec![]
     }
 }

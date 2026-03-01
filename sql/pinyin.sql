@@ -2,61 +2,63 @@
 -- SQL baseline method citation: CN115905297A (https://patents.google.com/patent/CN115905297A/zh).
 -- This keeps dictionary tables user-editable and avoids the huge hardcoded Han regex.
 
-CREATE TABLE IF NOT EXISTS public.pinyin_mapping (
+CREATE SCHEMA IF NOT EXISTS pinyin;
+
+CREATE TABLE IF NOT EXISTS pinyin.pinyin_mapping (
   character text PRIMARY KEY,
   pinyin text NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS public.pinyin_token (
+CREATE TABLE IF NOT EXISTS pinyin.pinyin_token (
   character text PRIMARY KEY,
   category smallint NOT NULL CHECK (category IN (1, 2, 3))
 );
 
-CREATE TABLE IF NOT EXISTS public.pinyin_words (
+CREATE TABLE IF NOT EXISTS pinyin.pinyin_words (
   word text PRIMARY KEY,
   pinyin text NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS public.pinyin_dictionary_meta (
+CREATE TABLE IF NOT EXISTS pinyin.pinyin_dictionary_meta (
   singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
   version bigint NOT NULL DEFAULT 1
 );
 
-INSERT INTO public.pinyin_dictionary_meta (singleton, version)
+INSERT INTO pinyin.pinyin_dictionary_meta (singleton, version)
 VALUES (true, 1)
 ON CONFLICT (singleton) DO NOTHING;
 
-CREATE OR REPLACE FUNCTION public.pinyin_dictionary_bump_version()
+CREATE OR REPLACE FUNCTION pinyin.pinyin_dictionary_bump_version()
 RETURNS trigger
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  UPDATE public.pinyin_dictionary_meta
+  UPDATE pinyin.pinyin_dictionary_meta
   SET version = version + 1
   WHERE singleton;
   RETURN NULL;
 END;
 $$;
 
-DROP TRIGGER IF EXISTS pinyin_mapping_bump_version ON public.pinyin_mapping;
+DROP TRIGGER IF EXISTS pinyin_mapping_bump_version ON pinyin.pinyin_mapping;
 CREATE TRIGGER pinyin_mapping_bump_version
-AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE ON public.pinyin_mapping
+AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE ON pinyin.pinyin_mapping
 FOR EACH STATEMENT
-EXECUTE FUNCTION public.pinyin_dictionary_bump_version();
+EXECUTE FUNCTION pinyin.pinyin_dictionary_bump_version();
 
-DROP TRIGGER IF EXISTS pinyin_words_bump_version ON public.pinyin_words;
+DROP TRIGGER IF EXISTS pinyin_words_bump_version ON pinyin.pinyin_words;
 CREATE TRIGGER pinyin_words_bump_version
-AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE ON public.pinyin_words
+AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE ON pinyin.pinyin_words
 FOR EACH STATEMENT
-EXECUTE FUNCTION public.pinyin_dictionary_bump_version();
+EXECUTE FUNCTION pinyin.pinyin_dictionary_bump_version();
 
-DROP TRIGGER IF EXISTS pinyin_token_bump_version ON public.pinyin_token;
+DROP TRIGGER IF EXISTS pinyin_token_bump_version ON pinyin.pinyin_token;
 CREATE TRIGGER pinyin_token_bump_version
-AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE ON public.pinyin_token
+AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE ON pinyin.pinyin_token
 FOR EACH STATEMENT
-EXECUTE FUNCTION public.pinyin_dictionary_bump_version();
+EXECUTE FUNCTION pinyin.pinyin_dictionary_bump_version();
 
-INSERT INTO public.pinyin_mapping (character, pinyin)
+INSERT INTO pinyin.pinyin_mapping (character, pinyin)
 VALUES (' ', ' ')
 ON CONFLICT (character) DO NOTHING;
 
@@ -88,7 +90,7 @@ AS $$
         ELSE ' '
       END AS normalized
     FROM public.pinyin__split_tokens(characters) AS s
-    LEFT JOIN public.pinyin_mapping AS m
+    LEFT JOIN pinyin.pinyin_mapping AS m
       ON m.character = s.token
   ),
   collapsed AS (
@@ -138,14 +140,14 @@ PARALLEL SAFE
 AS $$
   WITH word_hit AS (
     SELECT pinyin
-    FROM public.pinyin_words
+    FROM pinyin.pinyin_words
     WHERE word = characters
     LIMIT 1
   ),
   char_fallback AS (
     SELECT string_agg(COALESCE(m.pinyin, CONCAT('|', t.token, '|')), ' ' ORDER BY t.ord) AS value
     FROM unnest(public.normalize2array(characters)) WITH ORDINALITY AS t(token, ord)
-    LEFT JOIN public.pinyin_mapping AS m
+    LEFT JOIN pinyin.pinyin_mapping AS m
       ON m.character = t.token
   )
   SELECT COALESCE((SELECT pinyin FROM word_hit), (SELECT value FROM char_fallback));
@@ -166,7 +168,7 @@ DECLARE
 BEGIN
   SELECT string_agg(character, '|' ORDER BY char_length(character) DESC, character)
   INTO pattern
-  FROM public.pinyin_token
+  FROM pinyin.pinyin_token
   WHERE category = 1;
 
   IF pattern IS NULL THEN
@@ -197,13 +199,13 @@ PARALLEL SAFE
 AS $$
 BEGIN
   IF is_full AND prefix THEN
-    RETURN '^' || regexp_replace(_input, '(\\w+)', '\\S*\\|\\1\\|\\S*', 'g');
+    RETURN '^' || regexp_replace(_input, '([[:alnum:]_]+)', '\S*\|\1\|\S*', 'g');
   ELSIF NOT is_full AND prefix THEN
-    RETURN '^' || regexp_replace(_input, '(\\w+)', '\\S*\\|\\1[^\\|]*\\|\\S*', 'g');
+    RETURN '^' || regexp_replace(_input, '([[:alnum:]_]+)', '\S*\|\1[^\|]*\|\S*', 'g');
   ELSIF is_full AND NOT prefix THEN
-    RETURN regexp_replace(_input, '(\\w+)', '\\S*\\|\\1\\|\\S*', 'g');
+    RETURN regexp_replace(_input, '([[:alnum:]_]+)', '\S*\|\1\|\S*', 'g');
   ELSE
-    RETURN regexp_replace(_input, '(\\w+)', '\\S*\\|\\1[^\\|]*\\|\\S*', 'g');
+    RETURN regexp_replace(_input, '([[:alnum:]_]+)', '\S*\|\1[^\|]*\|\S*', 'g');
   END IF;
 END;
 $$;
@@ -231,13 +233,13 @@ AS $$
       CASE WHEN prefix THEN '^' ELSE '' END ||
       string_agg(
         CASE p.category
-          WHEN 2 THEN '\\S*\\|' || t.token || '[^\\|]*\\|\\S*'
-          ELSE '\\S*\\|' || t.token || '\\|\\S*'
+          WHEN 2 THEN '\S*\|' || t.token || '[^\|]*\|\S*'
+          ELSE '\S*\|' || t.token || '\|\S*'
         END,
         ' ' ORDER BY t.ord
       )
   END
   FROM tokenized AS t
-  LEFT JOIN public.pinyin_token AS p
+  LEFT JOIN pinyin.pinyin_token AS p
     ON p.character = t.token;
 $$;

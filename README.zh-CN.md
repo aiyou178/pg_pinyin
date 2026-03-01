@@ -22,6 +22,17 @@
 1. 字级归一化 + `pg_trgm`
 2. 词级归一化 + `pg_search`
 
+## 扩展内置词典数据
+
+Rust 扩展在编译时内置以下数据：
+
+- `sql/data/pinyin_mapping.csv`
+- `sql/data/pinyin_token.csv`
+- `sql/data/pinyin_words.csv`
+
+首次调用时会自动将数据写入 `pinyin` schema 下的字典表。
+使用扩展时无需额外执行 `sql/load_data.sql`。
+
 ## 数据准备（一键）
 
 数据脚本已迁入本仓库：
@@ -116,9 +127,9 @@ ROWS=2000 PGURL=postgres://localhost/postgres ./scripts/benchmark_pg18.sh
 
 以下表支持用户直接增删改：
 
-- `public.pinyin_mapping`
-- `public.pinyin_words`
-- `public.pinyin_token`
+- `pinyin.pinyin_mapping`
+- `pinyin.pinyin_words`
+- `pinyin.pinyin_token`
 
 更新后无需重编译扩展。
 
@@ -130,7 +141,7 @@ ROWS=2000 PGURL=postgres://localhost/postgres ./scripts/benchmark_pg18.sh
 
 ```bibtex
 @patent{CN115905297A,
-  author  = {Liang Zhanzhao},
+  author  = {梁展钊},
   title   = {一种支持拼音检索和排序的方法及系统},
   number  = {CN115905297A},
   country = {CN},
