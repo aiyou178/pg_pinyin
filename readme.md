@@ -229,22 +229,22 @@ Character mode:
 
 | Scenario                                                                                          |       Cold |       Warm | Speedup vs SQL (`cold` / `warm`) |
 | ------------------------------------------------------------------------------------------------- | ---------: | ---------: | --------------------------------: |
-| SQL baseline (`characters2romanize`)                                                              | `9360.465` | `9669.367` |                       `1.0x / 1.0x` |
-| Rust (`pinyin_char_romanize`)                                                                     |   `79.272` |   `27.318` |                     `118.1x / 353.9x` |
-| Rust + suffix (`pinyin_char_romanize(name, '_bench')`)                                            |  `138.693` |   `11.000` |                      `67.5x / 879.0x` |
+| SQL baseline (`characters2romanize`)                                                              | `9159.522` | `9253.374` |                       `1.0x / 1.0x` |
+| Rust (`pinyin_char_romanize`)                                                                     |   `80.719` |   `28.094` |                     `113.5x / 329.4x` |
+| Rust + suffix (`pinyin_char_romanize(name, '_bench')`)                                            |  `162.319` |   `30.233` |                      `56.4x / 306.1x` |
 
 Word mode (`pg_search` tokenizer input):
 
 | Scenario                                                                                          |       Cold |       Warm | Speedup vs SQL (`cold` / `warm`) |
 | ------------------------------------------------------------------------------------------------- | ---------: | ---------: | --------------------------------: |
-| SQL baseline (`icu_romanize(name::pdb.icu::text[])`)                                              |  `242.998` |  `233.098` |                       `1.0x / 1.0x` |
-| Rust (`pinyin_word_romanize(name::pdb.icu::text[])`)                                              |  `336.220` |   `68.312` |                       `0.7x / 3.4x` |
-| Rust + suffix (`pinyin_word_romanize(name::pdb.icu::text[], '_bench')`)                          |  `723.940` |   `47.809` |                       `0.3x / 4.9x` |
-| Rust plain text (`pinyin_word_romanize(name)`)                                                    |  `351.177` |   `36.041` |                       `0.7x / 6.5x` |
+| SQL baseline (`icu_romanize(name::pdb.icu::text[])`)                                              |  `242.889` |  `237.337` |                       `1.0x / 1.0x` |
+| Rust (`pinyin_word_romanize(name::pdb.icu::text[])`)                                              |  `331.327` |   `72.444` |                       `0.7x / 3.3x` |
+| Rust + suffix (`pinyin_word_romanize(name::pdb.icu::text[], '_bench')`)                          |  `760.339` |   `77.731` |                       `0.3x / 3.1x` |
+| Rust plain text (`pinyin_word_romanize(name)`)                                                    |  `336.215` |   `35.460` |                       `0.7x / 6.7x` |
 
 Times above are `Execution Time` in milliseconds from `EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)`.
 `cold` runs for Rust base paths force a dictionary version bump before execution to simulate first-use cache load.
-Suffix warm performance requires suffix registration via `public.pinyin_register_suffix('_suffix')`, which installs version-bump triggers for user suffix tables.
+Suffix dictionaries are cached on first use and reused across statements. If suffix tables are updated, clear cache with `public.pinyin_clear_suffix_cache('_suffix')` (or `public.pinyin_clear_suffix_cache()` for all).
 
 ## Roadmap
 
