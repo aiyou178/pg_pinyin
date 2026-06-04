@@ -7,9 +7,9 @@
 1. SQL 基线方案（`sql/pinyin.sql`）
 2. Rust 扩展方案（`src/lib.rs`）
 
-## 扩展接口（精简）
+## 核心扩展公开接口
 
-仅提供两类拼音化能力：
+`CREATE EXTENSION pg_pinyin` 会安装 Rust-backed 核心接口：
 
 - `pinyin_char_romanize(text)`
 - `pinyin_char_romanize(text, suffix text)`
@@ -17,11 +17,59 @@
 - `pinyin_word_romanize(text, suffix text)`
 - `pinyin_word_romanize(tokenizer_input anyelement)`（重载，支持 `pdb` tokenizer 输入，如 `name::pdb.icu::text[]`）
 - `pinyin_word_romanize(tokenizer_input anyelement, suffix text)`（带用户词典后缀的重载）
+- `pinyin_regex_phrase(text, slope integer DEFAULT NULL, max_expansions integer DEFAULT NULL, generated_pinyin boolean DEFAULT false)`（`pg_search` query helper；当 `pg_search` 已在当前数据库启用时，由 `CREATE EXTENSION pg_pinyin` 安装，返回 `pdb.query`）
+
+`pinyin_regex_phrase` 是 Rust backend 的公开接口，但返回类型是 `pdb.query`，因此必须先在当前数据库启用 `pg_search`，再 `CREATE EXTENSION pg_pinyin`。PostgreSQL extension script 不能可靠地在安装过程中启用另一个 extension。如果先安装 `pg_pinyin`、后安装 `pg_search`，拼音化接口仍会安装，`pinyin_regex_phrase` 会安装为 error stub，调用时给出明确异常。
+
+## 核心内部接口
+
+`CREATE EXTENSION pg_pinyin` 还会安装 `pinyin_regex_phrase_patterns(text, generated_pinyin boolean DEFAULT false)`。这是 Rust-backed 的内部 helper，用于 `pinyin_regex_phrase`；业务 SQL 通常应调用 `pinyin_regex_phrase(...)`。
+
+当输入为空、仅空白、或无法解析为拼音 token 时，`pinyin_regex_phrase_patterns` 返回空 `text[]`。SQL NULL 输入仍返回 SQL NULL，因为该函数是 strict。
+
+## 可选 pg_search SQL Helper
+
+`sql/word.sql` 不会随 `CREATE EXTENSION pg_pinyin` 自动安装。它是 `sql/pinyin.sql` 的 SQL-backend 配套文件；需要先加载 `sql/pinyin.sql`，并且只在数据库里已安装 `pg_search` 时再加载。`pg_search` 0.24.0 需要先 preload，例如启动 PostgreSQL 时加 `-c shared_preload_libraries=pg_search`，之后才能 `CREATE EXTENSION pg_search`。
+
+- `sql_pinyin_regex_phrase(text, slope integer DEFAULT NULL, max_expansions integer DEFAULT NULL, generated_pinyin boolean DEFAULT false)`（SQL 分词，返回 `pdb.query`）
+- `sql_pinyin_regex_phrase_patterns(text, generated_pinyin boolean DEFAULT false)`（SQL helper，返回 regex phrase token 的 `text[]`）
+`sql_pinyin_regex_phrase_patterns` 使用同样的空数组语义。`sql_pinyin_regex_phrase` 和 Rust-backed `pinyin_regex_phrase` 会把空 pattern 数组映射为 `pdb.empty()`，因此可以安全用于 `@@@`；如果调用方希望空用户查询不影响其他过滤条件，应省略 `@@@` 条件，或显式使用 `pdb.all()`。
 
 推荐组合：
 
 1. 字级拼音化 + `pg_trgm`
 2. 词级拼音化 + `pg_search`
+
+可选 `pg_search` 查询 helper：
+
+```sql
+CREATE EXTENSION IF NOT EXISTS pg_search;
+CREATE EXTENSION IF NOT EXISTS pg_pinyin;
+\i sql/pinyin.sql
+\i sql/word.sql
+
+CREATE TABLE voice (
+  id bigserial PRIMARY KEY,
+  description text NOT NULL,
+  pinyin text GENERATED ALWAYS AS (public.pinyin_word_romanize(description)) STORED
+);
+
+CREATE INDEX voice_pinyin_bm25_idx
+ON voice
+USING bm25 (id, pinyin)
+WITH (key_field='id');
+
+-- Rust backend：当 pg_search 已在当前数据库启用时，CREATE EXTENSION pg_pinyin
+-- 会直接导出 pinyin_regex_phrase()。
+SELECT *
+FROM voice
+WHERE pinyin @@@ public.pinyin_regex_phrase('zhengshuang');
+
+-- SQL backend fallback：未安装 pg_pinyin Rust extension 时使用。
+SELECT *
+FROM voice
+WHERE pinyin @@@ public.sql_pinyin_regex_phrase('zhengshuang');
+```
 
 ## 生成列用法示例（Raw SQL）
 
@@ -160,6 +208,15 @@ cargo pgrx test pg18 --features pg18
 
 ```bash
 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/test:trixie .
+
+# 可选：本地临时使用镜像源构建，默认 CI/远端仍不替换源
+docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/test:trixie \
+  --build-arg DEBIAN_MIRROR=http://mirrors.tuna.tsinghua.edu.cn/debian \
+  --build-arg DEBIAN_SECURITY_MIRROR=http://mirrors.tuna.tsinghua.edu.cn/debian-security \
+  --build-arg RUSTUP_DIST_SERVER=https://mirrors.tuna.tsinghua.edu.cn/rustup \
+  --build-arg RUSTUP_UPDATE_ROOT=https://mirrors.tuna.tsinghua.edu.cn/rustup/rustup \
+  --build-arg CARGO_REGISTRIES_CRATES_IO_INDEX=sparse+https://mirrors.tuna.tsinghua.edu.cn/crates.io-index/ \
+  .
 ```
 
 构建发布镜像：
@@ -190,13 +247,27 @@ DOCKER_BUILDKIT=1 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/tes
 - Rust 词级（tokenizer 输入）：`pinyin_word_romanize(name::pdb.icu::text[])`（`cold` + `warm`）
 - Rust 词级（后缀词典叠加）：`pinyin_word_romanize(name::pdb.icu::text[], '_<suffix>')`（`cold` + `warm`）
 - Rust 词级（纯文本输入）：`pinyin_word_romanize(name)`（`cold` + `warm`）
+- SQL backend 查询构造：`sql_pinyin_regex_phrase_patterns(query)`，以及构造 `pdb.query` 的 `sql_pinyin_regex_phrase(query)`（`warm`，来自 `sql/word.sql`）
+- Rust backend 查询 token 构造：`pinyin_regex_phrase_patterns(query)`（`warm`，来自 `CREATE EXTENSION pg_pinyin`）
+- Rust backend `pg_search` query 构造：`pinyin_regex_phrase(query)`（`warm`，当 `pg_search` 已在当前数据库启用时由 `CREATE EXTENSION pg_pinyin` 导出）
+- Rust 独立查询 token 构造：`cargo run --release --bin benchmark_pinyin_regex_phrase -- --mode tokens`
+- Python 独立查询 token 构造：`scripts/benchmark_pinyin_regex_phrase.py --mode tokens`，使用相同 token 输出
 
 所有基准查询都使用 `EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)`，包含内存占用。
+
+默认情况下，`scripts/benchmark_pg18.sh` 会在每次 run 前 drop/create 专用 benchmark database（`BENCHMARK_DATABASE=pg_pinyin_benchmark`），并在每个 benchmark task 前刷新 runtime state。这样可以避免复用旧 extension、SQL helper 定义、BM25 index、bench table 和 Rust 字典缓存。只有在明确想复用 `PGURL` 指向的数据库时，才设置 `BENCHMARK_FRESH_DATABASE=0`。
 
 运行示例：
 
 ```bash
-ROWS=2000 USER_TABLE_SUFFIX=_bench PGURL=postgres://localhost/postgres ./scripts/benchmark_pg18.sh
+ROWS=2000 REGEX_BENCH_ROWS=20000 USER_TABLE_SUFFIX=_bench PGURL=postgres://localhost/postgres ./scripts/benchmark_pg18.sh
+```
+
+独立 helper benchmark：
+
+```bash
+cargo run --release --bin benchmark_pinyin_regex_phrase -- --rows 20000 --runs 5 --mode tokens
+python3 scripts/benchmark_pinyin_regex_phrase.py --rows 20000 --runs 5
 ```
 
 ### Benchmark Session（PG18）
@@ -204,31 +275,68 @@ ROWS=2000 USER_TABLE_SUFFIX=_bench PGURL=postgres://localhost/postgres ./scripts
 会话命令：
 
 ```bash
-ROWS=2000 USER_TABLE_SUFFIX=_bench PGURL=postgres://postgres@localhost:5432/postgres ./scripts/benchmark_pg18.sh
+ROWS=2000 REGEX_BENCH_ROWS=20000 USER_TABLE_SUFFIX=_bench PGURL=postgres://postgres@localhost:5432/postgres ./scripts/benchmark_pg18.sh
 ```
 
-最新一次结果（PG18，`ROWS=2000`，2026-03-01）：
+最新一次结果（PG18，`pg_search=0.24.0`，fresh benchmark database，`ROWS=2000`，`REGEX_BENCH_ROWS=20000`，2026-06-04）：
 
 字级模式：
 
 | 场景                                                                                     |       Cold |       Warm | 相对 SQL 提升（`cold` / `warm`） |
 | ---------------------------------------------------------------------------------------- | ---------: | ---------: | -------------------------------: |
-| SQL 基线（`characters2romanize`）                                                        | `9159.522` | `9253.374` |                      `1.0x / 1.0x` |
-| Rust（`pinyin_char_romanize`）                                                           |   `80.719` |   `28.094` |                    `113.5x / 329.4x` |
-| Rust + 后缀词典（`pinyin_char_romanize(name, '_bench')`）                                |  `162.319` |   `30.233` |                     `56.4x / 306.1x` |
+| SQL 基线（`characters2romanize`）                                                        | `10868.511` | `9967.466` |                      `1.0x / 1.0x` |
+| Rust（`pinyin_char_romanize`）                                                           |    `97.526` |   `34.443` |                    `111.4x / 289.4x` |
+| Rust + 后缀词典（`pinyin_char_romanize(name, '_bench')`）                                |   `186.929` |   `37.632` |                     `58.1x / 264.9x` |
 
 词级模式（`pg_search` tokenizer 输入）：
 
 | 场景                                                                                     |      Cold |      Warm | 相对 SQL 提升（`cold` / `warm`） |
 | ---------------------------------------------------------------------------------------- | --------: | --------: | -------------------------------: |
-| SQL 基线（`icu_romanize(name::pdb.icu::text[])`）                                        | `242.889` | `237.337` |                      `1.0x / 1.0x` |
-| Rust（`pinyin_word_romanize(name::pdb.icu::text[])`）                                    | `331.327` |  `72.444` |                      `0.7x / 3.3x` |
-| Rust + 后缀词典（`pinyin_word_romanize(name::pdb.icu::text[], '_bench')`）              | `760.339` |  `77.731` |                      `0.3x / 3.1x` |
-| Rust 纯文本（`pinyin_word_romanize(name)`）                                              | `336.215` |  `35.460` |                      `0.7x / 6.7x` |
+| SQL 基线（`icu_romanize(name::pdb.icu::text[])`）                                        | `257.257` | `254.385` |                      `1.0x / 1.0x` |
+| Rust（`pinyin_word_romanize(name::pdb.icu::text[])`）                                    | `367.215` |  `68.252` |                      `0.7x / 3.7x` |
+| Rust + 后缀词典（`pinyin_word_romanize(name::pdb.icu::text[], '_bench')`）              | `888.435` |  `78.558` |                      `0.3x / 3.2x` |
+| Rust 纯文本（`pinyin_word_romanize(name)`）                                              | `367.883` |  `37.461` |                      `0.7x / 6.8x` |
+
+查询 token 构造（`pinyin_regex_phrase_patterns`，20,000 行）：
+
+| 场景                                                                                     | Cold-ish / Best | Warm / Best | 说明 |
+| ---------------------------------------------------------------------------------------- | --------------: | ----------: | ---- |
+| SQL backend tokens（`sql_pinyin_regex_phrase_patterns`）                                 |    `1808.172` ms | `1772.008` ms | 来自 `sql/word.sql` 的 PostgreSQL SQL helper |
+| Rust backend tokens（`pinyin_regex_phrase_patterns`）                                    |     `301.043` ms |  `304.826` ms | PostgreSQL UDF 路径，包含 `text[]` 返回开销 |
+| Rust backend generated-pinyin tokens（`pinyin_regex_phrase_patterns(query, true)`）      |              - |  `295.323` ms | PostgreSQL UDF 路径 |
+| Rust backend `pg_search` query（`pinyin_regex_phrase`）                                |              - |  `328.285` ms | 由 `CREATE EXTENSION pg_pinyin` 导出的 public helper |
+| Rust backend slope/max（`pinyin_regex_phrase(query, 2, 4096)`）                        |              - |  `322.512` ms | 由 `CREATE EXTENSION pg_pinyin` 导出的 public helper |
+| SQL backend + `pg_search` query（`sql_pinyin_regex_phrase`）                             |              - | `1830.929` ms | 构造 `pdb.query` |
+| SQL backend + slope/max（`sql_pinyin_regex_phrase(query, 2, 4096)`）                     |              - | `1829.272` ms | 构造 `pdb.query` |
+| SQL backend generated-pinyin query（`sql_pinyin_regex_phrase(query, NULL, NULL, true)`） |              - | `1833.291` ms | 构造 `pdb.query` |
+
+独立查询 token 构造（`tokens` mode，20,000 行，不包含 PostgreSQL executor 或 SQL 数组返回开销）：
+
+| 场景 | Best | Median | Best per row | Checksum |
+| ---- | ---: | -----: | -----------: | -------: |
+| Rust standalone | `3.642` ms | `3.656` ms | `0.182` us | `219996` |
+| Python standalone | `34.272` ms | `34.550` ms | `1.714` us | `219996` |
+
+server-side 完整 `pg_search` 查询 benchmark（来自 `bench_pinyin_regex_queries` 的 20,000 行，不包含每次 query 的 client round trip）：
+
+| 场景 | Execution Time | 说明 |
+| ---- | -------------: | ---- |
+| Rust parser in PostgreSQL + `pg_search`，memoize enabled | `1542.793` ms | query mix 只有 9 个 distinct query，PostgreSQL 会 memoize 重复 LATERAL 结果 |
+| Rust parser in PostgreSQL + `pg_search`，memoize disabled 且 JIT off | `7021.452` ms | 执行 20,000 次 BM25 lookup |
+
+完整 `pg_search` 查询 benchmark（20,000 次 client query，目标为 2,000 行 BM25 表，结果 checksum 相同）：
+
+| 场景 | Best | Median | Best per query | Checksum |
+| ---- | ---: | -----: | -------------: | -------: |
+| Python client parse + `text[]` patterns + `pg_search` | `8554.249` ms | `8564.311` ms | `427.712` us | `1337644` |
+| Rust in-Postgres parse + `pg_search` | `8873.015` ms | `8978.465` ms | `443.651` us | `1337644` |
+
+完整 client-query benchmark 说明：一旦每次查询都包含真实 `pg_search` 索引 lookup 和 client/server round trip，parser 本身不再是主要瓶颈。把解析放在 PostgreSQL 内仍然有价值：调用方可以使用单个参数化 SQL API，不需要在客户端维护 token dictionary，不需要动态拼 SQL，也适合 server-side batch 查询。
 
 以上数值为 `EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)` 的 `Execution Time`（毫秒）。
 Rust 基线路径的 `cold` 在执行前会先 bump 一次字典版本，用于模拟首次加载缓存。
 后缀词典会在首次使用时加载缓存并跨语句复用。若后缀表发生更新，可调用 `public.pinyin_clear_suffix_cache('_suffix')`（或 `public.pinyin_clear_suffix_cache()` 清空全部）手动失效缓存。
+独立 Rust/Python 查询 token 数字刻意排除了 PostgreSQL executor、UDF 调用和 SQL 数组物化开销，只比较分词和 pattern 构造路径。
 
 ## Roadmap
 

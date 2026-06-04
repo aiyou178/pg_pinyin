@@ -1,0 +1,6 @@
+.git
+.DS_Store
+target/
+.venv*/
+benchmark_pg18_report*.txt
+*.log

@@ -4,12 +4,39 @@ ARG BASE_IMAGE=postgres:18.3-trixie
 FROM ${BASE_IMAGE}
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG PG_SEARCH_VERSION=0.21.10
+ARG PG_SEARCH_VERSION=0.24.0
+ARG DEBIAN_MIRROR=
+ARG DEBIAN_SECURITY_MIRROR=
+ARG PGDG_MIRROR=
+ARG RUSTUP_DIST_SERVER=
+ARG RUSTUP_UPDATE_ROOT=
+ARG CARGO_REGISTRIES_CRATES_IO_INDEX=
 
 ENV PATH=/root/.cargo/bin:$PATH \
     CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
 
 RUN set -eux; \
+  if [ -n "$DEBIAN_MIRROR" ]; then \
+    find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) -exec \
+      sed -i \
+        -e "s|http://deb.debian.org/debian|$DEBIAN_MIRROR|g" \
+        -e "s|https://deb.debian.org/debian|$DEBIAN_MIRROR|g" \
+        {} +; \
+  fi; \
+  if [ -n "$DEBIAN_SECURITY_MIRROR" ]; then \
+    find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) -exec \
+      sed -i \
+        -e "s|http://deb.debian.org/debian-security|$DEBIAN_SECURITY_MIRROR|g" \
+        -e "s|https://deb.debian.org/debian-security|$DEBIAN_SECURITY_MIRROR|g" \
+        {} +; \
+  fi; \
+  if [ -n "$PGDG_MIRROR" ]; then \
+    find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) -exec \
+      sed -i \
+        -e "s|http://apt.postgresql.org/pub/repos/apt|$PGDG_MIRROR|g" \
+        -e "s|https://apt.postgresql.org/pub/repos/apt|$PGDG_MIRROR|g" \
+        {} +; \
+  fi; \
   apt-get update; \
   apt-get install -y --no-install-recommends \
     ca-certificates \
@@ -19,6 +46,7 @@ RUN set -eux; \
     llvm-dev \
     libc6-dev \
     make \
+    python3-psycopg \
     pgtap \
     libpq5 \
     libpq-dev \
@@ -39,6 +67,9 @@ RUN --mount=type=cache,target=/root/.cargo/registry \
   --mount=type=cache,target=/root/.cargo/git \
   --mount=type=cache,target=/root/.rustup/downloads \
   set -eux; \
+  if [ -n "$RUSTUP_DIST_SERVER" ]; then export RUSTUP_DIST_SERVER; fi; \
+  if [ -n "$RUSTUP_UPDATE_ROOT" ]; then export RUSTUP_UPDATE_ROOT; fi; \
+  if [ -n "$CARGO_REGISTRIES_CRATES_IO_INDEX" ]; then export CARGO_REGISTRIES_CRATES_IO_INDEX; fi; \
   curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal; \
   rustup default stable; \
   cargo install --locked cargo-pgrx --version 0.17.0

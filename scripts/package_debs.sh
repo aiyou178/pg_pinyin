@@ -61,6 +61,7 @@ for pg in "${PG_VERSIONS[@]}"; do
   cp "$ROOT_DIR/pg_pinyin.control" "$deb_root/usr/share/postgresql/$pg/extension/pg_pinyin.control"
   cp "$lib_dir/pg_pinyin.so" "$deb_root/usr/lib/postgresql/$pg/lib/"
   cp "${sql_files[@]}" "$deb_root/usr/share/postgresql/$pg/extension/"
+  cp "$ROOT_DIR"/pg_pinyin--*.sql "$deb_root/usr/share/postgresql/$pg/extension/"
 
   cat > "$deb_root/DEBIAN/control" <<CONTROL
 Package: postgresql-${pg}-pg-pinyin

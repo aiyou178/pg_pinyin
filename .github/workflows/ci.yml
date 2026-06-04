@@ -33,7 +33,8 @@ jobs:
             -e POSTGRES_HOST_AUTH_METHOD=trust \
             -e POSTGRES_DB=postgres \
             -v "$GITHUB_WORKSPACE:/work" \
-            pg-pinyin-test:ci
+            pg-pinyin-test:ci \
+            postgres -c shared_preload_libraries=pg_search
 
       - name: Run extension install + smoke + pgTAP tests
         run: |

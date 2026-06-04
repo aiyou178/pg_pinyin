@@ -1,8 +1,12 @@
 #[cfg(feature = "extension")]
 pgrx::pg_module_magic!();
 
+pub mod regex_phrase;
+
 #[cfg(feature = "extension")]
 mod extension {
+    use crate::regex_phrase::{self, RegexTokenDictionary};
+
     use std::collections::HashMap;
     use std::fs;
     use std::mem;
@@ -35,6 +39,13 @@ mod extension {
     }
 
     #[derive(Default)]
+    struct TokenDictionaryCache {
+        version: i64,
+        loaded: bool,
+        regex_tokens: Option<RegexTokenDictionary>,
+    }
+
+    #[derive(Default)]
     struct SuffixDictionaryCacheEntry {
         base_version: i64,
         char_map: HashMap<String, String>,
@@ -45,6 +56,7 @@ mod extension {
 
     static CHAR_DICTIONARY_CACHE: OnceLock<RwLock<CharDictionaryCache>> = OnceLock::new();
     static DICTIONARY_CACHE: OnceLock<RwLock<DictionaryCache>> = OnceLock::new();
+    static TOKEN_DICTIONARY_CACHE: OnceLock<RwLock<TokenDictionaryCache>> = OnceLock::new();
     static SUFFIX_DICTIONARY_CACHE: OnceLock<RwLock<HashMap<String, SuffixDictionaryCacheEntry>>> =
         OnceLock::new();
 
@@ -54,6 +66,10 @@ mod extension {
 
     fn dictionary_cache() -> &'static RwLock<DictionaryCache> {
         DICTIONARY_CACHE.get_or_init(|| RwLock::new(DictionaryCache::default()))
+    }
+
+    fn token_dictionary_cache() -> &'static RwLock<TokenDictionaryCache> {
+        TOKEN_DICTIONARY_CACHE.get_or_init(|| RwLock::new(TokenDictionaryCache::default()))
     }
 
     fn suffix_dictionary_cache() -> &'static RwLock<HashMap<String, SuffixDictionaryCacheEntry>> {
@@ -98,6 +114,33 @@ mod extension {
                 out.insert(key, value);
             }
 
+            out
+        })
+    }
+
+    fn fetch_regex_tokens_from_table() -> Vec<String> {
+        let query = format!(
+            "SELECT character
+             FROM {schema}.pinyin_token
+             WHERE category = 1 OR character IN ('zh', 'ch', 'sh')",
+            schema = DICTIONARY_SCHEMA,
+        );
+
+        Spi::connect(|client| {
+            let rows = match client.select(&query, None, &[]) {
+                Ok(rows) => rows,
+                Err(err) => error!("SPI query failed: {err}. query={query}"),
+            };
+
+            let mut out = Vec::with_capacity(rows.len() + 3);
+            for row in rows {
+                let token = match row["character"].value::<String>() {
+                    Ok(Some(v)) => v.to_ascii_lowercase(),
+                    Ok(None) => continue,
+                    Err(err) => error!("SPI row parse failed for pinyin_token.character: {err}"),
+                };
+                out.push(token);
+            }
             out
         })
     }
@@ -382,6 +425,42 @@ mod extension {
                 *cache = snapshot;
             }
             f(&cache)
+        }
+    }
+
+    fn load_token_dictionary_snapshot(version: i64) -> TokenDictionaryCache {
+        TokenDictionaryCache {
+            version,
+            loaded: true,
+            regex_tokens: Some(RegexTokenDictionary::from_tokens(
+                fetch_regex_tokens_from_table(),
+            )),
+        }
+    }
+
+    fn with_token_dictionary_cache<R>(f: impl FnOnce(&RegexTokenDictionary) -> R) -> R {
+        let version = fetch_dictionary_version();
+        let lock = token_dictionary_cache();
+
+        {
+            let cache = lock
+                .read()
+                .expect("token dictionary cache read lock poisoned");
+            if cache.loaded && cache.version == version {
+                return f(cache.regex_tokens.as_ref().expect("token cache missing"));
+            }
+        }
+
+        let snapshot = load_token_dictionary_snapshot(version);
+
+        {
+            let mut cache = lock
+                .write()
+                .expect("token dictionary cache write lock poisoned");
+            if !cache.loaded || cache.version != version {
+                *cache = snapshot;
+            }
+            f(cache.regex_tokens.as_ref().expect("token cache missing"))
         }
     }
 
@@ -727,6 +806,15 @@ mod extension {
         tokens
     }
 
+    fn pinyin_regex_phrase_patterns_impl(
+        value: &str,
+        generated_pinyin: bool,
+    ) -> Option<Vec<String>> {
+        with_token_dictionary_cache(|regex_tokens| {
+            regex_phrase::pinyin_regex_phrase_patterns(value, generated_pinyin, regex_tokens)
+        })
+    }
+
     fn romanize_token_list(json_text: String) -> Vec<String> {
         match serde_json::from_str::<Vec<String>>(&json_text) {
             Ok(tokens) => tokens
@@ -1042,6 +1130,19 @@ mod extension {
         pinyin_word_romanize_tokenizer_with_suffix_impl(tokenizer_input, suffix)
     }
 
+    #[pg_extern(stable, strict, parallel_safe, name = "pinyin_regex_phrase_patterns")]
+    fn pinyin_regex_phrase_patterns_default(value: &str) -> Option<Vec<String>> {
+        pinyin_regex_phrase_patterns_impl(value, false)
+    }
+
+    #[pg_extern(stable, strict, parallel_safe, name = "pinyin_regex_phrase_patterns")]
+    fn pinyin_regex_phrase_patterns_with_generated(
+        value: &str,
+        generated_pinyin: bool,
+    ) -> Option<Vec<String>> {
+        pinyin_regex_phrase_patterns_impl(value, generated_pinyin)
+    }
+
     #[pg_extern(volatile, parallel_unsafe, name = "pinyin_clear_suffix_cache")]
     fn pinyin_clear_suffix_cache_all() -> i64 {
         clear_all_suffix_cache_impl()
@@ -1131,6 +1232,79 @@ mod extension {
         "#,
         name = "pinyin_dictionary_seed",
         requires = [pinyin_seed_embedded_data_internal]
+    );
+
+    extension_sql!(
+        r#"
+        DO $pinyin_regex_phrase$
+        BEGIN
+          IF to_regtype('pdb.query') IS NOT NULL THEN
+            EXECUTE $create_function$
+              CREATE OR REPLACE FUNCTION public.pinyin_regex_phrase(
+                value text,
+                slope integer DEFAULT NULL,
+                max_expansions integer DEFAULT NULL,
+                generated_pinyin boolean DEFAULT false
+              )
+              RETURNS pdb.query
+              LANGUAGE plpgsql
+              STABLE
+              PARALLEL SAFE
+              AS $function$
+              DECLARE
+                patterns text[];
+              BEGIN
+                patterns := public.pinyin_regex_phrase_patterns(value, generated_pinyin);
+
+                IF patterns IS NULL THEN
+                  RETURN NULL;
+                END IF;
+
+                IF cardinality(patterns) = 0 THEN
+                  RETURN pdb.empty();
+                END IF;
+
+                IF cardinality(patterns) = 1 THEN
+                  RETURN pdb.regex(patterns[1]);
+                END IF;
+
+                IF max_expansions IS NOT NULL THEN
+                  RETURN pdb.regex_phrase(patterns, COALESCE(slope, 0), max_expansions);
+                END IF;
+
+                IF slope IS NOT NULL THEN
+                  RETURN pdb.regex_phrase(patterns, slope);
+                END IF;
+
+                RETURN pdb.regex_phrase(patterns);
+              END;
+              $function$;
+            $create_function$;
+          ELSE
+            EXECUTE $create_function$
+              CREATE OR REPLACE FUNCTION public.pinyin_regex_phrase(
+                value text,
+                slope integer DEFAULT NULL,
+                max_expansions integer DEFAULT NULL,
+                generated_pinyin boolean DEFAULT false
+              )
+              RETURNS text
+              LANGUAGE plpgsql
+              STABLE
+              PARALLEL SAFE
+              AS $function$
+              BEGIN
+                RAISE EXCEPTION
+                  'public.pinyin_regex_phrase requires CREATE EXTENSION pg_search before CREATE EXTENSION pg_pinyin';
+              END;
+              $function$;
+            $create_function$;
+          END IF;
+        END;
+        $pinyin_regex_phrase$;
+        "#,
+        name = "pinyin_regex_phrase_pg_search_helper",
+        requires = [pinyin_regex_phrase_patterns_with_generated]
     );
 
     #[cfg(any(test, feature = "pg_test"))]
@@ -1395,9 +1569,10 @@ mod extension {
                     .expect("no row returned");
             assert_eq!(still_cached, "zhengx shuang abc");
 
-            let cleared = Spi::get_one::<bool>("SELECT public.pinyin_clear_suffix_cache('_suffix1')")
-                .expect("SPI failed")
-                .expect("no row returned");
+            let cleared =
+                Spi::get_one::<bool>("SELECT public.pinyin_clear_suffix_cache('_suffix1')")
+                    .expect("SPI failed")
+                    .expect("no row returned");
             assert!(cleared);
 
             let after =
