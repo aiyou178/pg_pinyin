@@ -1,6 +1,14 @@
 .git
-.DS_Store
+.github
+target
 target/
-.venv*/
+dist
 benchmark_pg18_report*.txt
+benchmark_g2pw_cpp_report*.txt
+benchmark_*runtime_gap*.txt
+.venv*/
+.venv-g2pw-bench
+.tmp
+.DS_Store
 *.log
+_bmad

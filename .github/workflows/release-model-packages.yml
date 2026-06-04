@@ -1,9 +1,9 @@
-name: Release Packages
+name: Release Model Packages
 
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - 'model-v*.*.*'
 
 jobs:
   build-packages:
@@ -22,7 +22,7 @@ jobs:
       - name: Resolve version from tag
         run: |
           TAG_NAME="${GITHUB_REF_NAME}"
-          VERSION="${TAG_NAME#v}"
+          VERSION="${TAG_NAME#model-v}"
           echo "TAG_NAME=${TAG_NAME}" >> "$GITHUB_ENV"
           echo "EXT_VERSION=${VERSION}" >> "$GITHUB_ENV"
           echo "Resolved version: ${VERSION}"
@@ -53,7 +53,7 @@ jobs:
           docker run --rm \
             --user root \
             -e EXT_VERSION="${EXT_VERSION}" \
-            -e PACKAGE_FLAVOR=base \
+            -e PACKAGE_FLAVOR=model \
             -e OUT_DIR=/out \
             -v "$GITHUB_WORKSPACE:/work" \
             -v "$GITHUB_WORKSPACE/dist:/out" \
@@ -77,7 +77,7 @@ jobs:
       - name: Upload package artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: release-packages-${{ env.TAG_NAME }}-${{ matrix.arch }}
+          name: release-model-packages-${{ env.TAG_NAME }}-${{ matrix.arch }}
           path: |
             dist/*.deb
             dist/*.rpm
@@ -94,7 +94,7 @@ jobs:
       - name: Download package artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: release-packages-${{ env.TAG_NAME }}-*
+          pattern: release-model-packages-${{ env.TAG_NAME }}-*
           path: dist
           merge-multiple: true
 
@@ -105,7 +105,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG_NAME }}
-          make_latest: true
+          make_latest: false
           files: |
             dist/*.deb
             dist/*.rpm

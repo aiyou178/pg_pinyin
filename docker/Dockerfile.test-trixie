@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 # Test image for pg_pinyin on PostgreSQL 18 (Debian trixie)
-ARG BASE_IMAGE=postgres:18.3-trixie
+ARG BASE_IMAGE=postgres:18.4-trixie
 FROM ${BASE_IMAGE}
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -11,11 +11,21 @@ ARG PGDG_MIRROR=
 ARG RUSTUP_DIST_SERVER=
 ARG RUSTUP_UPDATE_ROOT=
 ARG CARGO_REGISTRIES_CRATES_IO_INDEX=
+ARG RUST_TOOLCHAIN=stable
+ARG PGRX_VERSION=0.17.0
 
-ENV PATH=/root/.cargo/bin:$PATH \
-    CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
+ENV CARGO_HOME=/cargo-home \
+    RUSTUP_HOME=/rustup \
+    PGRX_HOME=/pgrx \
+    CARGO_TARGET_DIR=/cargo-target \
+    CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse \
+    CARGO_NET_GIT_FETCH_WITH_CLI=true \
+    RUSTUP_INIT_SKIP_PATH_CHECK=yes \
+    PATH=/cargo-home/bin:$PATH
 
-RUN set -eux; \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  set -eux; \
   if [ -n "$DEBIAN_MIRROR" ]; then \
     find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) -exec \
       sed -i \
@@ -39,8 +49,12 @@ RUN set -eux; \
   fi; \
   apt-get update; \
   apt-get install -y --no-install-recommends \
+    bash \
     ca-certificates \
+    git \
     curl \
+    python3 \
+    python3-venv \
     pkg-config \
     clang \
     llvm-dev \
@@ -63,16 +77,22 @@ RUN set -eux; \
   update-ca-certificates; \
   rm -rf /var/lib/apt/lists/* /tmp/*
 
-RUN --mount=type=cache,target=/root/.cargo/registry \
-  --mount=type=cache,target=/root/.cargo/git \
-  --mount=type=cache,target=/root/.rustup/downloads \
+RUN --mount=type=cache,target=/cargo-home/registry,sharing=locked \
+  --mount=type=cache,target=/cargo-home/git,sharing=locked \
+  --mount=type=cache,target=/rustup/downloads,sharing=locked \
   set -eux; \
+  mkdir -p "$CARGO_HOME" "$RUSTUP_HOME" "$PGRX_HOME" "$CARGO_TARGET_DIR"; \
   if [ -n "$RUSTUP_DIST_SERVER" ]; then export RUSTUP_DIST_SERVER; fi; \
   if [ -n "$RUSTUP_UPDATE_ROOT" ]; then export RUSTUP_UPDATE_ROOT; fi; \
   if [ -n "$CARGO_REGISTRIES_CRATES_IO_INDEX" ]; then export CARGO_REGISTRIES_CRATES_IO_INDEX; fi; \
   curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal; \
-  rustup default stable; \
-  cargo install --locked cargo-pgrx --version 0.17.0
+  rustup default "${RUST_TOOLCHAIN}"; \
+  rustup component add rustfmt clippy; \
+  cargo install --locked cargo-pgrx --version "${PGRX_VERSION}"; \
+  cargo --version; \
+  rustc --version; \
+  cargo pgrx --version; \
+  chmod -R a+rwx "$CARGO_HOME" "$RUSTUP_HOME" "$PGRX_HOME" "$CARGO_TARGET_DIR"
 
 WORKDIR /work
 COPY . /work

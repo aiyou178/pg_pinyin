@@ -2,6 +2,8 @@ target/
 
 # Generated benchmark outputs
 benchmark_pg18_report*.txt
+benchmark_g2pw_cpp_report*.txt
+benchmark_*runtime_gap*.txt
 
 # Local/editor/system files
 .DS_Store
@@ -9,3 +11,4 @@ benchmark_pg18_report*.txt
 __pycache__/
 *.pyc
 _bmad/
+.tmp/

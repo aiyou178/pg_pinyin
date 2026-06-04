@@ -1,6 +1,6 @@
 [package]
 name = "pg_pinyin"
-version = "0.0.3"
+version = "0.1.0"
 edition = "2024"
 description = "Pinyin romanization and search helpers for PostgreSQL"
 license = "MIT"
@@ -15,14 +15,18 @@ path = "src/bin/pgrx_embed_pg_pinyin.rs"
 [features]
 default = []
 extension = ["dep:pgrx", "dep:serde_json"]
-pg14 = ["extension", "pgrx/pg14"]
-pg15 = ["extension", "pgrx/pg15"]
-pg16 = ["extension", "pgrx/pg16"]
-pg17 = ["extension", "pgrx/pg17"]
-pg18 = ["extension", "pgrx/pg18"]
-pg_test = ["extension", "dep:pgrx-tests", "pgrx-tests/pg18"]
+g2pm = ["dep:ndarray"]
+hybrid_onnx = ["g2pm", "dep:ort"]
+pg14 = ["extension", "g2pm", "pgrx/pg14"]
+pg15 = ["extension", "g2pm", "pgrx/pg15"]
+pg16 = ["extension", "g2pm", "pgrx/pg16"]
+pg17 = ["extension", "g2pm", "pgrx/pg17"]
+pg18 = ["extension", "g2pm", "pgrx/pg18"]
+pg_test = ["extension", "dep:pgrx-tests", "pgrx-tests/pg18", "hybrid_onnx"]
 
 [dependencies]
+ndarray = { version = "0.17.2", optional = true }
+ort = { version = "2.0.0-rc.12", default-features = false, features = ["std", "ndarray", "load-dynamic", "api-24", "tls-native"], optional = true }
 pgrx = { version = "=0.17.0", optional = true }
 pgrx-tests = { version = "=0.17.0", optional = true }
 serde_json = { version = "1.0", optional = true }

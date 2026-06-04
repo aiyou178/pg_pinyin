@@ -22,7 +22,7 @@ if ! command -v dpkg-deb >/dev/null 2>&1; then
 fi
 
 shopt -s nullglob
-DEBS=("$OUT_DIR"/postgresql-*-pg-pinyin_"${EXT_VERSION}"_trixie_*.deb)
+DEBS=("$OUT_DIR"/postgresql-*-pg-pinyin*.deb)
 if [[ ${#DEBS[@]} -eq 0 ]]; then
   echo "no DEB artifacts found in $OUT_DIR for version $EXT_VERSION" >&2
   exit 1
@@ -33,19 +33,27 @@ trap 'rm -rf "$tmp_dir"' EXIT
 
 for deb in "${DEBS[@]}"; do
   base="$(basename "$deb")"
-  pg="$(echo "$base" | sed -E 's/^postgresql-([0-9]+)-pg-pinyin_.*/\1/')"
+  if [[ "$base" != *"_${EXT_VERSION}_"* ]]; then
+    continue
+  fi
+
+  pg="$(echo "$base" | sed -E 's/^postgresql-([0-9]+)-pg-pinyin(-model)?_.*/\1/')"
+  suffix=""
+  if [[ "$base" =~ -model_ ]]; then
+    suffix="-model"
+  fi
   if [[ -z "$pg" || "$pg" == "$base" ]]; then
     echo "failed to parse PostgreSQL major version from $base" >&2
     exit 1
   fi
 
-  root="$tmp_dir/root-$pg"
+  root="$tmp_dir/root-$pg$suffix"
   rm -rf "$root"
   mkdir -p "$root"
   dpkg-deb -x "$deb" "$root"
 
   fpm -s dir -t rpm \
-    --name "postgresql-${pg}-pg-pinyin" \
+    --name "postgresql-${pg}-pg-pinyin${suffix}" \
     --version "$EXT_VERSION" \
     --iteration "1" \
     --architecture "$RPM_ARCH" \
@@ -54,7 +62,6 @@ for deb in "${DEBS[@]}"; do
     --chdir "$root" \
     --package "$OUT_DIR" \
     usr
-
 done
 
 echo "[rpm] wrote packages to $OUT_DIR"

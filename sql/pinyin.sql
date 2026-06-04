@@ -24,8 +24,28 @@ CREATE TABLE IF NOT EXISTS pinyin.pinyin_dictionary_meta (
   version bigint NOT NULL DEFAULT 1
 );
 
+CREATE TABLE IF NOT EXISTS pinyin.pinyin_model_registry (
+  model_name text PRIMARY KEY,
+  kind text NOT NULL CHECK (kind IN ('g2pw_onnx', 'g2pm_numpy', 'small_onnx')),
+  model_path text NOT NULL,
+  tokenizer_path text,
+  labels_path text,
+  config jsonb NOT NULL DEFAULT '{}'::jsonb,
+  enabled boolean NOT NULL DEFAULT true
+);
+
+CREATE TABLE IF NOT EXISTS pinyin.pinyin_model_meta (
+  singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
+  active_model text REFERENCES pinyin.pinyin_model_registry(model_name),
+  version bigint NOT NULL DEFAULT 1
+);
+
 INSERT INTO pinyin.pinyin_dictionary_meta (singleton, version)
 VALUES (true, 1)
+ON CONFLICT (singleton) DO NOTHING;
+
+INSERT INTO pinyin.pinyin_model_meta (singleton, active_model, version)
+VALUES (true, NULL, 1)
 ON CONFLICT (singleton) DO NOTHING;
 
 CREATE OR REPLACE FUNCTION pinyin.pinyin_dictionary_bump_version()
@@ -37,6 +57,30 @@ BEGIN
   SET version = version + 1
   WHERE singleton;
   RETURN NULL;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION pinyin.pinyin_model_bump_version()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  UPDATE pinyin.pinyin_model_meta
+  SET version = version + 1
+  WHERE singleton;
+  RETURN NULL;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION pinyin.pinyin_model_meta_set_version()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.active_model IS DISTINCT FROM OLD.active_model THEN
+    NEW.version := OLD.version + 1;
+  END IF;
+  RETURN NEW;
 END;
 $$;
 
@@ -58,9 +102,59 @@ AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE ON pinyin.pinyin_token
 FOR EACH STATEMENT
 EXECUTE FUNCTION pinyin.pinyin_dictionary_bump_version();
 
+DROP TRIGGER IF EXISTS pinyin_model_registry_bump_version ON pinyin.pinyin_model_registry;
+CREATE TRIGGER pinyin_model_registry_bump_version
+AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE ON pinyin.pinyin_model_registry
+FOR EACH STATEMENT
+EXECUTE FUNCTION pinyin.pinyin_model_bump_version();
+
+DROP TRIGGER IF EXISTS pinyin_model_meta_set_version ON pinyin.pinyin_model_meta;
+CREATE TRIGGER pinyin_model_meta_set_version
+BEFORE UPDATE ON pinyin.pinyin_model_meta
+FOR EACH ROW
+EXECUTE FUNCTION pinyin.pinyin_model_meta_set_version();
+
+DROP FUNCTION IF EXISTS public.pinyin_word_romanize_hybrid(text);
+DROP FUNCTION IF EXISTS public.pinyin_word_romanize_hybrid(text, text);
+DROP FUNCTION IF EXISTS public.pinyin_word_romanize_hybrid(anyelement);
+DROP FUNCTION IF EXISTS public.pinyin_word_romanize_hybrid(anyelement, text);
+
 INSERT INTO pinyin.pinyin_mapping (character, pinyin)
 VALUES (' ', ' ')
 ON CONFLICT (character) DO NOTHING;
+
+INSERT INTO pinyin.pinyin_model_registry (
+  model_name,
+  kind,
+  model_path,
+  tokenizer_path,
+  labels_path,
+  config,
+  enabled
+)
+SELECT
+  'bundled_g2pm',
+  'g2pm_numpy',
+  '/usr/share/postgresql/'
+    || (current_setting('server_version_num')::int / 10000)::text
+    || '/extension/pg_pinyin/g2pm/manifest.json',
+  NULL,
+  NULL,
+  '{"min_confidence":0.80,"min_margin":0.05,"disable_on_error":true}'::jsonb,
+  true
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM pinyin.pinyin_model_registry
+  WHERE kind = 'g2pm_numpy'
+    AND model_name <> 'bundled_g2pm'
+)
+ON CONFLICT (model_name) DO UPDATE
+SET kind = EXCLUDED.kind,
+    model_path = EXCLUDED.model_path,
+    tokenizer_path = EXCLUDED.tokenizer_path,
+    labels_path = EXCLUDED.labels_path,
+    config = EXCLUDED.config,
+    enabled = true;
 
 CREATE OR REPLACE FUNCTION public.pinyin__split_tokens(input text)
 RETURNS TABLE (token text, ord bigint)
