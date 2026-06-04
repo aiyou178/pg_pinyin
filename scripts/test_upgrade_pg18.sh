@@ -9,6 +9,7 @@ OLD_RELEASE_REF="${OLD_RELEASE_REF:-285ce1f}"
 TARGET_VERSION="${TARGET_VERSION:-0.1.0}"
 TRACKED_UPGRADE_SQL="${ROOT_DIR}/pg_pinyin--0.0.2--${TARGET_VERSION}.sql"
 TMP_DIR="$(mktemp -d)"
+CURRENT_SNAPSHOT_DIR="/tmp/pg_pinyin-upgrade-current"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
 if [[ -z "$CONTAINER" ]]; then
@@ -25,6 +26,19 @@ prepare_upgrade_source() {
   git -C "$ROOT_DIR" archive "$OLD_RELEASE_REF" | tar -x -C "$TMP_DIR"
   docker exec "$CONTAINER" bash -lc 'rm -rf /tmp/pg_pinyin-upgrade-old && mkdir -p /tmp/pg_pinyin-upgrade-old'
   docker cp "$TMP_DIR/." "$CONTAINER:/tmp/pg_pinyin-upgrade-old/"
+
+  docker exec "$CONTAINER" bash -lc "
+    set -euo pipefail
+    rm -rf '$CURRENT_SNAPSHOT_DIR'
+    mkdir -p '$CURRENT_SNAPSHOT_DIR/extension' '$CURRENT_SNAPSHOT_DIR/lib'
+    if [ -f '/usr/share/postgresql/18/extension/pg_pinyin.control' ] &&
+       [ -f '/usr/share/postgresql/18/extension/pg_pinyin--${TARGET_VERSION}.sql' ] &&
+       [ -f '/usr/lib/postgresql/18/lib/pg_pinyin.so' ]; then
+      cp '/usr/share/postgresql/18/extension/pg_pinyin.control' '$CURRENT_SNAPSHOT_DIR/extension/'
+      cp '/usr/share/postgresql/18/extension/pg_pinyin--${TARGET_VERSION}.sql' '$CURRENT_SNAPSHOT_DIR/extension/'
+      cp '/usr/lib/postgresql/18/lib/pg_pinyin.so' '$CURRENT_SNAPSHOT_DIR/lib/'
+    fi
+  "
 
   docker exec "$CONTAINER" bash -lc '
     set -euo pipefail
@@ -47,7 +61,15 @@ install_current_release() {
   docker exec "$CONTAINER" bash -lc "
     set -euo pipefail
     cd /work
-    cargo pgrx install --features '$CURRENT_FEATURES' --no-default-features --pg-config /usr/lib/postgresql/18/bin/pg_config
+    if [ -f '$CURRENT_SNAPSHOT_DIR/extension/pg_pinyin.control' ] &&
+       [ -f '$CURRENT_SNAPSHOT_DIR/extension/pg_pinyin--${TARGET_VERSION}.sql' ] &&
+       [ -f '$CURRENT_SNAPSHOT_DIR/lib/pg_pinyin.so' ]; then
+      cp '$CURRENT_SNAPSHOT_DIR/extension/pg_pinyin.control' /usr/share/postgresql/18/extension/
+      cp '$CURRENT_SNAPSHOT_DIR/extension/pg_pinyin--${TARGET_VERSION}.sql' /usr/share/postgresql/18/extension/
+      cp '$CURRENT_SNAPSHOT_DIR/lib/pg_pinyin.so' /usr/lib/postgresql/18/lib/
+    else
+      cargo pgrx install --features '$CURRENT_FEATURES' --no-default-features --pg-config /usr/lib/postgresql/18/bin/pg_config
+    fi
     bash ./scripts/verify_upgrade_sql.sh \
       /usr/share/postgresql/18/extension/pg_pinyin--${TARGET_VERSION}.sql \
       ./pg_pinyin--0.0.2--${TARGET_VERSION}.sql \
