@@ -79,9 +79,21 @@ jobs:
             PGURL=postgres://postgres@127.0.0.1:5432/postgres ./test/pgtap/run.sh
           '
 
-      - name: Run upgrade validation
+      - name: Prepare upgrade validation source
         run: |
-          CONTAINER=pg-pinyin-test-${{ matrix.name }} EXTENSION_FEATURES="${{ matrix.extension_features }}" bash ./scripts/test_upgrade_pg18.sh pg-pinyin-test-${{ matrix.name }} "${{ matrix.extension_features }}"
+          UPGRADE_TEST_MODE=prepare CONTAINER=pg-pinyin-test-${{ matrix.name }} EXTENSION_FEATURES="${{ matrix.extension_features }}" bash ./scripts/test_upgrade_pg18.sh pg-pinyin-test-${{ matrix.name }} "${{ matrix.extension_features }}"
+
+      - name: Install old release for upgrade validation
+        run: |
+          UPGRADE_TEST_MODE=install-old CONTAINER=pg-pinyin-test-${{ matrix.name }} EXTENSION_FEATURES="${{ matrix.extension_features }}" bash ./scripts/test_upgrade_pg18.sh pg-pinyin-test-${{ matrix.name }} "${{ matrix.extension_features }}"
+
+      - name: Install current release for upgrade validation
+        run: |
+          UPGRADE_TEST_MODE=install-current CONTAINER=pg-pinyin-test-${{ matrix.name }} EXTENSION_FEATURES="${{ matrix.extension_features }}" bash ./scripts/test_upgrade_pg18.sh pg-pinyin-test-${{ matrix.name }} "${{ matrix.extension_features }}"
+
+      - name: Run extension upgrade checks
+        run: |
+          UPGRADE_TEST_MODE=check CONTAINER=pg-pinyin-test-${{ matrix.name }} EXTENSION_FEATURES="${{ matrix.extension_features }}" bash ./scripts/test_upgrade_pg18.sh pg-pinyin-test-${{ matrix.name }} "${{ matrix.extension_features }}"
 
       - name: Container logs
         if: always()
