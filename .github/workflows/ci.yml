@@ -13,7 +13,7 @@ jobs:
   rust-check:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
@@ -32,7 +32,7 @@ jobs:
           - name: model
             extension_features: "pg18 hybrid_onnx"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Build test image
         run: docker build -f docker/Dockerfile.test-trixie -t pg-pinyin-test:ci .
