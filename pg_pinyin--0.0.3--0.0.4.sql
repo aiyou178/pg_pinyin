@@ -1,4 +1,4 @@
--- Upgrade pg_pinyin from 0.0.2 to 0.0.3.
+-- Upgrade pg_pinyin from 0.0.3 to 0.0.4.
 
 CREATE OR REPLACE FUNCTION public.pinyin_regex_phrase_patterns(
   value text
@@ -7,7 +7,7 @@ RETURNS text[]
 LANGUAGE c
 STABLE
 STRICT
-PARALLEL UNSAFE
+PARALLEL SAFE
 AS 'MODULE_PATHNAME', 'pinyin_regex_phrase_patterns_default_wrapper';
 
 CREATE OR REPLACE FUNCTION public.pinyin_regex_phrase_patterns(
@@ -18,7 +18,7 @@ RETURNS text[]
 LANGUAGE c
 STABLE
 STRICT
-PARALLEL UNSAFE
+PARALLEL SAFE
 AS 'MODULE_PATHNAME', 'pinyin_regex_phrase_patterns_with_generated_wrapper';
 
 DROP FUNCTION IF EXISTS public.pinyin_regex_phrase(text);
@@ -38,7 +38,7 @@ BEGIN
       RETURNS pdb.query
       LANGUAGE plpgsql
       STABLE
-      PARALLEL UNSAFE
+      PARALLEL SAFE
       AS $function$
       DECLARE
         patterns text[];
@@ -80,7 +80,7 @@ BEGIN
       RETURNS text
       LANGUAGE plpgsql
       STABLE
-      PARALLEL UNSAFE
+      PARALLEL SAFE
       AS $function$
       BEGIN
         RAISE EXCEPTION

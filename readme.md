@@ -298,58 +298,58 @@ Session command:
 ROWS=2000 REGEX_BENCH_ROWS=20000 USER_TABLE_SUFFIX=_bench PGURL=postgres://postgres@localhost:5432/postgres ./scripts/benchmark_pg18.sh
 ```
 
-Latest run (PG18, `pg_search=0.24.0`, fresh benchmark database, `ROWS=2000`, `REGEX_BENCH_ROWS=20000`, 2026-06-04):
+Latest run (PG18, `pg_search=0.24.0`, `pg_pinyin=0.0.4`, fresh benchmark database, `ROWS=2000`, `REGEX_BENCH_ROWS=20000`, 2026-06-08):
 
 Character mode:
 
 | Scenario                                                                                          |       Cold |       Warm | Speedup vs SQL (`cold` / `warm`) |
 | ------------------------------------------------------------------------------------------------- | ---------: | ---------: | --------------------------------: |
-| SQL baseline (`characters2romanize`)                                                              | `10868.511` | `9967.466` |                       `1.0x / 1.0x` |
-| Rust (`pinyin_char_romanize`)                                                                     |    `97.526` |   `34.443` |                     `111.4x / 289.4x` |
-| Rust + suffix (`pinyin_char_romanize(name, '_bench')`)                                            |   `186.929` |   `37.632` |                      `58.1x / 264.9x` |
+| SQL baseline (`characters2romanize`)                                                              |  `8291.975` | `8072.434` |                       `1.0x / 1.0x` |
+| Rust (`pinyin_char_romanize`)                                                                     |    `90.025` |   `32.087` |                      `92.1x / 251.6x` |
+| Rust + suffix (`pinyin_char_romanize(name, '_bench')`)                                            |   `176.412` |   `33.863` |                      `47.0x / 238.4x` |
 
 Word mode (`pg_search` tokenizer input):
 
 | Scenario                                                                                          |       Cold |       Warm | Speedup vs SQL (`cold` / `warm`) |
 | ------------------------------------------------------------------------------------------------- | ---------: | ---------: | --------------------------------: |
-| SQL baseline (`icu_romanize(name::pdb.icu::text[])`)                                              |  `257.257` |  `254.385` |                       `1.0x / 1.0x` |
-| Rust (`pinyin_word_romanize(name::pdb.icu::text[])`)                                              |  `367.215` |   `68.252` |                       `0.7x / 3.7x` |
-| Rust + suffix (`pinyin_word_romanize(name::pdb.icu::text[], '_bench')`)                          |  `888.435` |   `78.558` |                       `0.3x / 3.2x` |
-| Rust plain text (`pinyin_word_romanize(name)`)                                                    |  `367.883` |   `37.461` |                       `0.7x / 6.8x` |
+| SQL baseline (`icu_romanize(name::pdb.icu::text[])`)                                              |  `255.649` |  `249.832` |                       `1.0x / 1.0x` |
+| Rust (`pinyin_word_romanize(name::pdb.icu::text[])`)                                              |  `332.474` |   `71.259` |                       `0.8x / 3.5x` |
+| Rust + suffix (`pinyin_word_romanize(name::pdb.icu::text[], '_bench')`)                          |  `788.152` |   `69.230` |                       `0.3x / 3.6x` |
+| Rust plain text (`pinyin_word_romanize(name)`)                                                    |  `334.510` |   `36.570` |                       `0.8x / 6.8x` |
 
 Query-token builder (`pinyin_regex_phrase_patterns`, 20,000 rows):
 
 | Scenario                                                                                          | Cold-ish / Best | Warm / Best | Notes |
 | ------------------------------------------------------------------------------------------------- | --------------: | ----------: | ----- |
-| SQL backend tokens (`sql_pinyin_regex_phrase_patterns`)                                           |    `1808.172` ms | `1772.008` ms | PostgreSQL SQL helper from `sql/word.sql` |
-| Rust backend tokens (`pinyin_regex_phrase_patterns`)                                              |     `301.043` ms |  `304.826` ms | PostgreSQL UDF path, includes `text[]` return overhead |
-| Rust backend generated-pinyin tokens (`pinyin_regex_phrase_patterns(query, true)`)                |              - |  `295.323` ms | PostgreSQL UDF path |
-| Rust backend `pg_search` query (`pinyin_regex_phrase`)                                            |              - |  `328.285` ms | Public helper exported by `CREATE EXTENSION pg_pinyin` |
-| Rust backend slope/max (`pinyin_regex_phrase(query, 2, 4096)`)                                    |              - |  `322.512` ms | Public helper exported by `CREATE EXTENSION pg_pinyin` |
-| SQL backend + `pg_search` query (`sql_pinyin_regex_phrase`)                                       |              - | `1830.929` ms | Builds `pdb.query` |
-| SQL backend + slope/max (`sql_pinyin_regex_phrase(query, 2, 4096)`)                               |              - | `1829.272` ms | Builds `pdb.query` |
-| SQL backend generated-pinyin query (`sql_pinyin_regex_phrase(query, NULL, NULL, true)`)           |              - | `1833.291` ms | Builds `pdb.query` |
+| SQL backend tokens (`sql_pinyin_regex_phrase_patterns`)                                           |    `1555.603` ms | `1572.450` ms | PostgreSQL SQL helper from `sql/word.sql` |
+| Rust backend tokens (`pinyin_regex_phrase_patterns`)                                              |      `41.784` ms |   `43.334` ms | PostgreSQL UDF path, includes `text[]` return overhead |
+| Rust backend generated-pinyin tokens (`pinyin_regex_phrase_patterns(query, true)`)                |              - |   `44.439` ms | PostgreSQL UDF path |
+| Rust backend `pg_search` query (`pinyin_regex_phrase`)                                            |              - |   `60.588` ms | Public helper exported by `CREATE EXTENSION pg_pinyin` |
+| Rust backend slope/max (`pinyin_regex_phrase(query, 2, 4096)`)                                    |              - |   `57.838` ms | Public helper exported by `CREATE EXTENSION pg_pinyin` |
+| SQL backend + `pg_search` query (`sql_pinyin_regex_phrase`)                                       |              - | `1611.476` ms | Builds `pdb.query` |
+| SQL backend + slope/max (`sql_pinyin_regex_phrase(query, 2, 4096)`)                               |              - | `1607.444` ms | Builds `pdb.query` |
+| SQL backend generated-pinyin query (`sql_pinyin_regex_phrase(query, NULL, NULL, true)`)           |              - | `1568.413` ms | Builds `pdb.query` |
 
 Standalone query-token builder (`tokens` mode, 20,000 rows, no PostgreSQL executor or SQL array overhead):
 
 | Scenario | Best | Median | Best per row | Checksum |
 | -------- | ---: | -----: | -----------: | -------: |
-| Rust standalone | `3.642` ms | `3.656` ms | `0.182` us | `219996` |
-| Python standalone | `34.272` ms | `34.550` ms | `1.714` us | `219996` |
+| Rust standalone | `3.538` ms | `3.581` ms | `0.177` us | `219996` |
+| Python standalone | `33.353` ms | `33.631` ms | `1.668` us | `219996` |
 
 Server-side full `pg_search` query benchmark (20,000 rows from `bench_pinyin_regex_queries`, no client round trip per query):
 
 | Scenario | Execution Time | Notes |
 | -------- | -------------: | ----- |
-| Rust parser in PostgreSQL + `pg_search`, memoize enabled | `1542.793` ms | Query mix has 9 distinct queries; PostgreSQL memoizes repeated LATERAL results |
-| Rust parser in PostgreSQL + `pg_search`, memoize disabled and JIT off | `7021.452` ms | Executes 20,000 BM25 lookups |
+| Rust parser in PostgreSQL + `pg_search`, memoize enabled | `1027.056` ms | Query mix has 9 distinct queries; PostgreSQL memoizes repeated LATERAL results |
+| Rust parser in PostgreSQL + `pg_search`, memoize disabled and JIT off | `5739.186` ms | Executes 20,000 BM25 lookups |
 
 Full `pg_search` query benchmark (20,000 client queries against a 2,000-row BM25 table, same result checksum):
 
 | Scenario | Best | Median | Best per query | Checksum |
 | -------- | ---: | -----: | -------------: | -------: |
-| Python client parse + `text[]` patterns + `pg_search` | `8554.249` ms | `8564.311` ms | `427.712` us | `1337644` |
-| Rust in-Postgres parse + `pg_search` | `8873.015` ms | `8978.465` ms | `443.651` us | `1337644` |
+| Python client parse + `text[]` patterns + `pg_search` | `7439.585` ms | `7503.080` ms | `371.979` us | `1337644` |
+| Rust in-Postgres parse + `pg_search` | `7529.758` ms | `7530.354` ms | `376.488` us | `1337644` |
 
 The full client-query benchmark shows that once each query executes a real `pg_search` index lookup and a client/server round trip, parser cost is not the dominant factor. Keeping parsing in PostgreSQL is still useful when callers want a single parameterized SQL API, server-side batch queries, no client-side token dictionary, and no dynamic SQL construction.
 

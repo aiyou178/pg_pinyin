@@ -278,58 +278,58 @@ python3 scripts/benchmark_pinyin_regex_phrase.py --rows 20000 --runs 5
 ROWS=2000 REGEX_BENCH_ROWS=20000 USER_TABLE_SUFFIX=_bench PGURL=postgres://postgres@localhost:5432/postgres ./scripts/benchmark_pg18.sh
 ```
 
-最新一次结果（PG18，`pg_search=0.24.0`，fresh benchmark database，`ROWS=2000`，`REGEX_BENCH_ROWS=20000`，2026-06-04）：
+最新一次结果（PG18，`pg_search=0.24.0`，`pg_pinyin=0.0.4`，fresh benchmark database，`ROWS=2000`，`REGEX_BENCH_ROWS=20000`，2026-06-08）：
 
 字级模式：
 
 | 场景                                                                                     |       Cold |       Warm | 相对 SQL 提升（`cold` / `warm`） |
 | ---------------------------------------------------------------------------------------- | ---------: | ---------: | -------------------------------: |
-| SQL 基线（`characters2romanize`）                                                        | `10868.511` | `9967.466` |                      `1.0x / 1.0x` |
-| Rust（`pinyin_char_romanize`）                                                           |    `97.526` |   `34.443` |                    `111.4x / 289.4x` |
-| Rust + 后缀词典（`pinyin_char_romanize(name, '_bench')`）                                |   `186.929` |   `37.632` |                     `58.1x / 264.9x` |
+| SQL 基线（`characters2romanize`）                                                        |  `8291.975` | `8072.434` |                      `1.0x / 1.0x` |
+| Rust（`pinyin_char_romanize`）                                                           |    `90.025` |   `32.087` |                     `92.1x / 251.6x` |
+| Rust + 后缀词典（`pinyin_char_romanize(name, '_bench')`）                                |   `176.412` |   `33.863` |                     `47.0x / 238.4x` |
 
 词级模式（`pg_search` tokenizer 输入）：
 
 | 场景                                                                                     |      Cold |      Warm | 相对 SQL 提升（`cold` / `warm`） |
 | ---------------------------------------------------------------------------------------- | --------: | --------: | -------------------------------: |
-| SQL 基线（`icu_romanize(name::pdb.icu::text[])`）                                        | `257.257` | `254.385` |                      `1.0x / 1.0x` |
-| Rust（`pinyin_word_romanize(name::pdb.icu::text[])`）                                    | `367.215` |  `68.252` |                      `0.7x / 3.7x` |
-| Rust + 后缀词典（`pinyin_word_romanize(name::pdb.icu::text[], '_bench')`）              | `888.435` |  `78.558` |                      `0.3x / 3.2x` |
-| Rust 纯文本（`pinyin_word_romanize(name)`）                                              | `367.883` |  `37.461` |                      `0.7x / 6.8x` |
+| SQL 基线（`icu_romanize(name::pdb.icu::text[])`）                                        | `255.649` | `249.832` |                      `1.0x / 1.0x` |
+| Rust（`pinyin_word_romanize(name::pdb.icu::text[])`）                                    | `332.474` |  `71.259` |                      `0.8x / 3.5x` |
+| Rust + 后缀词典（`pinyin_word_romanize(name::pdb.icu::text[], '_bench')`）              | `788.152` |  `69.230` |                      `0.3x / 3.6x` |
+| Rust 纯文本（`pinyin_word_romanize(name)`）                                              | `334.510` |  `36.570` |                      `0.8x / 6.8x` |
 
 查询 token 构造（`pinyin_regex_phrase_patterns`，20,000 行）：
 
 | 场景                                                                                     | Cold-ish / Best | Warm / Best | 说明 |
 | ---------------------------------------------------------------------------------------- | --------------: | ----------: | ---- |
-| SQL backend tokens（`sql_pinyin_regex_phrase_patterns`）                                 |    `1808.172` ms | `1772.008` ms | 来自 `sql/word.sql` 的 PostgreSQL SQL helper |
-| Rust backend tokens（`pinyin_regex_phrase_patterns`）                                    |     `301.043` ms |  `304.826` ms | PostgreSQL UDF 路径，包含 `text[]` 返回开销 |
-| Rust backend generated-pinyin tokens（`pinyin_regex_phrase_patterns(query, true)`）      |              - |  `295.323` ms | PostgreSQL UDF 路径 |
-| Rust backend `pg_search` query（`pinyin_regex_phrase`）                                |              - |  `328.285` ms | 由 `CREATE EXTENSION pg_pinyin` 导出的 public helper |
-| Rust backend slope/max（`pinyin_regex_phrase(query, 2, 4096)`）                        |              - |  `322.512` ms | 由 `CREATE EXTENSION pg_pinyin` 导出的 public helper |
-| SQL backend + `pg_search` query（`sql_pinyin_regex_phrase`）                             |              - | `1830.929` ms | 构造 `pdb.query` |
-| SQL backend + slope/max（`sql_pinyin_regex_phrase(query, 2, 4096)`）                     |              - | `1829.272` ms | 构造 `pdb.query` |
-| SQL backend generated-pinyin query（`sql_pinyin_regex_phrase(query, NULL, NULL, true)`） |              - | `1833.291` ms | 构造 `pdb.query` |
+| SQL backend tokens（`sql_pinyin_regex_phrase_patterns`）                                 |    `1555.603` ms | `1572.450` ms | 来自 `sql/word.sql` 的 PostgreSQL SQL helper |
+| Rust backend tokens（`pinyin_regex_phrase_patterns`）                                    |      `41.784` ms |   `43.334` ms | PostgreSQL UDF 路径，包含 `text[]` 返回开销 |
+| Rust backend generated-pinyin tokens（`pinyin_regex_phrase_patterns(query, true)`）      |              - |   `44.439` ms | PostgreSQL UDF 路径 |
+| Rust backend `pg_search` query（`pinyin_regex_phrase`）                                |              - |   `60.588` ms | 由 `CREATE EXTENSION pg_pinyin` 导出的 public helper |
+| Rust backend slope/max（`pinyin_regex_phrase(query, 2, 4096)`）                        |              - |   `57.838` ms | 由 `CREATE EXTENSION pg_pinyin` 导出的 public helper |
+| SQL backend + `pg_search` query（`sql_pinyin_regex_phrase`）                             |              - | `1611.476` ms | 构造 `pdb.query` |
+| SQL backend + slope/max（`sql_pinyin_regex_phrase(query, 2, 4096)`）                     |              - | `1607.444` ms | 构造 `pdb.query` |
+| SQL backend generated-pinyin query（`sql_pinyin_regex_phrase(query, NULL, NULL, true)`） |              - | `1568.413` ms | 构造 `pdb.query` |
 
 独立查询 token 构造（`tokens` mode，20,000 行，不包含 PostgreSQL executor 或 SQL 数组返回开销）：
 
 | 场景 | Best | Median | Best per row | Checksum |
 | ---- | ---: | -----: | -----------: | -------: |
-| Rust standalone | `3.642` ms | `3.656` ms | `0.182` us | `219996` |
-| Python standalone | `34.272` ms | `34.550` ms | `1.714` us | `219996` |
+| Rust standalone | `3.538` ms | `3.581` ms | `0.177` us | `219996` |
+| Python standalone | `33.353` ms | `33.631` ms | `1.668` us | `219996` |
 
 server-side 完整 `pg_search` 查询 benchmark（来自 `bench_pinyin_regex_queries` 的 20,000 行，不包含每次 query 的 client round trip）：
 
 | 场景 | Execution Time | 说明 |
 | ---- | -------------: | ---- |
-| Rust parser in PostgreSQL + `pg_search`，memoize enabled | `1542.793` ms | query mix 只有 9 个 distinct query，PostgreSQL 会 memoize 重复 LATERAL 结果 |
-| Rust parser in PostgreSQL + `pg_search`，memoize disabled 且 JIT off | `7021.452` ms | 执行 20,000 次 BM25 lookup |
+| Rust parser in PostgreSQL + `pg_search`，memoize enabled | `1027.056` ms | query mix 只有 9 个 distinct query，PostgreSQL 会 memoize 重复 LATERAL 结果 |
+| Rust parser in PostgreSQL + `pg_search`，memoize disabled 且 JIT off | `5739.186` ms | 执行 20,000 次 BM25 lookup |
 
 完整 `pg_search` 查询 benchmark（20,000 次 client query，目标为 2,000 行 BM25 表，结果 checksum 相同）：
 
 | 场景 | Best | Median | Best per query | Checksum |
 | ---- | ---: | -----: | -------------: | -------: |
-| Python client parse + `text[]` patterns + `pg_search` | `8554.249` ms | `8564.311` ms | `427.712` us | `1337644` |
-| Rust in-Postgres parse + `pg_search` | `8873.015` ms | `8978.465` ms | `443.651` us | `1337644` |
+| Python client parse + `text[]` patterns + `pg_search` | `7439.585` ms | `7503.080` ms | `371.979` us | `1337644` |
+| Rust in-Postgres parse + `pg_search` | `7529.758` ms | `7530.354` ms | `376.488` us | `1337644` |
 
 完整 client-query benchmark 说明：一旦每次查询都包含真实 `pg_search` 索引 lookup 和 client/server round trip，parser 本身不再是主要瓶颈。把解析放在 PostgreSQL 内仍然有价值：调用方可以使用单个参数化 SQL API，不需要在客户端维护 token dictionary，不需要动态拼 SQL，也适合 server-side batch 查询。
 

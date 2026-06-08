@@ -39,13 +39,6 @@ mod extension {
     }
 
     #[derive(Default)]
-    struct TokenDictionaryCache {
-        version: i64,
-        loaded: bool,
-        regex_tokens: Option<RegexTokenDictionary>,
-    }
-
-    #[derive(Default)]
     struct SuffixDictionaryCacheEntry {
         base_version: i64,
         char_map: HashMap<String, String>,
@@ -56,7 +49,7 @@ mod extension {
 
     static CHAR_DICTIONARY_CACHE: OnceLock<RwLock<CharDictionaryCache>> = OnceLock::new();
     static DICTIONARY_CACHE: OnceLock<RwLock<DictionaryCache>> = OnceLock::new();
-    static TOKEN_DICTIONARY_CACHE: OnceLock<RwLock<TokenDictionaryCache>> = OnceLock::new();
+    static REGEX_TOKEN_DICTIONARY: OnceLock<RegexTokenDictionary> = OnceLock::new();
     static SUFFIX_DICTIONARY_CACHE: OnceLock<RwLock<HashMap<String, SuffixDictionaryCacheEntry>>> =
         OnceLock::new();
 
@@ -68,8 +61,12 @@ mod extension {
         DICTIONARY_CACHE.get_or_init(|| RwLock::new(DictionaryCache::default()))
     }
 
-    fn token_dictionary_cache() -> &'static RwLock<TokenDictionaryCache> {
-        TOKEN_DICTIONARY_CACHE.get_or_init(|| RwLock::new(TokenDictionaryCache::default()))
+    fn regex_token_dictionary() -> &'static RegexTokenDictionary {
+        REGEX_TOKEN_DICTIONARY.get_or_init(|| {
+            RegexTokenDictionary::from_tokens(regex_phrase::tokens_from_pinyin_token_csv(
+                EMBEDDED_TOKEN_CSV,
+            ))
+        })
     }
 
     fn suffix_dictionary_cache() -> &'static RwLock<HashMap<String, SuffixDictionaryCacheEntry>> {
@@ -114,33 +111,6 @@ mod extension {
                 out.insert(key, value);
             }
 
-            out
-        })
-    }
-
-    fn fetch_regex_tokens_from_table() -> Vec<String> {
-        let query = format!(
-            "SELECT character
-             FROM {schema}.pinyin_token
-             WHERE category = 1 OR character IN ('zh', 'ch', 'sh')",
-            schema = DICTIONARY_SCHEMA,
-        );
-
-        Spi::connect(|client| {
-            let rows = match client.select(&query, None, &[]) {
-                Ok(rows) => rows,
-                Err(err) => error!("SPI query failed: {err}. query={query}"),
-            };
-
-            let mut out = Vec::with_capacity(rows.len() + 3);
-            for row in rows {
-                let token = match row["character"].value::<String>() {
-                    Ok(Some(v)) => v.to_ascii_lowercase(),
-                    Ok(None) => continue,
-                    Err(err) => error!("SPI row parse failed for pinyin_token.character: {err}"),
-                };
-                out.push(token);
-            }
             out
         })
     }
@@ -425,42 +395,6 @@ mod extension {
                 *cache = snapshot;
             }
             f(&cache)
-        }
-    }
-
-    fn load_token_dictionary_snapshot(version: i64) -> TokenDictionaryCache {
-        TokenDictionaryCache {
-            version,
-            loaded: true,
-            regex_tokens: Some(RegexTokenDictionary::from_tokens(
-                fetch_regex_tokens_from_table(),
-            )),
-        }
-    }
-
-    fn with_token_dictionary_cache<R>(f: impl FnOnce(&RegexTokenDictionary) -> R) -> R {
-        let version = fetch_dictionary_version();
-        let lock = token_dictionary_cache();
-
-        {
-            let cache = lock
-                .read()
-                .expect("token dictionary cache read lock poisoned");
-            if cache.loaded && cache.version == version {
-                return f(cache.regex_tokens.as_ref().expect("token cache missing"));
-            }
-        }
-
-        let snapshot = load_token_dictionary_snapshot(version);
-
-        {
-            let mut cache = lock
-                .write()
-                .expect("token dictionary cache write lock poisoned");
-            if !cache.loaded || cache.version != version {
-                *cache = snapshot;
-            }
-            f(cache.regex_tokens.as_ref().expect("token cache missing"))
         }
     }
 
@@ -810,9 +744,11 @@ mod extension {
         value: &str,
         generated_pinyin: bool,
     ) -> Option<Vec<String>> {
-        with_token_dictionary_cache(|regex_tokens| {
-            regex_phrase::pinyin_regex_phrase_patterns(value, generated_pinyin, regex_tokens)
-        })
+        regex_phrase::pinyin_regex_phrase_patterns(
+            value,
+            generated_pinyin,
+            regex_token_dictionary(),
+        )
     }
 
     fn romanize_token_list(json_text: String) -> Vec<String> {

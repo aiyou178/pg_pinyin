@@ -16,11 +16,100 @@ CREATE EXTENSION IF NOT EXISTS pg_search;
 CREATE EXTENSION pg_pinyin;
 \ir ../../sql/pinyin.sql
 
-SELECT plan(33);
+SELECT plan(38);
 
 SELECT ok(
   to_regprocedure('public.pinyin_regex_phrase(text,integer,integer,boolean)') IS NOT NULL,
   'Rust extension exports pinyin_regex_phrase when pg_search is available before CREATE EXTENSION pg_pinyin'
+);
+
+SELECT is(
+  (
+    SELECT proparallel::text
+    FROM pg_proc
+    WHERE oid = 'public.pinyin_regex_phrase_patterns(text)'::regprocedure
+  ),
+  's',
+  'pinyin_regex_phrase_patterns(text) is parallel safe'
+);
+
+SELECT is(
+  (
+    SELECT proparallel::text
+    FROM pg_proc
+    WHERE oid = 'public.pinyin_regex_phrase_patterns(text,boolean)'::regprocedure
+  ),
+  's',
+  'pinyin_regex_phrase_patterns(text, boolean) is parallel safe'
+);
+
+SELECT is(
+  (
+    SELECT proparallel::text
+    FROM pg_proc
+    WHERE oid = 'public.pinyin_regex_phrase(text,integer,integer,boolean)'::regprocedure
+  ),
+  's',
+  'pinyin_regex_phrase(text, integer, integer, boolean) is parallel safe'
+);
+
+DROP TABLE IF EXISTS public.pinyin_regex_parallel_probe;
+CREATE TABLE public.pinyin_regex_parallel_probe (
+  id integer NOT NULL,
+  query text NOT NULL
+);
+INSERT INTO public.pinyin_regex_parallel_probe (id, query)
+SELECT
+  gs,
+  CASE gs % 4
+    WHEN 0 THEN 'zhengshuang'
+    WHEN 1 THEN 'whh'
+    WHEN 2 THEN 'lunlun'
+    ELSE 'changsha'
+  END
+FROM generate_series(1, 20000) AS gs;
+ALTER TABLE public.pinyin_regex_parallel_probe SET (parallel_workers = 4);
+ANALYZE public.pinyin_regex_parallel_probe;
+
+SET LOCAL max_parallel_workers_per_gather = 4;
+SET LOCAL min_parallel_table_scan_size = 0;
+SET LOCAL min_parallel_index_scan_size = 0;
+SET LOCAL parallel_setup_cost = 0;
+SET LOCAL parallel_tuple_cost = 0;
+
+CREATE OR REPLACE FUNCTION public.pinyin_regex_parallel_plan_text()
+RETURNS text
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  line text;
+  plan_text text := '';
+BEGIN
+  FOR line IN EXECUTE $explain$
+    EXPLAIN (COSTS OFF)
+    SELECT count(*)
+    FROM public.pinyin_regex_parallel_probe
+    WHERE cardinality(public.pinyin_regex_phrase_patterns(query)) > 0
+  $explain$
+  LOOP
+    plan_text := plan_text || line || E'\n';
+  END LOOP;
+
+  RETURN plan_text;
+END;
+$$;
+
+SELECT matches(
+  public.pinyin_regex_parallel_plan_text(),
+  'Gather',
+  'forced regex pattern probe uses a parallel Gather plan'
+);
+
+SELECT lives_ok(
+  $$SELECT count(*)
+    FROM public.pinyin_regex_parallel_probe
+    WHERE cardinality(public.pinyin_regex_phrase_patterns(query)) > 0$$,
+  'pinyin_regex_phrase_patterns runs safely inside a parallel scan'
 );
 
 \ir ../../sql/word.sql
