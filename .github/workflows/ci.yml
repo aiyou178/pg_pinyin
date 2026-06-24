@@ -63,3 +63,45 @@ jobs:
       - name: Cleanup container
         if: always()
         run: docker rm -f pg-pinyin-test || true
+
+  pg19-beta-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 80
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build PostgreSQL 19 beta test image
+        run: docker build -f docker/Dockerfile.test-pg19beta1-trixie -t pg-pinyin-test:pg19beta1 .
+
+      - name: Start PostgreSQL 19 beta test container
+        run: |
+          docker run -d --name pg-pinyin-test-pg19 \
+            -e POSTGRES_HOST_AUTH_METHOD=trust \
+            -e POSTGRES_DB=postgres \
+            -v "$GITHUB_WORKSPACE:/work" \
+            pg-pinyin-test:pg19beta1
+
+      - name: Run PG19 extension install + pgTAP tests
+        run: |
+          docker exec -u root pg-pinyin-test-pg19 bash -lc '
+            set -euo pipefail
+            until pg_isready -h 127.0.0.1 -p 5432 -U postgres >/dev/null 2>&1; do
+              sleep 1
+            done
+            cd /work
+            PG_CONFIG=/usr/lib/postgresql/19/bin/pg_config
+            cargo pgrx init --pg19="$PG_CONFIG"
+            cargo pgrx install -v --features pg19 --no-default-features --pg-config "$PG_CONFIG"
+            psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U postgres -d postgres -c "CREATE EXTENSION IF NOT EXISTS pg_pinyin;"
+            out="$(psql -At -h 127.0.0.1 -p 5432 -U postgres -d postgres -c "SELECT public.pinyin_word_romanize(\$\$郑爽ABC\$\$)")"
+            test "$out" = "zheng shuang abc"
+            PGURL=postgres://postgres@127.0.0.1:5432/postgres ./test/pgtap/run.sh
+          '
+
+      - name: PostgreSQL 19 container logs
+        if: always()
+        run: docker logs pg-pinyin-test-pg19 || true
+
+      - name: Cleanup PostgreSQL 19 container
+        if: always()
+        run: docker rm -f pg-pinyin-test-pg19 || true

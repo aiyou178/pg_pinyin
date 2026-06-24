@@ -193,14 +193,22 @@ Rust 扩展测试：
 cargo pgrx test pg18 --features pg18
 ```
 
+PostgreSQL 19 beta 1 通过 `pgrx` 0.19.1 支持：
+
+```bash
+cargo pgrx init --pg19=/usr/lib/postgresql/19/bin/pg_config
+cargo pgrx install --features pg19 --no-default-features --pg-config /usr/lib/postgresql/19/bin/pg_config
+```
+
 ## Docker（通用上游地址）
 
 - `docker/Dockerfile.test-trixie`
+- `docker/Dockerfile.test-pg19beta1-trixie`
 - `docker/Dockerfile.release-trixie`
 
 默认使用上游地址（不再改写镜像源）：
 
-- 基础镜像：`postgres:18.3-trixie`
+- 基础镜像：PG18 测试使用 `postgres:18.3-trixie`，PG19 beta 测试使用 `postgres:19beta1-trixie`
 - apt 源：基础镜像默认配置
 - rustup/cargo：官方默认地址
 
@@ -217,6 +225,12 @@ docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/test:trixie \
   --build-arg RUSTUP_UPDATE_ROOT=https://mirrors.tuna.tsinghua.edu.cn/rustup/rustup \
   --build-arg CARGO_REGISTRIES_CRATES_IO_INDEX=sparse+https://mirrors.tuna.tsinghua.edu.cn/crates.io-index/ \
   .
+```
+
+构建 PostgreSQL 19 beta 测试镜像：
+
+```bash
+docker build -f docker/Dockerfile.test-pg19beta1-trixie -t pg_pinyin/test:pg19beta1 .
 ```
 
 构建发布镜像：

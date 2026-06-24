@@ -204,16 +204,24 @@ Rust extension tests:
 cargo pgrx test pg18 --features pg18
 ```
 
+PostgreSQL 19 beta 1 is supported through `pgrx` 0.19.1:
+
+```bash
+cargo pgrx init --pg19=/usr/lib/postgresql/19/bin/pg_config
+cargo pgrx install --features pg19 --no-default-features --pg-config /usr/lib/postgresql/19/bin/pg_config
+```
+
 ## Docker (General Upstream)
 
 Dockerfiles:
 
 - `docker/Dockerfile.test-trixie`
+- `docker/Dockerfile.test-pg19beta1-trixie`
 - `docker/Dockerfile.release-trixie`
 
 Defaults now use upstream addresses (no mirror rewrite):
 
-- base image: `postgres:18.3-trixie`
+- base image: `postgres:18.3-trixie` for PG18 tests, `postgres:19beta1-trixie` for PG19 beta tests
 - apt source: base image defaults
 - rustup/cargo source: upstream defaults
 
@@ -237,6 +245,12 @@ docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/test:trixie \
 
 # optional: pin pg_search version at build time
 # docker build --build-arg PG_SEARCH_VERSION=0.24.0 -f docker/Dockerfile.test-trixie -t pg_pinyin/test:trixie .
+```
+
+Build PostgreSQL 19 beta test image:
+
+```bash
+docker build -f docker/Dockerfile.test-pg19beta1-trixie -t pg_pinyin/test:pg19beta1 .
 ```
 
 Build release image:

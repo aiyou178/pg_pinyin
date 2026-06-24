@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
-# Release build image for pg_pinyin packages on Debian trixie (PG14-19)
-ARG BASE_IMAGE=postgres:18.3-trixie
+# Test image for pg_pinyin on PostgreSQL 19 beta 1 (Debian trixie).
+ARG BASE_IMAGE=postgres:19beta1-trixie
 FROM ${BASE_IMAGE}
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -36,37 +36,21 @@ RUN set -eux; \
         -e "s|https://apt.postgresql.org/pub/repos/apt|$PGDG_MIRROR|g" \
         {} +; \
   fi; \
-  find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) -exec \
-    sed -i -E '/trixie-pgdg/ { /(^| )19( |$)/! s/(trixie-pgdg[[:space:]]+main.*)/\1 19/; }' {} +; \
   apt-get update; \
   apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
-    make \
     pkg-config \
     clang \
     llvm-dev \
     libc6-dev \
-    dpkg-dev \
+    make \
+    python3-psycopg \
+    pgtap \
     libpq5 \
     libpq-dev \
-    postgresql-client-14 \
-    postgresql-client-15 \
-    postgresql-client-16 \
-    postgresql-client-17 \
-    postgresql-client-18 \
     postgresql-client-19 \
-    postgresql-14 \
-    postgresql-15 \
-    postgresql-16 \
-    postgresql-17 \
-    postgresql-18 \
-    postgresql-19 \
-    postgresql-server-dev-14 \
-    postgresql-server-dev-15 \
-    postgresql-server-dev-16 \
-    postgresql-server-dev-17 \
-    postgresql-server-dev-18 \
+    postgresql-19-pgtap \
     postgresql-server-dev-19; \
   update-ca-certificates; \
   rm -rf /var/lib/apt/lists/* /tmp/*

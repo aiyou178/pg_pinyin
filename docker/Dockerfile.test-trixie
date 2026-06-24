@@ -63,16 +63,16 @@ RUN set -eux; \
   update-ca-certificates; \
   rm -rf /var/lib/apt/lists/* /tmp/*
 
-RUN --mount=type=cache,target=/root/.cargo/registry \
-  --mount=type=cache,target=/root/.cargo/git \
-  --mount=type=cache,target=/root/.rustup/downloads \
+RUN --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
+  --mount=type=cache,target=/root/.cargo/git,sharing=locked \
+  --mount=type=cache,target=/root/.rustup/downloads,sharing=locked \
   set -eux; \
   if [ -n "$RUSTUP_DIST_SERVER" ]; then export RUSTUP_DIST_SERVER; fi; \
   if [ -n "$RUSTUP_UPDATE_ROOT" ]; then export RUSTUP_UPDATE_ROOT; fi; \
   if [ -n "$CARGO_REGISTRIES_CRATES_IO_INDEX" ]; then export CARGO_REGISTRIES_CRATES_IO_INDEX; fi; \
   curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal; \
   rustup default stable; \
-  cargo install --locked cargo-pgrx --version 0.17.0
+  cargo install --locked cargo-pgrx --version 0.19.1
 
 WORKDIR /work
 COPY . /work

@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_DIR="${OUT_DIR:-$ROOT_DIR/dist}"
 EXT_VERSION="${EXT_VERSION:-$(awk -F'\"' '/^version = / { print $2; exit }' "$ROOT_DIR/Cargo.toml")}"
-PG_VERSIONS=(14 15 16 17 18)
+PG_VERSIONS=(14 15 16 17 18 19)
 ARCH="$(dpkg --print-architecture)"
 
 mkdir -p "$OUT_DIR"
@@ -24,7 +24,8 @@ cargo pgrx init \
   --pg15=/usr/lib/postgresql/15/bin/pg_config \
   --pg16=/usr/lib/postgresql/16/bin/pg_config \
   --pg17=/usr/lib/postgresql/17/bin/pg_config \
-  --pg18=/usr/lib/postgresql/18/bin/pg_config
+  --pg18=/usr/lib/postgresql/18/bin/pg_config \
+  --pg19=/usr/lib/postgresql/19/bin/pg_config
 
 for pg in "${PG_VERSIONS[@]}"; do
   echo "[package] PostgreSQL $pg"

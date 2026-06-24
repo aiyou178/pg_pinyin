@@ -1,0 +1,4 @@
+-- Upgrade pg_pinyin from 0.0.4 to 0.0.5.
+--
+-- 0.0.5 adds PostgreSQL 19 beta packaging and pgrx 0.19.1 support.
+-- There are no SQL catalog changes from 0.0.4.
