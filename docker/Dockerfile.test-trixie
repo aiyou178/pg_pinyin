@@ -52,6 +52,7 @@ RUN set -eux; \
     libpq-dev \
     postgresql-18 \
     postgresql-client-18 \
+    postgresql-18-pgvector \
     postgresql-18-pgtap \
     postgresql-server-dev-18; \
   ARCH="$(dpkg --print-architecture)"; \
