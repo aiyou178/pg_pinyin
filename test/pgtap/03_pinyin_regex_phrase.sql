@@ -12,7 +12,7 @@ END AS has_pg_search
 
 \if :has_pg_search
 DROP EXTENSION IF EXISTS pg_pinyin CASCADE;
-CREATE EXTENSION IF NOT EXISTS pg_search;
+CREATE EXTENSION IF NOT EXISTS pg_search CASCADE;
 CREATE EXTENSION pg_pinyin;
 \ir ../../sql/pinyin.sql
 
