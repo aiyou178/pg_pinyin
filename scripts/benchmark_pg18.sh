@@ -101,7 +101,7 @@ END AS has_pg_search
 \\gset
 
 \\if :has_pg_search
-  CREATE EXTENSION IF NOT EXISTS pg_search;
+  CREATE EXTENSION IF NOT EXISTS pg_search CASCADE;
 \\endif
 
 CREATE EXTENSION IF NOT EXISTS pg_pinyin;

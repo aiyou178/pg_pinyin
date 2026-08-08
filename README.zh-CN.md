@@ -29,7 +29,7 @@
 
 ## 可选 pg_search SQL Helper
 
-`sql/word.sql` 不会随 `CREATE EXTENSION pg_pinyin` 自动安装。它是 `sql/pinyin.sql` 的 SQL-backend 配套文件；需要先加载 `sql/pinyin.sql`，并且只在数据库里已安装 `pg_search` 时再加载。`pg_search` 0.24.0 需要先 preload，例如启动 PostgreSQL 时加 `-c shared_preload_libraries=pg_search`，之后才能 `CREATE EXTENSION pg_search`。
+`sql/word.sql` 不会随 `CREATE EXTENSION pg_pinyin` 自动安装。它是 `sql/pinyin.sql` 的 SQL-backend 配套文件；需要先加载 `sql/pinyin.sql`，并且只在数据库里已安装 `pg_search` 时再加载。`pg_search` 0.25.1 需要先 preload，例如启动 PostgreSQL 时加 `-c shared_preload_libraries=pg_search`，之后才能 `CREATE EXTENSION pg_search`。
 
 - `sql_pinyin_regex_phrase(text, slope integer DEFAULT NULL, max_expansions integer DEFAULT NULL, generated_pinyin boolean DEFAULT false)`（SQL 分词，返回 `pdb.query`）
 - `sql_pinyin_regex_phrase_patterns(text, generated_pinyin boolean DEFAULT false)`（SQL helper，返回 regex phrase token 的 `text[]`）
@@ -193,7 +193,7 @@ Rust 扩展测试：
 cargo pgrx test pg18 --features pg18
 ```
 
-PostgreSQL 19 beta 1 通过 `pgrx` 0.19.1 支持：
+PostgreSQL 19 beta 2 通过 `pgrx` 0.19.2 支持：
 
 ```bash
 cargo pgrx init --pg19=/usr/lib/postgresql/19/bin/pg_config
@@ -203,12 +203,12 @@ cargo pgrx install --features pg19 --no-default-features --pg-config /usr/lib/po
 ## Docker（通用上游地址）
 
 - `docker/Dockerfile.test-trixie`
-- `docker/Dockerfile.test-pg19beta1-trixie`
+- `docker/Dockerfile.test-pg19beta2-trixie`
 - `docker/Dockerfile.release-trixie`
 
 默认使用上游地址（不再改写镜像源）：
 
-- 基础镜像：PG18 测试使用 `postgres:18.3-trixie`，PG19 beta 测试使用 `postgres:19beta1-trixie`
+- 基础镜像：PG18 测试使用 `postgres:18.3-trixie`，PG19 beta 测试使用 `postgres:19beta2-trixie`
 - apt 源：基础镜像默认配置
 - rustup/cargo：官方默认地址
 
@@ -230,8 +230,14 @@ docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/test:trixie \
 构建 PostgreSQL 19 beta 测试镜像：
 
 ```bash
-docker build -f docker/Dockerfile.test-pg19beta1-trixie -t pg_pinyin/test:pg19beta1 .
+docker build -f docker/Dockerfile.test-pg19beta2-trixie -t pg_pinyin/test:pg19beta2 .
 ```
+
+ParadeDB 0.25.1 没有发布 PostgreSQL 19 安装包，因此 PG19 beta 2 Dockerfile
+会从固定的 `v0.25.1` tag 构建 `pg_search`，将该 checkout 升级到 pgrx
+0.19.2，并应用限定范围的 `docker/patches/paradedb-0.25.1-pg19beta2.patch`
+兼容补丁。这是本项目集成测试和性能测试使用的实验性兼容构建，并非 ParadeDB
+官方发布的 PG19 二进制包。
 
 构建发布镜像：
 
@@ -248,9 +254,10 @@ DOCKER_BUILDKIT=1 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/tes
 
 ## Benchmark
 
-仅衡量分词/拼音化性能（不比较检索性能）：
+衡量分词/拼音化、query builder 和完整检索性能：
 
 - `scripts/benchmark_pg18.sh`
+- `scripts/benchmark_pg19beta2.sh`（PG19 beta 2 报告文件名 wrapper）
 
 脚本会覆盖以下场景：
 
@@ -275,6 +282,9 @@ DOCKER_BUILDKIT=1 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/tes
 
 ```bash
 ROWS=2000 REGEX_BENCH_ROWS=20000 USER_TABLE_SUFFIX=_bench PGURL=postgres://localhost/postgres ./scripts/benchmark_pg18.sh
+
+# 在 PostgreSQL 19 beta 2 + ParadeDB 0.25.1 容器内
+ROWS=20000 REGEX_BENCH_ROWS=20000 USER_TABLE_SUFFIX=_bench PGURL=postgres://localhost/postgres ./scripts/benchmark_pg19beta2.sh
 ```
 
 独立 helper benchmark：
@@ -351,6 +361,30 @@ server-side 完整 `pg_search` 查询 benchmark（来自 `bench_pinyin_regex_que
 Rust 基线路径的 `cold` 在执行前会先 bump 一次字典版本，用于模拟首次加载缓存。
 后缀词典会在首次使用时加载缓存并跨语句复用。若后缀表发生更新，可调用 `public.pinyin_clear_suffix_cache('_suffix')`（或 `public.pinyin_clear_suffix_cache()` 清空全部）手动失效缓存。
 独立 Rust/Python 查询 token 数字刻意排除了 PostgreSQL executor、UDF 调用和 SQL 数组物化开销，只比较分词和 pattern 构造路径。
+
+### Benchmark Session（PG19 Beta 2）
+
+最新一次结果（PG19 beta 2，`pg_search=0.25.1`，`pg_pinyin=0.0.5`，pgrx `0.19.2`，fresh benchmark database，`ROWS=20000`，`REGEX_BENCH_ROWS=20000`，2026-08-07）：
+
+| 场景 | Cold / Best | Warm / Median | 说明 |
+| --- | ---: | ---: | --- |
+| SQL 字级 tokenizer | `2844.411` ms | `2892.957` ms | 20,000 个名字 |
+| Rust 字级 tokenizer | `412.228` ms | `324.382` ms | 相对 SQL `6.9x / 8.9x` |
+| SQL 词级 tokenizer | `3117.588` ms | `3334.401` ms | `pdb.icu` 输入 |
+| Rust 词级 tokenizer | `714.509` ms | `652.289` ms | 相对 SQL `4.4x / 5.1x` |
+| SQL regex token UDF | `1735.082` ms | `1684.004` ms | 20,000 个 query |
+| Rust regex token UDF | `6.554` ms | `6.157` ms | warm 提升 `273.5x` |
+| Rust standalone parser | `3.481` ms | `3.701` ms | checksum `219996` |
+| Python standalone parser | `33.967` ms | `34.283` ms | checksum `219996` |
+
+针对 20,000 行 BM25 表的完整 `pg_search` 结果：
+
+| 场景 | Best | Median | Best per query | Checksum |
+| --- | ---: | ---: | ---: | ---: |
+| Python client parse + `text[]` patterns | `11912.159` ms | `12157.392` ms | `595.608` us | `13336444` |
+| Rust in-Postgres parse | `11345.487` ms | `12304.506` ms | `567.274` us | `13336444` |
+
+Rust 路径的完整查询 best run 快 `4.8%`，但两者 median 接近。这既确认了 parser 的改进，也说明端到端延迟主要来自 BM25 执行和 client/server round trip。完整原始报告会生成到 `benchmark_pg19beta2_report.txt`，该文件保持 untracked。
 
 ## Roadmap
 

@@ -2,6 +2,7 @@ target/
 
 # Generated benchmark outputs
 benchmark_pg18_report*.txt
+benchmark_pg19beta2_report*.txt
 
 # Local/editor/system files
 .DS_Store

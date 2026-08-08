@@ -43,7 +43,7 @@ jobs:
       - name: Build release image
         run: docker build -f docker/Dockerfile.release-trixie -t pg-pinyin-release:ci .
 
-      - name: Build DEB packages (PG14-18)
+      - name: Build DEB packages (PG14-19)
         run: |
           mkdir -p dist
           docker run --rm \

@@ -29,7 +29,7 @@
 
 ## Optional pg_search SQL Helpers
 
-`sql/word.sql` is not installed automatically by `CREATE EXTENSION pg_pinyin`. It is the SQL-backend companion to `sql/pinyin.sql`; load `sql/pinyin.sql` first and use it only in databases where `pg_search` is available. `pg_search` 0.24.0 must be preloaded before `CREATE EXTENSION pg_search`, for example by starting PostgreSQL with `-c shared_preload_libraries=pg_search`.
+`sql/word.sql` is not installed automatically by `CREATE EXTENSION pg_pinyin`. It is the SQL-backend companion to `sql/pinyin.sql`; load `sql/pinyin.sql` first and use it only in databases where `pg_search` is available. `pg_search` 0.25.1 must be preloaded before `CREATE EXTENSION pg_search`, for example by starting PostgreSQL with `-c shared_preload_libraries=pg_search`.
 
 - `sql_pinyin_regex_phrase(text, slope integer DEFAULT NULL, max_expansions integer DEFAULT NULL, generated_pinyin boolean DEFAULT false)` (SQL tokenization, returns `pdb.query`)
 - `sql_pinyin_regex_phrase_patterns(text, generated_pinyin boolean DEFAULT false)` (SQL helper returning regex phrase tokens as `text[]`)
@@ -204,7 +204,7 @@ Rust extension tests:
 cargo pgrx test pg18 --features pg18
 ```
 
-PostgreSQL 19 beta 1 is supported through `pgrx` 0.19.1:
+PostgreSQL 19 beta 2 is supported through `pgrx` 0.19.2:
 
 ```bash
 cargo pgrx init --pg19=/usr/lib/postgresql/19/bin/pg_config
@@ -216,12 +216,12 @@ cargo pgrx install --features pg19 --no-default-features --pg-config /usr/lib/po
 Dockerfiles:
 
 - `docker/Dockerfile.test-trixie`
-- `docker/Dockerfile.test-pg19beta1-trixie`
+- `docker/Dockerfile.test-pg19beta2-trixie`
 - `docker/Dockerfile.release-trixie`
 
 Defaults now use upstream addresses (no mirror rewrite):
 
-- base image: `postgres:18.3-trixie` for PG18 tests, `postgres:19beta1-trixie` for PG19 beta tests
+- base image: `postgres:18.3-trixie` for PG18 tests, `postgres:19beta2-trixie` for PG19 beta tests
 - apt source: base image defaults
 - rustup/cargo source: upstream defaults
 
@@ -244,14 +244,21 @@ docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/test:trixie \
   .
 
 # optional: pin pg_search version at build time
-# docker build --build-arg PG_SEARCH_VERSION=0.24.0 -f docker/Dockerfile.test-trixie -t pg_pinyin/test:trixie .
+# docker build --build-arg PG_SEARCH_VERSION=0.25.1 -f docker/Dockerfile.test-trixie -t pg_pinyin/test:trixie .
 ```
 
 Build PostgreSQL 19 beta test image:
 
 ```bash
-docker build -f docker/Dockerfile.test-pg19beta1-trixie -t pg_pinyin/test:pg19beta1 .
+docker build -f docker/Dockerfile.test-pg19beta2-trixie -t pg_pinyin/test:pg19beta2 .
 ```
+
+ParadeDB 0.25.1 does not publish a PostgreSQL 19 package. The PG19 beta 2
+Dockerfile therefore builds `pg_search` from the pinned `v0.25.1` source tag,
+updates that checkout to pgrx 0.19.2, and applies the scoped
+`docker/patches/paradedb-0.25.1-pg19beta2.patch` compatibility patch. This is
+an experimental compatibility build used by this project's integration and
+performance tests, not an upstream ParadeDB binary.
 
 Build release image:
 
@@ -268,9 +275,10 @@ DOCKER_BUILDKIT=1 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/tes
 
 ## Benchmark
 
-Tokenization-only benchmark script:
+Tokenization, query-builder, and full-search benchmark scripts:
 
 - `scripts/benchmark_pg18.sh`
+- `scripts/benchmark_pg19beta2.sh` (PG19 beta 2 report-name wrapper)
 
 It measures:
 
@@ -295,6 +303,9 @@ Run:
 
 ```bash
 ROWS=2000 REGEX_BENCH_ROWS=20000 USER_TABLE_SUFFIX=_bench PGURL=postgres://localhost/postgres ./scripts/benchmark_pg18.sh
+
+# In the PostgreSQL 19 beta 2 + ParadeDB 0.25.1 container
+ROWS=20000 REGEX_BENCH_ROWS=20000 USER_TABLE_SUFFIX=_bench PGURL=postgres://localhost/postgres ./scripts/benchmark_pg19beta2.sh
 ```
 
 Standalone helper benchmarks:
@@ -371,6 +382,30 @@ Times above are `Execution Time` in milliseconds from `EXPLAIN (ANALYZE, BUFFERS
 `cold` runs for Rust base paths force a dictionary version bump before execution to simulate first-use cache load.
 Suffix dictionaries are cached on first use and reused across statements. If suffix tables are updated, clear cache with `public.pinyin_clear_suffix_cache('_suffix')` (or `public.pinyin_clear_suffix_cache()` for all).
 The standalone Rust/Python query-token numbers intentionally exclude PostgreSQL executor, UDF, and SQL array materialization overhead; they compare only the tokenization and pattern construction path.
+
+### Benchmark Session (PG19 Beta 2)
+
+Latest run (PG19 beta 2, `pg_search=0.25.1`, `pg_pinyin=0.0.5`, pgrx `0.19.2`, fresh benchmark database, `ROWS=20000`, `REGEX_BENCH_ROWS=20000`, 2026-08-07):
+
+| Scenario | Cold / Best | Warm / Median | Notes |
+| --- | ---: | ---: | --- |
+| SQL char tokenizer | `2844.411` ms | `2892.957` ms | 20,000 names |
+| Rust char tokenizer | `412.228` ms | `324.382` ms | `6.9x / 8.9x` vs SQL |
+| SQL word tokenizer | `3117.588` ms | `3334.401` ms | `pdb.icu` input |
+| Rust word tokenizer | `714.509` ms | `652.289` ms | `4.4x / 5.1x` vs SQL |
+| SQL regex token UDF | `1735.082` ms | `1684.004` ms | 20,000 queries |
+| Rust regex token UDF | `6.554` ms | `6.157` ms | `273.5x` warm speedup |
+| Rust standalone parser | `3.481` ms | `3.701` ms | checksum `219996` |
+| Python standalone parser | `33.967` ms | `34.283` ms | checksum `219996` |
+
+Full `pg_search` results against a 20,000-row BM25 table:
+
+| Scenario | Best | Median | Best per query | Checksum |
+| --- | ---: | ---: | ---: | ---: |
+| Python client parse + `text[]` patterns | `11912.159` ms | `12157.392` ms | `595.608` us | `13336444` |
+| Rust in-Postgres parse | `11345.487` ms | `12304.506` ms | `567.274` us | `13336444` |
+
+The Rust path has a `4.8%` better best full-query run, while the medians overlap. This confirms the parser improvement but also shows that BM25 execution and client/server round trips dominate end-to-end latency. The complete raw report is generated as `benchmark_pg19beta2_report.txt` and remains untracked.
 
 ## Roadmap
 

@@ -1,0 +1,5 @@
+-- Upgrade pg_pinyin from 0.0.5 to 0.0.6.
+--
+-- 0.0.6 adds PostgreSQL 19 beta 2 packaging, pgrx 0.19.2, and the
+-- pg_search 0.25.1 integration test environment. There are no SQL catalog
+-- changes from 0.0.5.

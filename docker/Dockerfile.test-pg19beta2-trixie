@@ -1,0 +1,124 @@
+# syntax=docker/dockerfile:1.7
+# Test and benchmark image for pg_pinyin on PostgreSQL 19 beta 2.
+# ParadeDB 0.25.1 does not publish PG19 packages, so pg_search is built from
+# its tagged source with the repository's scoped PG19 beta 2 compatibility patch.
+ARG BASE_IMAGE=postgres:19beta2-trixie
+FROM ${BASE_IMAGE}
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG PARADEDB_VERSION=0.25.1
+ARG PARADEDB_COMMIT=306153ac711299fb0ca9157729534637e6a957a8
+ARG PGVECTOR_VERSION=0.8.4
+ARG PGTAP_VERSION=1.3.4
+ARG PG19_PACKAGE_VERSION=19~beta2-1.pgdg13+1
+ARG PGDG_PACKAGE_MIRROR=http://apt.postgresql.org/pub/repos/apt
+ARG DEBIAN_MIRROR=
+ARG DEBIAN_SECURITY_MIRROR=
+ARG PGDG_MIRROR=
+ARG RUSTUP_DIST_SERVER=
+ARG RUSTUP_UPDATE_ROOT=
+ARG CARGO_REGISTRIES_CRATES_IO_INDEX=
+
+ENV PATH=/root/.cargo/bin:$PATH \
+    CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse \
+    PG_CONFIG=/usr/lib/postgresql/19/bin/pg_config
+
+RUN set -eux; \
+  if [ -n "$DEBIAN_MIRROR" ]; then \
+    find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) -exec \
+      sed -i \
+        -e "s|http://deb.debian.org/debian|$DEBIAN_MIRROR|g" \
+        -e "s|https://deb.debian.org/debian|$DEBIAN_MIRROR|g" \
+        {} +; \
+  fi; \
+  if [ -n "$DEBIAN_SECURITY_MIRROR" ]; then \
+    find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) -exec \
+      sed -i \
+        -e "s|http://deb.debian.org/debian-security|$DEBIAN_SECURITY_MIRROR|g" \
+        -e "s|https://deb.debian.org/debian-security|$DEBIAN_SECURITY_MIRROR|g" \
+        {} +; \
+  fi; \
+  if [ -n "$PGDG_MIRROR" ]; then \
+    find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) -exec \
+      sed -i \
+        -e "s|http://apt.postgresql.org/pub/repos/apt|$PGDG_MIRROR|g" \
+        -e "s|https://apt.postgresql.org/pub/repos/apt|$PGDG_MIRROR|g" \
+        {} +; \
+  fi; \
+  apt-get update; \
+  apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    git \
+    pkg-config \
+    clang \
+    llvm-dev \
+    libc6-dev \
+    make \
+    libssl-dev \
+    libopenblas-dev \
+    python3-psycopg \
+    libpq5 \
+    postgresql-client-19; \
+  ARCH="$(dpkg --print-architecture)"; \
+  curl -fsSL -o /tmp/libpq-dev.deb \
+    "$PGDG_PACKAGE_MIRROR/pool/19/p/postgresql-19/libpq-dev_${PG19_PACKAGE_VERSION}_${ARCH}.deb"; \
+  curl -fsSL -o /tmp/postgresql-server-dev-19.deb \
+    "$PGDG_PACKAGE_MIRROR/pool/19/p/postgresql-19/postgresql-server-dev-19_${PG19_PACKAGE_VERSION}_${ARCH}.deb"; \
+  curl -fsSL -o /tmp/pgtap-harness.deb \
+    "$PGDG_PACKAGE_MIRROR/pool/main/libt/libtap-parser-sourcehandler-pgtap-perl/libtap-parser-sourcehandler-pgtap-perl_3.37-1.pgdg130+1_all.deb"; \
+  curl -fsSL -o /tmp/pgtap-runner.deb \
+    "$PGDG_PACKAGE_MIRROR/pool/main/p/pgtap/pgtap_${PGTAP_VERSION}-1.pgdg13+1_all.deb"; \
+  curl -fsSL -o /tmp/pgtap-extension.deb \
+    "$PGDG_PACKAGE_MIRROR/pool/main/p/pgtap/postgresql-19-pgtap_${PGTAP_VERSION}-1.pgdg13+1_all.deb"; \
+  apt-get install -y --no-install-recommends \
+    /tmp/libpq-dev.deb \
+    /tmp/postgresql-server-dev-19.deb \
+    /tmp/pgtap-harness.deb \
+    /tmp/pgtap-runner.deb \
+    /tmp/pgtap-extension.deb; \
+  update-ca-certificates; \
+  rm -rf /var/lib/apt/lists/* /tmp/*
+
+RUN --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
+  --mount=type=cache,target=/root/.cargo/git,sharing=locked \
+  --mount=type=cache,target=/root/.rustup/downloads,sharing=locked \
+  set -eux; \
+  if [ -n "$RUSTUP_DIST_SERVER" ]; then export RUSTUP_DIST_SERVER; fi; \
+  if [ -n "$RUSTUP_UPDATE_ROOT" ]; then export RUSTUP_UPDATE_ROOT; fi; \
+  if [ -n "$CARGO_REGISTRIES_CRATES_IO_INDEX" ]; then export CARGO_REGISTRIES_CRATES_IO_INDEX; fi; \
+  curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal; \
+  rustup default stable; \
+  cargo install --locked cargo-pgrx --version 0.19.2; \
+  cargo pgrx init --pg19="$PG_CONFIG"
+
+RUN set -eux; \
+  git clone --depth 1 --branch "v${PGVECTOR_VERSION}" https://github.com/pgvector/pgvector.git /tmp/pgvector; \
+  make -C /tmp/pgvector CC=clang PG_CONFIG="$PG_CONFIG"; \
+  make -C /tmp/pgvector CC=clang PG_CONFIG="$PG_CONFIG" install; \
+  rm -rf /tmp/pgvector
+
+COPY docker/patches/paradedb-0.25.1-pg19beta2.patch /tmp/paradedb-0.25.1-pg19beta2.patch
+
+RUN --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
+  --mount=type=cache,target=/root/.cargo/git,sharing=locked \
+  --mount=type=cache,target=/tmp/paradedb-target,sharing=locked \
+  set -eux; \
+  export RUSTUP_TOOLCHAIN=stable; \
+  git clone --depth 1 --branch "v${PARADEDB_VERSION}" https://github.com/paradedb/paradedb.git /tmp/paradedb; \
+  test "$(git -C /tmp/paradedb rev-parse HEAD)" = "$PARADEDB_COMMIT"; \
+  git -C /tmp/paradedb apply --check /tmp/paradedb-0.25.1-pg19beta2.patch; \
+  git -C /tmp/paradedb apply /tmp/paradedb-0.25.1-pg19beta2.patch; \
+  cd /tmp/paradedb; \
+  cargo update -p pgrx@0.19.0 --precise 0.19.2; \
+  CARGO_TARGET_DIR=/tmp/paradedb-target cargo pgrx install \
+    --release \
+    --package pg_search \
+    --features pg19 \
+    --no-default-features \
+    --pg-config "$PG_CONFIG"; \
+  test -f /usr/lib/postgresql/19/lib/pg_search.so; \
+  rm -rf /tmp/paradedb
+
+WORKDIR /work
+COPY . /work

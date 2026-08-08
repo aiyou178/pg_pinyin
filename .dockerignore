@@ -3,4 +3,5 @@
 target/
 .venv*/
 benchmark_pg18_report*.txt
+benchmark_pg19beta2_report*.txt
 *.log

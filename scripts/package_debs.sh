@@ -19,6 +19,13 @@ for pg in "${PG_VERSIONS[@]}"; do
   fi
 done
 
+shopt -s nullglob
+upgrade_files=("$ROOT_DIR"/pg_pinyin--*--"${EXT_VERSION}".sql)
+if [[ ${#upgrade_files[@]} -eq 0 ]]; then
+  echo "no upgrade SQL targets extension version $EXT_VERSION" >&2
+  exit 2
+fi
+
 cargo pgrx init \
   --pg14=/usr/lib/postgresql/14/bin/pg_config \
   --pg15=/usr/lib/postgresql/15/bin/pg_config \
