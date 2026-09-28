@@ -1,0 +1,4 @@
+-- Upgrade pg_pinyin from 0.0.6 to 0.0.7.
+--
+-- This release updates pgrx to 0.19.3 and validates PostgreSQL 19 beta 4.
+-- No SQL catalog changes are required.

@@ -9,8 +9,8 @@ index 55d32f7..db0b3a0 100644
  ], default-features = false }
 -pgrx = "=0.19.0"
 -pgrx-tests = "=0.19.0"
-+pgrx = "=0.19.2"
-+pgrx-tests = "=0.19.2"
++pgrx = "=0.19.3"
++pgrx-tests = "=0.19.3"
  tantivy-jieba = "0.20.0"
 
  [patch.crates-io]
@@ -878,7 +878,7 @@ index dd4deb6..3cdd7b1 100644
  libc = "0.2.186"
  parking_lot = "0.12.5"
 -pgrx-pg-config = "=0.19.0"
-+pgrx-pg-config = "=0.19.2"
++pgrx-pg-config = "=0.19.3"
  plotters = "0.3.7"
  postgres = "0.19.13"
  rust_decimal = { version = "1.41.0", features = ["db-postgres"] }

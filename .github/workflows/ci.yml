@@ -64,14 +64,14 @@ jobs:
         if: always()
         run: docker rm -f pg-pinyin-test || true
 
-  pg19-beta2-tests:
+  pg19-beta4-tests:
     runs-on: ubuntu-24.04
     timeout-minutes: 80
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build PostgreSQL 19 beta 2 + ParadeDB test image
-        run: docker build -f docker/Dockerfile.test-pg19beta2-trixie -t pg-pinyin-test:pg19beta2 .
+      - name: Build PostgreSQL 19 beta 4 + ParadeDB test image
+        run: docker build -f docker/Dockerfile.test-pg19beta4-trixie -t pg-pinyin-test:pg19beta4 .
 
       - name: Start PostgreSQL 19 beta test container
         run: |
@@ -79,7 +79,7 @@ jobs:
             -e POSTGRES_HOST_AUTH_METHOD=trust \
             -e POSTGRES_DB=postgres \
             -v "$GITHUB_WORKSPACE:/work" \
-            pg-pinyin-test:pg19beta2 \
+            pg-pinyin-test:pg19beta4 \
             postgres -c shared_preload_libraries=pg_search
 
       - name: Run PG19 extension install + pgTAP tests

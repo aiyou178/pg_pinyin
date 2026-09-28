@@ -204,7 +204,7 @@ Rust extension tests:
 cargo pgrx test pg18 --features pg18
 ```
 
-PostgreSQL 19 beta 2 is supported through `pgrx` 0.19.2:
+PostgreSQL 19 beta 4 is supported through `pgrx` 0.19.3:
 
 ```bash
 cargo pgrx init --pg19=/usr/lib/postgresql/19/bin/pg_config
@@ -216,12 +216,12 @@ cargo pgrx install --features pg19 --no-default-features --pg-config /usr/lib/po
 Dockerfiles:
 
 - `docker/Dockerfile.test-trixie`
-- `docker/Dockerfile.test-pg19beta2-trixie`
+- `docker/Dockerfile.test-pg19beta4-trixie`
 - `docker/Dockerfile.release-trixie`
 
 Defaults now use upstream addresses (no mirror rewrite):
 
-- base image: `postgres:18.3-trixie` for PG18 tests, `postgres:19beta2-trixie` for PG19 beta tests
+- base image: `postgres:18.3-trixie` for PG18 tests, `postgres:19beta4-trixie` for PG19 beta tests
 - apt source: base image defaults
 - rustup/cargo source: upstream defaults
 
@@ -250,13 +250,13 @@ docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/test:trixie \
 Build PostgreSQL 19 beta test image:
 
 ```bash
-docker build -f docker/Dockerfile.test-pg19beta2-trixie -t pg_pinyin/test:pg19beta2 .
+docker build -f docker/Dockerfile.test-pg19beta4-trixie -t pg_pinyin/test:pg19beta4 .
 ```
 
-ParadeDB 0.25.1 does not publish a PostgreSQL 19 package. The PG19 beta 2
+ParadeDB 0.25.1 does not publish a PostgreSQL 19 package. The PG19 beta 4
 Dockerfile therefore builds `pg_search` from the pinned `v0.25.1` source tag,
-updates that checkout to pgrx 0.19.2, and applies the scoped
-`docker/patches/paradedb-0.25.1-pg19beta2.patch` compatibility patch. This is
+updates that checkout to pgrx 0.19.3, and applies the scoped
+`docker/patches/paradedb-0.25.1-pg19beta4.patch` compatibility patch. This is
 an experimental compatibility build used by this project's integration and
 performance tests, not an upstream ParadeDB binary.
 
@@ -278,7 +278,7 @@ DOCKER_BUILDKIT=1 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/tes
 Tokenization, query-builder, and full-search benchmark scripts:
 
 - `scripts/benchmark_pg18.sh`
-- `scripts/benchmark_pg19beta2.sh` (PG19 beta 2 report-name wrapper)
+- `scripts/benchmark_pg19beta4.sh` (PG19 beta 4 report-name wrapper)
 
 It measures:
 
@@ -304,8 +304,8 @@ Run:
 ```bash
 ROWS=2000 REGEX_BENCH_ROWS=20000 USER_TABLE_SUFFIX=_bench PGURL=postgres://localhost/postgres ./scripts/benchmark_pg18.sh
 
-# In the PostgreSQL 19 beta 2 + ParadeDB 0.25.1 container
-ROWS=20000 REGEX_BENCH_ROWS=20000 USER_TABLE_SUFFIX=_bench PGURL=postgres://localhost/postgres ./scripts/benchmark_pg19beta2.sh
+# In the PostgreSQL 19 beta 4 + ParadeDB 0.25.1 container
+ROWS=20000 REGEX_BENCH_ROWS=20000 USER_TABLE_SUFFIX=_bench PGURL=postgres://localhost/postgres ./scripts/benchmark_pg19beta4.sh
 ```
 
 Standalone helper benchmarks:
@@ -385,7 +385,7 @@ The standalone Rust/Python query-token numbers intentionally exclude PostgreSQL 
 
 ### Benchmark Session (PG19 Beta 2)
 
-Latest run (PG19 beta 2, `pg_search=0.25.1`, `pg_pinyin=0.0.5`, pgrx `0.19.2`, fresh benchmark database, `ROWS=20000`, `REGEX_BENCH_ROWS=20000`, 2026-08-07):
+Previous run (PG19 beta 2, `pg_search=0.25.1`, `pg_pinyin=0.0.5`, pgrx `0.19.2`, fresh benchmark database, `ROWS=20000`, `REGEX_BENCH_ROWS=20000`, 2026-08-07):
 
 | Scenario | Cold / Best | Warm / Median | Notes |
 | --- | ---: | ---: | --- |

@@ -1,6 +1,6 @@
 [package]
 name = "pg_pinyin"
-version = "0.0.6"
+version = "0.0.7"
 edition = "2024"
 description = "Pinyin romanization and search helpers for PostgreSQL"
 license = "MIT"
@@ -20,8 +20,8 @@ pg19 = ["extension", "pgrx/pg19"]
 pg_test = ["extension", "dep:pgrx-tests", "pgrx-tests/pg18"]
 
 [dependencies]
-pgrx = { version = "=0.19.2", optional = true }
-pgrx-tests = { version = "=0.19.2", optional = true }
+pgrx = { version = "=0.19.3", optional = true }
+pgrx-tests = { version = "=0.19.3", optional = true }
 serde_json = { version = "1.0", optional = true }
 
 [profile.dev]

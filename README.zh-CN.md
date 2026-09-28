@@ -193,7 +193,7 @@ Rust 扩展测试：
 cargo pgrx test pg18 --features pg18
 ```
 
-PostgreSQL 19 beta 2 通过 `pgrx` 0.19.2 支持：
+PostgreSQL 19 beta 4 通过 `pgrx` 0.19.3 支持：
 
 ```bash
 cargo pgrx init --pg19=/usr/lib/postgresql/19/bin/pg_config
@@ -203,12 +203,12 @@ cargo pgrx install --features pg19 --no-default-features --pg-config /usr/lib/po
 ## Docker（通用上游地址）
 
 - `docker/Dockerfile.test-trixie`
-- `docker/Dockerfile.test-pg19beta2-trixie`
+- `docker/Dockerfile.test-pg19beta4-trixie`
 - `docker/Dockerfile.release-trixie`
 
 默认使用上游地址（不再改写镜像源）：
 
-- 基础镜像：PG18 测试使用 `postgres:18.3-trixie`，PG19 beta 测试使用 `postgres:19beta2-trixie`
+- 基础镜像：PG18 测试使用 `postgres:18.3-trixie`，PG19 beta 测试使用 `postgres:19beta4-trixie`
 - apt 源：基础镜像默认配置
 - rustup/cargo：官方默认地址
 
@@ -230,12 +230,12 @@ docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/test:trixie \
 构建 PostgreSQL 19 beta 测试镜像：
 
 ```bash
-docker build -f docker/Dockerfile.test-pg19beta2-trixie -t pg_pinyin/test:pg19beta2 .
+docker build -f docker/Dockerfile.test-pg19beta4-trixie -t pg_pinyin/test:pg19beta4 .
 ```
 
-ParadeDB 0.25.1 没有发布 PostgreSQL 19 安装包，因此 PG19 beta 2 Dockerfile
+ParadeDB 0.25.1 没有发布 PostgreSQL 19 安装包，因此 PG19 beta 4 Dockerfile
 会从固定的 `v0.25.1` tag 构建 `pg_search`，将该 checkout 升级到 pgrx
-0.19.2，并应用限定范围的 `docker/patches/paradedb-0.25.1-pg19beta2.patch`
+0.19.3，并应用限定范围的 `docker/patches/paradedb-0.25.1-pg19beta4.patch`
 兼容补丁。这是本项目集成测试和性能测试使用的实验性兼容构建，并非 ParadeDB
 官方发布的 PG19 二进制包。
 
@@ -257,7 +257,7 @@ DOCKER_BUILDKIT=1 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/tes
 衡量分词/拼音化、query builder 和完整检索性能：
 
 - `scripts/benchmark_pg18.sh`
-- `scripts/benchmark_pg19beta2.sh`（PG19 beta 2 报告文件名 wrapper）
+- `scripts/benchmark_pg19beta4.sh`（PG19 beta 4 报告文件名 wrapper）
 
 脚本会覆盖以下场景：
 
@@ -283,8 +283,8 @@ DOCKER_BUILDKIT=1 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/tes
 ```bash
 ROWS=2000 REGEX_BENCH_ROWS=20000 USER_TABLE_SUFFIX=_bench PGURL=postgres://localhost/postgres ./scripts/benchmark_pg18.sh
 
-# 在 PostgreSQL 19 beta 2 + ParadeDB 0.25.1 容器内
-ROWS=20000 REGEX_BENCH_ROWS=20000 USER_TABLE_SUFFIX=_bench PGURL=postgres://localhost/postgres ./scripts/benchmark_pg19beta2.sh
+# 在 PostgreSQL 19 beta 4 + ParadeDB 0.25.1 容器内
+ROWS=20000 REGEX_BENCH_ROWS=20000 USER_TABLE_SUFFIX=_bench PGURL=postgres://localhost/postgres ./scripts/benchmark_pg19beta4.sh
 ```
 
 独立 helper benchmark：
@@ -364,7 +364,7 @@ Rust 基线路径的 `cold` 在执行前会先 bump 一次字典版本，用于�
 
 ### Benchmark Session（PG19 Beta 2）
 
-最新一次结果（PG19 beta 2，`pg_search=0.25.1`，`pg_pinyin=0.0.5`，pgrx `0.19.2`，fresh benchmark database，`ROWS=20000`，`REGEX_BENCH_ROWS=20000`，2026-08-07）：
+历史结果（PG19 beta 2，`pg_search=0.25.1`，`pg_pinyin=0.0.5`，pgrx `0.19.2`，fresh benchmark database，`ROWS=20000`，`REGEX_BENCH_ROWS=20000`，2026-08-07）：
 
 | 场景 | Cold / Best | Warm / Median | 说明 |
 | --- | ---: | ---: | --- |
