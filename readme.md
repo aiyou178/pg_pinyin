@@ -383,29 +383,39 @@ Times above are `Execution Time` in milliseconds from `EXPLAIN (ANALYZE, BUFFERS
 Suffix dictionaries are cached on first use and reused across statements. If suffix tables are updated, clear cache with `public.pinyin_clear_suffix_cache('_suffix')` (or `public.pinyin_clear_suffix_cache()` for all).
 The standalone Rust/Python query-token numbers intentionally exclude PostgreSQL executor, UDF, and SQL array materialization overhead; they compare only the tokenization and pattern construction path.
 
-### Benchmark Session (PG19 Beta 2)
+### Benchmark Session (PG19 Beta 4)
 
-Previous run (PG19 beta 2, `pg_search=0.25.1`, `pg_pinyin=0.0.5`, pgrx `0.19.2`, fresh benchmark database, `ROWS=20000`, `REGEX_BENCH_ROWS=20000`, 2026-08-07):
+Run on 2026-09-28 with PostgreSQL 19 beta 4, `pg_search=0.25.1`, the published `pg_pinyin=0.0.7` arm64 DEB (pgrx `0.19.3`), a fresh benchmark database, `ROWS=20000`, and `REGEX_BENCH_ROWS=20000`. Times are in milliseconds; lower is better.
 
-| Scenario | Cold / Best | Warm / Median | Notes |
+PostgreSQL functions (20,000 rows):
+
+| Scenario | Cold / Cold-ish | Warm | Notes |
 | --- | ---: | ---: | --- |
-| SQL char tokenizer | `2844.411` ms | `2892.957` ms | 20,000 names |
-| Rust char tokenizer | `412.228` ms | `324.382` ms | `6.9x / 8.9x` vs SQL |
-| SQL word tokenizer | `3117.588` ms | `3334.401` ms | `pdb.icu` input |
-| Rust word tokenizer | `714.509` ms | `652.289` ms | `4.4x / 5.1x` vs SQL |
-| SQL regex token UDF | `1735.082` ms | `1684.004` ms | 20,000 queries |
-| Rust regex token UDF | `6.554` ms | `6.157` ms | `273.5x` warm speedup |
-| Rust standalone parser | `3.481` ms | `3.701` ms | checksum `219996` |
-| Python standalone parser | `33.967` ms | `34.283` ms | checksum `219996` |
+| SQL char tokenizer | `80726.375` | `2943.466` | Cold result is an outlier under host memory pressure |
+| Rust char tokenizer | `346.601` | `296.710` | `9.9x` faster than SQL when warm |
+| SQL word tokenizer (`pdb.icu` input) | `3373.882` | `3340.056` | Same tokenizer input as Rust below |
+| Rust word tokenizer (`pdb.icu` input) | `773.751` | `635.176` | `5.3x` faster than SQL when warm |
+| Rust word tokenizer (plain text) | `402.054` | `241.737` | Input mode without `pdb.icu` conversion |
+| SQL regex token UDF | `1896.137` | `1815.796` | 20,000 queries |
+| Rust regex token UDF | `6.552` | `6.323` | `287x` faster than SQL when warm |
+| SQL `pdb.query` builder | - | `1929.006` | `sql_pinyin_regex_phrase(query)` |
+| Rust `pdb.query` builder | - | `22.151` | `pinyin_regex_phrase(query)` |
 
-Full `pg_search` results against a 20,000-row BM25 table:
+Standalone token construction (20,000 queries, five timed runs; excludes PostgreSQL executor and SQL array overhead):
 
-| Scenario | Best | Median | Best per query | Checksum |
+| Scenario | Best | Median | Checksum |
+| --- | ---: | ---: | ---: |
+| Rust | `3.489` | `3.533` | `219996` |
+| Python | `34.677` | `35.724` | `219996` |
+
+Full `pg_search` client queries against a 20,000-row BM25 table (20,000 queries, three timed runs per path):
+
+| Scenario | Best | Median | Best per query | Result checksum |
 | --- | ---: | ---: | ---: | ---: |
-| Python client parse + `text[]` patterns | `11912.159` ms | `12157.392` ms | `595.608` us | `13336444` |
-| Rust in-Postgres parse | `11345.487` ms | `12304.506` ms | `567.274` us | `13336444` |
+| Python client parse + `text[]` patterns | `11420.440` | `12274.454` | `571.022` us | `13336444` |
+| Rust in-Postgres parse | `11549.828` | `12339.904` | `577.491` us | `13336444` |
 
-The Rust path has a `4.8%` better best full-query run, while the medians overlap. This confirms the parser improvement but also shows that BM25 execution and client/server round trips dominate end-to-end latency. The complete raw report is generated as `benchmark_pg19beta2_report.txt` and remains untracked.
+The full-query medians differ by only `0.5%`; this run does not establish an end-to-end advantage for either parser. The three Python runs were `11420.440`, `12650.059`, and `12274.454` ms; the Rust runs were `11549.828`, `12339.904`, and `13478.456` ms. The host was using about `27.8 GB` of swap, so the cold SQL char result should not be treated as representative. The complete raw report is generated as `benchmark_pg19beta4_report.txt` and remains untracked.
 
 ## Roadmap
 

@@ -362,29 +362,39 @@ Rust 基线路径的 `cold` 在执行前会先 bump 一次字典版本，用于�
 后缀词典会在首次使用时加载缓存并跨语句复用。若后缀表发生更新，可调用 `public.pinyin_clear_suffix_cache('_suffix')`（或 `public.pinyin_clear_suffix_cache()` 清空全部）手动失效缓存。
 独立 Rust/Python 查询 token 数字刻意排除了 PostgreSQL executor、UDF 调用和 SQL 数组物化开销，只比较分词和 pattern 构造路径。
 
-### Benchmark Session（PG19 Beta 2）
+### Benchmark Session（PG19 Beta 4）
 
-历史结果（PG19 beta 2，`pg_search=0.25.1`，`pg_pinyin=0.0.5`，pgrx `0.19.2`，fresh benchmark database，`ROWS=20000`，`REGEX_BENCH_ROWS=20000`，2026-08-07）：
+2026-09-28 在 PostgreSQL 19 beta 4、`pg_search=0.25.1`、已发布的 `pg_pinyin=0.0.7` arm64 DEB（pgrx `0.19.3`）上运行；使用 fresh benchmark database，`ROWS=20000`、`REGEX_BENCH_ROWS=20000`。以下耗时单位为毫秒，越低越好。
 
-| 场景 | Cold / Best | Warm / Median | 说明 |
+PostgreSQL 函数（20,000 行）：
+
+| 场景 | Cold / Cold-ish | Warm | 说明 |
 | --- | ---: | ---: | --- |
-| SQL 字级 tokenizer | `2844.411` ms | `2892.957` ms | 20,000 个名字 |
-| Rust 字级 tokenizer | `412.228` ms | `324.382` ms | 相对 SQL `6.9x / 8.9x` |
-| SQL 词级 tokenizer | `3117.588` ms | `3334.401` ms | `pdb.icu` 输入 |
-| Rust 词级 tokenizer | `714.509` ms | `652.289` ms | 相对 SQL `4.4x / 5.1x` |
-| SQL regex token UDF | `1735.082` ms | `1684.004` ms | 20,000 个 query |
-| Rust regex token UDF | `6.554` ms | `6.157` ms | warm 提升 `273.5x` |
-| Rust standalone parser | `3.481` ms | `3.701` ms | checksum `219996` |
-| Python standalone parser | `33.967` ms | `34.283` ms | checksum `219996` |
+| SQL 字级 tokenizer | `80726.375` | `2943.466` | 主机内存压力下的 cold 异常值 |
+| Rust 字级 tokenizer | `346.601` | `296.710` | warm 时相对 SQL 快 `9.9x` |
+| SQL 词级 tokenizer（`pdb.icu` 输入） | `3373.882` | `3340.056` | 与下方 Rust 使用相同 tokenizer 输入 |
+| Rust 词级 tokenizer（`pdb.icu` 输入） | `773.751` | `635.176` | warm 时相对 SQL 快 `5.3x` |
+| Rust 词级 tokenizer（纯文本输入） | `402.054` | `241.737` | 不含 `pdb.icu` 输入转换的模式 |
+| SQL regex token UDF | `1896.137` | `1815.796` | 20,000 个 query |
+| Rust regex token UDF | `6.552` | `6.323` | warm 时相对 SQL 快 `287x` |
+| SQL `pdb.query` 构造 | - | `1929.006` | `sql_pinyin_regex_phrase(query)` |
+| Rust `pdb.query` 构造 | - | `22.151` | `pinyin_regex_phrase(query)` |
 
-针对 20,000 行 BM25 表的完整 `pg_search` 结果：
+独立 token 构造（20,000 个 query，每条路径计时五次；不含 PostgreSQL executor 和 SQL 数组开销）：
 
-| 场景 | Best | Median | Best per query | Checksum |
+| 场景 | 最好 | 中位数 | Checksum |
+| --- | ---: | ---: | ---: |
+| Rust | `3.489` | `3.533` | `219996` |
+| Python | `34.677` | `35.724` | `219996` |
+
+针对 20,000 行 BM25 表的完整 `pg_search` client 查询（20,000 次查询，每条路径各计时三次）：
+
+| 场景 | 最好 | 中位数 | 单次查询最好 | 结果 checksum |
 | --- | ---: | ---: | ---: | ---: |
-| Python client parse + `text[]` patterns | `11912.159` ms | `12157.392` ms | `595.608` us | `13336444` |
-| Rust in-Postgres parse | `11345.487` ms | `12304.506` ms | `567.274` us | `13336444` |
+| Python client parse + `text[]` patterns | `11420.440` | `12274.454` | `571.022` us | `13336444` |
+| Rust in-Postgres parse | `11549.828` | `12339.904` | `577.491` us | `13336444` |
 
-Rust 路径的完整查询 best run 快 `4.8%`，但两者 median 接近。这既确认了 parser 的改进，也说明端到端延迟主要来自 BM25 执行和 client/server round trip。完整原始报告会生成到 `benchmark_pg19beta2_report.txt`，该文件保持 untracked。
+完整查询中位数只差 `0.5%`，这次运行不能证明任一路径有稳定的端到端优势。Python 三次耗时为 `11420.440`、`12650.059`、`12274.454` ms；Rust 为 `11549.828`、`12339.904`、`13478.456` ms。运行时主机使用约 `27.8 GB` swap，SQL 字级 cold 结果不宜视为代表值。完整原始报告会生成到 `benchmark_pg19beta4_report.txt`，该文件保持 untracked。
 
 ## Roadmap
 
