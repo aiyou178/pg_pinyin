@@ -89,7 +89,6 @@ class ParallelReadOnlyTest(unittest.TestCase):
                     conn.execute("SET LOCAL min_parallel_table_scan_size = 0")
                     conn.execute("SET LOCAL parallel_setup_cost = 0")
                     conn.execute("SET LOCAL parallel_tuple_cost = 0")
-                    conn.execute("SET LOCAL debug_parallel_query = on")
                     self.assertIsNone(
                         conn.execute(
                             "SELECT pg_current_xact_id_if_assigned()"
