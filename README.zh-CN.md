@@ -187,6 +187,12 @@ pgTAP：
 ./test/pgtap/run.sh
 ```
 
+该命令还通过 psycopg 运行并行只读回归测试（测试镜像已包含依赖）：在独立的
+只读事务中确认实际启动 parallel worker，并检查拼音转换、分词输入及后缀词典
+查询不会分配事务 ID。扩展内部的只读 SQL 应使用 `Spi::connect` 配合
+`client.select`；`Spi::get_one` / `get_one_with_args` 即使执行 `SELECT`，
+也会走可写 SPI 路径，与 `PARALLEL SAFE` 声明冲突。
+
 Rust 扩展测试：
 
 ```bash
