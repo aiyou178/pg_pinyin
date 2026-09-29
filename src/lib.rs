@@ -315,7 +315,9 @@ mod extension {
             "SELECT COALESCE((SELECT version FROM {s}.pinyin_dictionary_meta WHERE singleton), 0)",
             s = DICTIONARY_SCHEMA
         );
-        match Spi::get_one::<i64>(&sql) {
+        // Spi::get_one uses a mutable SPI call even for SELECT and assigns an
+        // XID, which is forbidden in parallel workers. Keep these reads read-only.
+        match Spi::connect(|client| client.select(&sql, Some(1), &[])?.first().get_one::<i64>()) {
             Ok(Some(version)) => version,
             Ok(None) => 0,
             Err(_) => 0,
@@ -432,7 +434,12 @@ mod extension {
             schema = sql_literal(schema),
             table = sql_literal(table),
         );
-        match Spi::get_one::<bool>(&query) {
+        match Spi::connect(|client| {
+            client
+                .select(&query, Some(1), &[])?
+                .first()
+                .get_one::<bool>()
+        }) {
             Ok(Some(v)) => v,
             _ => false,
         }
@@ -772,11 +779,17 @@ mod extension {
     fn fetch_tokenizer_input_tokens(tokenizer_input: AnyElement) -> Option<Vec<String>> {
         let args =
             [unsafe { pgrx::datum::DatumWithOid::new(tokenizer_input, tokenizer_input.oid()) }];
-        let json_text = match Spi::get_one_with_args::<String>(
-            "SELECT COALESCE(jsonb_agg(token ORDER BY ord), '[]'::jsonb)::text \
-             FROM unnest($1::text[]) WITH ORDINALITY AS t(token, ord)",
-            &args,
-        ) {
+        let json_text = match Spi::connect(|client| {
+            client
+                .select(
+                    "SELECT COALESCE(jsonb_agg(token ORDER BY ord), '[]'::jsonb)::text \
+                     FROM unnest($1::text[]) WITH ORDINALITY AS t(token, ord)",
+                    Some(1),
+                    &args,
+                )?
+                .first()
+                .get_one::<String>()
+        }) {
             Ok(Some(value)) => value,
             Ok(None) => "[]".to_string(),
             Err(_) => return None,
@@ -788,9 +801,14 @@ mod extension {
     fn anyelement_to_text(tokenizer_input: AnyElement) -> Option<String> {
         let args =
             [unsafe { pgrx::datum::DatumWithOid::new(tokenizer_input, tokenizer_input.oid()) }];
-        Spi::get_one_with_args::<String>("SELECT $1::text", &args)
-            .ok()
-            .flatten()
+        Spi::connect(|client| {
+            client
+                .select("SELECT $1::text", Some(1), &args)?
+                .first()
+                .get_one::<String>()
+        })
+        .ok()
+        .flatten()
     }
 
     fn map_token(token: &str, char_map: &HashMap<String, String>) -> String {
