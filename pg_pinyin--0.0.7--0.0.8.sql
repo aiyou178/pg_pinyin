@@ -1,0 +1,4 @@
+-- Upgrade pg_pinyin from 0.0.7 to 0.0.8.
+--
+-- This release keeps SPI reads read-only in parallel workers. Public SQL
+-- declarations and catalog objects are unchanged.
