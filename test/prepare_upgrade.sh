@@ -9,9 +9,9 @@ PG_FEATURE="pg$("$PG_CONFIG" --version | sed -E 's/^PostgreSQL ([0-9]+).*/\1/')"
 BASE_DIR="$(mktemp -d)"
 trap 'rm -rf "$BASE_DIR"' EXIT
 
-git -C "$ROOT_DIR" archive --format=tar --output="$BASE_DIR/source.tar" "$BASE_REF"
+git -c safe.directory="$ROOT_DIR" -C "$ROOT_DIR" archive --format=tar --output="$BASE_DIR/source.tar" "$BASE_REF"
 tar -xf "$BASE_DIR/source.tar" -C "$BASE_DIR"
-BASE_COMMIT="$(git -C "$ROOT_DIR" rev-parse "$BASE_REF")"
+BASE_COMMIT="$(git -c safe.directory="$ROOT_DIR" -C "$ROOT_DIR" rev-parse "$BASE_REF")"
 # Shared final .so paths can retain a newer build even when Cargo reports the
 # archived package as fresh. Keep the baseline artifact namespace independent.
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$ROOT_DIR/target}/upgrade-baseline-${BASE_COMMIT}"
