@@ -21,6 +21,7 @@
 - `pinyin_word_romanize_batch(origins text[], suffix text)` (document batch with user-table suffix)
 - `pinyin_regex_phrase(text, slope integer DEFAULT NULL, max_expansions integer DEFAULT NULL, generated_pinyin boolean DEFAULT false)` (`pg_search` query helper; installed by `CREATE EXTENSION pg_pinyin` when `pg_search` is already enabled in the database, returns `pdb.query`)
 - `pinyin_regex_phrase_mode(text, mode text, slope integer DEFAULT NULL, max_expansions integer DEFAULT NULL, generated_pinyin boolean DEFAULT false)` (opt-in explicit query modes; same installation requirement)
+- `pinyin_phrase(text, slope integer DEFAULT NULL)` (opt-in exact native term/phrase query for plain syllable fields; requires the native phrase APIs in `pg_search`)
 
 `pinyin_regex_phrase` is a Rust-backend public API, but its return type is `pdb.query`, so `pg_search` must be enabled in the database before `CREATE EXTENSION pg_pinyin`. PostgreSQL extension scripts cannot reliably enable another extension while they are being installed. If `pg_pinyin` is installed before `pg_search`, the romanization APIs are still installed and `pinyin_regex_phrase` is installed as an error stub with a clear exception.
 
@@ -43,6 +44,7 @@ remain unchanged, including untyped NULL arguments.
 - `sql_pinyin_regex_phrase_patterns(text, generated_pinyin boolean DEFAULT false)` (SQL helper returning regex phrase tokens as `text[]`)
 - `sql_pinyin_regex_phrase_mode(text, mode text, slope integer DEFAULT NULL, max_expansions integer DEFAULT NULL, generated_pinyin boolean DEFAULT false)` (independent SQL mode-aware query builder)
 - `sql_pinyin_regex_phrase_patterns_mode(text, mode text, generated_pinyin boolean DEFAULT false)` (independent SQL mode-aware pattern helper)
+- `sql_pinyin_phrase(text, slope integer DEFAULT NULL)` (independent SQL exact native term/phrase query for plain syllable fields)
 `sql_pinyin_regex_phrase_patterns` follows the same empty-array behavior. `sql_pinyin_regex_phrase` and the Rust-backed `pinyin_regex_phrase` map an empty pattern array to `pdb.empty()` so they are safe to use with `@@@`; callers that want an empty user query to leave other filters unaffected should omit the `@@@` predicate or use `pdb.all()` explicitly.
 
 Recommended usage:
@@ -163,6 +165,58 @@ SQL NULL inputs remain NULL. Existing installations use
 migration; live dictionaries and stored generated values are not overwritten.
 Run the upgrade from a new database connection after replacing the Rust library,
 so an existing connection does not retain the previously loaded binary.
+
+### Native Exact Phrase Queries
+
+For a plain syllable field, `pinyin_phrase` is an explicit alternative to the
+`full` regex query. It uses the same full-input grammar, including `xi'an`,
+tone boundaries and umlaut normalization, but constructs an exact `pdb.term`
+for one syllable or a pretokenized `pdb.phrase_array` for several syllables.
+Unlike `pdb.phrase(text[])`, `phrase_array` does not re-tokenize these syllables
+with the field's search analyzer.
+
+```sql
+-- Rust backend, installed by CREATE EXTENSION pg_pinyin.
+SELECT id, pdb.score(id) FROM voice
+WHERE pinyin @@@ public.pinyin_phrase('xi''an')
+ORDER BY pdb.score(id) DESC, id;
+
+-- Allow a gap using native phrase slop; NULL and 0 mean adjacent syllables.
+SELECT id FROM voice
+WHERE pinyin @@@ public.pinyin_phrase('xi an', 1);
+
+-- Independent SQL backend, loaded from sql/word.sql without pg_pinyin.
+SELECT id FROM voice
+WHERE pinyin @@@ public.sql_pinyin_phrase('xi''an');
+```
+
+This is **not a score-compatible replacement**: a native single term uses BM25,
+whereas a single regex has constant scoring. Rankings can change, particularly
+for single-syllable queries combined with other search
+clauses. Existing `pinyin_regex_phrase` and `pinyin_regex_phrase_mode` behavior
+is unchanged. Continue using them for initials, autocomplete, pipe-delimited
+multi-readings or explicit `max_expansions`; the native API accepts neither a
+generated-pinyin flag nor a regex expansion cap. It does not change index data.
+
+SQL NULL input returns NULL; empty/invalid input returns `pdb.empty()` rather
+than constructing an empty native phrase. Negative `slope` raises `22023` for
+non-NULL input. A single term ignores nonnegative slop. Both backends are
+`STABLE`, `PARALLEL SAFE`, and preserve the full parser's input/token limits.
+The Rust backend's tokenizer remains embedded and SPI-free.
+Slop follows pg_search phrase semantics: a one-token gap costs 1 and a
+transposition costs 2; positive slop is not a strict ordered-gap-only filter.
+In pg_search 0.26.1, repeated terms with positive slop can reuse one indexed
+position: `an an` with slop 1 can match a document containing just one `an`.
+This also affects the existing full regex query. Use zero slop when adjacent
+repeated syllables must occur separately; positive slop is not a multiplicity
+guarantee.
+
+Enable `pg_search` before installing/upgrading `pg_pinyin`. Without it the
+extension installs an error stub; with a `pg_search` lacking the exact native
+constructors/slop wrappers, it installs an actionable upgrade error stub rather
+than silently changing scoring through regex fallback. This path is tested with
+pg_search 0.26.1. Install the new binary and existing unreleased 0.0.8-to-0.0.9
+migration, then upgrade from a new connection. No additional version bump is made.
 
 ## Token Arrays and Document Batches
 
@@ -456,6 +510,53 @@ DOCKER_BUILDKIT=1 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/tes
 ```
 
 ## Benchmark
+
+### Native Exact Queries
+
+`scripts/benchmark_pinyin_phrase.py` compares opt-in native queries with the
+unchanged `full` regex path for both backends. It creates and removes its own
+fresh UUID database, uses one plain BM25 index, and separates actual query-object
+construction from complete client queries. Run after installing the new binary:
+
+```bash
+python3 scripts/benchmark_pinyin_phrase.py --dsn "$PGADMINURL" \
+  --rows 20000 --queries 2000 --repeats 3 \
+  --json-output benchmarks/native_phrase.json \
+  --markdown-output benchmarks/native_phrase.md
+```
+
+Hit-set equivalence and Rust/SQL backend parity are checked outside timing;
+native-versus-regex score/rank differences are reported, not treated as equivalent
+rankings. These are different execution/scoring paths under the same parser and
+library, not a parser-only speedup or an index-size reduction. Historical reports
+below remain unchanged.
+
+The [2026-10-13 report](benchmarks/native_phrase.md) and
+[raw JSON](benchmarks/native_phrase.json) use PG19 beta 4 / pg_search 0.26.1,
+20,000 phrases, 2,000 queries and three rotated repeats. All four recorded plans
+use BM25 score Top-K; the sort expression is not cast to another type.
+Warm medians in milliseconds:
+
+| Path | Actual query construction, 20,000 inputs | Full indexed queries, 2,000 inputs | Query p95 |
+| --- | ---: | ---: | ---: |
+| Rust full regex | 49.321 | 366.692 | 0.222 |
+| Rust native phrase | 45.005 | 282.677 | 0.181 |
+| SQL full regex | 5,560.614 | 1,037.258 | 0.651 |
+| SQL native phrase | 5,530.890 | 869.343 | 0.523 |
+
+Observed full-query elapsed time fell 22.9% for Rust and 16.2% for SQL. Parsing
+is unchanged; this measures query construction and execution paths together.
+All 2,000 complete hit sets, scores and ranked IDs agree on the timed
+multi-syllable workload. Separate single-syllable and mixed-OR gold demonstrates
+changed BM25 scores/rankings, so the new helper remains opt-in. The shared index
+is 3,350,528 bytes, unchanged between strategies. The shared host had roughly
+28 GB swap in use; three repeats do not establish a universal/statistical gain.
+PG19 validation uses the experimental source-built pg_search compatibility image,
+not an official PG19 package or a new complete Docker build.
+Local validation passed 26 Rust tests, 90 Python integration/protocol tests,
+22 data-pipeline tests and 1,356 pgTAP assertions across eight files, including
+genuine 0.0.8 upgrades, SQL-only loading and real read-only parallel workers.
+Rust formatting/checks passed and regenerated dictionaries were byte-identical.
 
 ### Native Arrays and Document Batches
 

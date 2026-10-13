@@ -1471,6 +1471,104 @@ mod extension {
         requires = [pinyin_regex_phrase_patterns_with_mode]
     );
 
+    extension_sql!(
+        r#"
+DO $pinyin_native_phrase$
+DECLARE
+  native_phrase_available boolean := false;
+BEGIN
+  IF to_regtype('pdb.query') IS NOT NULL THEN
+    IF to_regtype('pdb.slop') IS NOT NULL THEN
+      native_phrase_available :=
+        to_regprocedure('pdb.empty()') IS NOT NULL
+        AND to_regprocedure('pdb.term(text)') IS NOT NULL
+        AND to_regprocedure('pdb.phrase_array(text[])') IS NOT NULL
+        AND to_regprocedure('paradedb.query_to_slop(pdb.query,integer,boolean)') IS NOT NULL
+        AND to_regprocedure('paradedb.slop_to_query(pdb.slop)') IS NOT NULL;
+    END IF;
+
+    IF native_phrase_available THEN
+      EXECUTE $create_function$
+        CREATE OR REPLACE FUNCTION public.pinyin_phrase(
+          value text,
+          slope integer DEFAULT NULL
+        )
+        RETURNS pdb.query
+        LANGUAGE plpgsql
+        STABLE
+        PARALLEL SAFE
+        AS $function$
+        DECLARE
+          patterns text[];
+        BEGIN
+          IF value IS NULL THEN
+            RETURN NULL;
+          END IF;
+          IF slope < 0 THEN
+            RAISE EXCEPTION 'pinyin phrase slope must be non-negative'
+              USING ERRCODE = '22023';
+          END IF;
+
+          patterns := public.pinyin_regex_phrase_patterns_mode(value, 'full', false);
+          IF cardinality(patterns) = 0 THEN
+            RETURN pdb.empty();
+          END IF;
+          IF cardinality(patterns) = 1 THEN
+            RETURN pdb.term(patterns[1]);
+          END IF;
+          IF slope IS NULL OR slope = 0 THEN
+            RETURN pdb.phrase_array(patterns);
+          END IF;
+          RETURN paradedb.slop_to_query(
+            paradedb.query_to_slop(pdb.phrase_array(patterns), slope, true)
+          );
+        END;
+        $function$;
+      $create_function$;
+    ELSE
+      EXECUTE $create_function$
+        CREATE OR REPLACE FUNCTION public.pinyin_phrase(
+          value text,
+          slope integer DEFAULT NULL
+        )
+        RETURNS pdb.query
+        LANGUAGE plpgsql
+        STABLE
+        PARALLEL SAFE
+        AS $function$
+        BEGIN
+          RAISE EXCEPTION
+            'public.pinyin_phrase requires native phrase APIs; upgrade pg_search and reinstall or upgrade pg_pinyin'
+            USING ERRCODE = '0A000';
+        END;
+        $function$;
+      $create_function$;
+    END IF;
+  ELSE
+    EXECUTE $create_function$
+      CREATE OR REPLACE FUNCTION public.pinyin_phrase(
+        value text,
+        slope integer DEFAULT NULL
+      )
+      RETURNS text
+      LANGUAGE plpgsql
+      STABLE
+      PARALLEL SAFE
+      AS $function$
+      BEGIN
+        RAISE EXCEPTION
+          'public.pinyin_phrase requires CREATE EXTENSION pg_search before CREATE EXTENSION pg_pinyin';
+      END;
+      $function$;
+    $create_function$;
+  END IF;
+END;
+$pinyin_native_phrase$;
+        "#,
+        name = "pinyin_native_phrase_pg_search_helper",
+        requires = [pinyin_regex_phrase_patterns_with_mode]
+    );
+
     #[cfg(any(test, feature = "pg_test"))]
     #[pg_schema]
     mod tests {

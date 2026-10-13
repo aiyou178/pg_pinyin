@@ -1,6 +1,6 @@
 # Pinyin Data Integrity and Retrieval Optimization
 
-Status: P0, opt-in P1 query modes and native arrays/document batches implemented and locally validated in unreleased development version 0.0.9; remaining P1/P2 proposed. Date: 2026-10-13.
+Status: P0, opt-in P1 query modes, native arrays/document batches and opt-in native exact queries implemented and locally validated in unreleased development version 0.0.9; remaining P1/P2 proposed. Date: 2026-10-13.
 
 ## Scope
 
@@ -233,9 +233,9 @@ Remaining proposals require independent labeled evaluation before defaults chang
 2. Normalize explicit boundaries consistently across the existing interfaces.
    Keep single-path joined parsing; automatic candidate expansion was rejected
    on 2026-10-13 in favor of supporting explicitly separated user input.
-3. Validate the native `text[]`/document-batch increment below, preserving cache
-   invalidation and parallel safety before accepting performance claims.
-
+3. Measure the native exact-query increment below without assuming score parity
+   or changing the existing regex interfaces. Retain the independently validated
+   native `text[]`/document-batch cache and parallel-safety guarantees.
 4. Optional conservative function-word filtering: tokenize/POS/entity-protect
    before romanization, keep original Chinese and full-pinyin fallback. Protect
    names, titles, fixed phrases, quoted text, negation, scope and direction.
@@ -272,8 +272,8 @@ and OIDs remain unchanged; no extra version bump or migration functions are need
 Use fresh local databases for validation and do not reuse the discarded P3 results.
 
 Before the rebase, local validation of the independent main-based branch on
-2026-10-13 passed 26
-Rust unit tests, 53 Python integration/protocol tests, 22 data-pipeline tests and
+2026-10-13 passed 26 Rust unit tests, 53 Python integration/protocol tests,
+22 data-pipeline tests and
 1,079 pgTAP assertions across six files on PostgreSQL 19 beta 4 / pg_search 0.26.1.
 Both no-feature and PG19 library/benchmark-binary checks, `cargo fmt --check` and
 data regeneration passed; generated dictionary files were byte-identical.
@@ -285,6 +285,97 @@ PR; the earlier combined checkout had additional tests. The PG19 source-build
 compatibility limitations noted above still apply. Historical P1 benchmark
 reports remain unchanged; no new timing or speedup claim is made for this grammar
 fix. The expanded current fixture is newer than the P1 report.
+
+## Opt-In Native Exact Queries
+
+PR #5 is rebased onto main after the array/batch PR merged. This increment adds
+`public.pinyin_phrase(value text, slope integer DEFAULT NULL)` and independent
+`public.sql_pinyin_phrase(value text, slope integer DEFAULT NULL)`. Do not replace
+the existing `full` regex route: upstream term/phrase scoring is not equivalent.
+Keep existing signatures, OIDs, mode grammar and pipe/initials/autocomplete/cap
+behavior intact; do not revive automatic segmentation mutations.
+
+Both helpers use their own existing `full`, plain pattern parser. NULL input
+returns NULL before argument validation; negative slope on non-NULL input fails
+with `22023`; empty patterns become `pdb.empty()`. One syllable becomes exact
+`pdb.term`, ignoring nonnegative slop. Several syllables use `pdb.phrase_array`,
+which does not invoke the field search tokenizer; positive slop is attached with
+`paradedb.query_to_slop` / `paradedb.slop_to_query`. NULL/0 slop means adjacency.
+The wrapper's final boolean is `_is_explicit`, not an ordering flag; slop follows
+the shared phrase scorer (a gap costs 1, a transposition costs 2).
+Fresh validation also exposes repeated-term position reuse in pg_search 0.26.1:
+`an an` with slop 1 matches a single `an` position in both native and existing
+regex paths. Keep zero-slop repetition in the independent exact gold; separately
+guard and disclose this upstream positive-slop limitation, not lower the gold's
+occurrence requirement or claim linguistic correctness from backend agreement.
+There is no regex cap argument or generated-pinyin storage option.
+
+The Rust extension owns its final public helper and uses embedded SPI-free
+tokens. `sql/word.sql` remains optional and independently live-table-backed.
+Fresh installs and the existing unreleased 0.0.8-to-0.0.9 upgrade add exactly one
+extension function with `STABLE`, `PARALLEL SAFE`, not `STRICT`. No version bump
+or dictionary/generated-column mutation is included. Without enabled pg_search,
+install a text-returning error stub as with existing query helpers; if pdb.query
+exists but native constructors/slop wrappers are missing, retain its return type
+and raise an actionable upgrade error. Do not silently substitute regex scores.
+
+Acceptance covers independently labeled exact hit sets, repeated/gapped/reversed
+syllables, slop 0/1/2, apostrophe/umlaut boundaries, NULL/invalid inputs, SQL-only
+installation, fresh/upgrade catalog parity, retained regex expansion behavior
+and actual read-only parallel-worker execution. Verify native Rust/SQL scores
+and ranked IDs agree. Compare native versus regex full hit sets separately from
+scores, standalone rankings and mixed-OR rankings; score differences are expected
+and must remain visible rather than relabeled as equivalent results.
+
+Use a dedicated fresh UUID database and report, a single plain BM25 index,
+20,000 deterministic phrases and 2,000 queries, at least three rotated repeats.
+Compare current unchanged Rust/SQL regex-full constructors with new native
+helpers under the same compiled library/parser/index. This isolates construction
+and execution paths, not a new parsing algorithm. Measure actual pdb.query
+materialization, fresh-backend first-call cost, warm construction, and warm client
+indexed queries separately. Record raw repeats, median/p95, output hashes,
+untimed complete hit-set and score/rank checks, plans, source/library hashes and
+actual index bytes. A fresh backend is not a flushed OS cache; the identical
+index cannot establish an index-size reduction. Do not overwrite P0/P1/P2 reports.
+
+Upstream source audit is pinned to pg_search 0.26.1 and its Tantivy revision:
+single regex uses constant scoring while native term uses BM25. General regex
+phrase statistics refer to pattern literals; full/plain uses bare syllable
+literals, so its phrase statistics may coincide with native terms. Do not claim
+that every multi-syllable full query changes scores. The single-term difference
+can affect combined-query rankings. Native zero-slop phrase also
+has a different pruning path; measured workload results, not this observation,
+determine whether the new route improves performance.
+
+The dedicated 2026-10-13 [report](../benchmarks/native_phrase.md) and
+[JSON](../benchmarks/native_phrase.json) record 20,000 phrases, 2,000 queries and
+three rotated repeats on PG19 beta4 / pg_search 0.26.1. The sort expression uses
+direct `pdb.score(id)` rather than a float cast; every recorded plan is verified
+as `TopKScanExecState`, not just any ParadeDB scan. The earlier cast-sort trial
+was discarded and the complete benchmark rerun in a new UUID database.
+Warm full-client batch medians: Rust regex 366.692 ms versus native 282.677 ms
+(22.9% lower elapsed time); SQL regex 1,037.258 ms versus native 869.343 ms
+(16.2% lower). Actual query-constructor medians on all 20,000 inputs are
+49.321 / 45.005 ms (Rust) and 5,560.614 / 5,530.890 ms (SQL). Parsing is unchanged;
+this is an execution/construction-path experiment, not a parser-only speedup.
+All 2,000 timed inputs are multi-syllable (2-10 syllables): full hit sets, scores,
+ranked IDs and top-k agree across all methods. Independent single-term/mixed-OR
+gold confirms score and ranking differences, so the new API remains opt-in.
+The shared index is 3,350,528 bytes, unchanged by query strategy. The host's
+28,247.94M swap usage and shared workloads prevent universal/statistical speedup
+claims. This uses the cached experimental PG19 pg_search source compatibility
+image, not an upstream official PG19 package or a new full Docker recipe build.
+
+Final local validation passed 26 Rust unit tests, 90 Python integration/protocol
+tests, 22 data-pipeline tests and 1,356 pgTAP assertions across eight files.
+`cargo fmt --check` and library/benchmark-binary checks pass without PostgreSQL
+features and with PG19. Genuine released 0.0.8 upgrades match fresh installs,
+including the exact native function definition; legacy OIDs/catalog metadata,
+live dictionaries and stored values remain intact. Missing pg_search and missing
+native API stubs, standalone SQL loading, query construction below Gather in
+actual read-only workers without an assigned XID, and the custom analyzer
+pretokenization counterexample pass. Generated dictionary files are byte-identical.
+No version metadata, package release or existing historical benchmark is changed.
 
 ## Native Arrays and Explicit Document Batches
 
@@ -363,8 +454,6 @@ ICU-only warm median is 48.015 ms and is not charged to precomputed arrays.
 The shared host used 31946.69M swap before timing; these are exploratory
 server-side conversion/unindexed INSERT observations, not client upload or
 BM25-index-maintenance throughput and not an index-size optimization.
-
-
 ## P2: Sources and Evaluation
 
 Candidate sources are not automatically ingested or treated as independent gold:
@@ -402,6 +491,11 @@ or a toy benchmark alone.
 - [Name matching representations](https://aclanthology.org/P15-2062/)
 - [Chinese abbreviation ambiguity](https://aclanthology.org/2022.acl-long.133/)
 - [Token positions and stopwords](https://www.paradedb.com/blog/when-tokenization-becomes-token)
+- [Exact term/phrase constructors (pg_search 0.26.1)](https://github.com/paradedb/paradedb/blob/v0.26.1/pg_search/src/api/builder_fns/pdb.rs)
+- [Native/retokenized phrase execution (pg_search 0.26.1)](https://github.com/paradedb/paradedb/blob/v0.26.1/pg_search/src/query/pdb_query.rs)
+- [Native slop wrappers (pg_search 0.26.1)](https://github.com/paradedb/paradedb/blob/v0.26.1/pg_search/src/api/operator/slop.rs)
+- [Regex phrase scoring/expansion implementation (pinned Tantivy)](https://github.com/paradedb/tantivy/tree/63e0c241cfd330381aebd5893f188fa858acbf45/src/query/phrase_query)
+- [Repeated-term position reuse with slop (pinned Tantivy scorer)](https://github.com/paradedb/tantivy/blob/63e0c241cfd330381aebd5893f188fa858acbf45/src/query/phrase_query/phrase_scorer.rs#L150-L166)
 
 Benchmark results are recorded separately in `benchmarks/p0_dictionary.md` with
 machine-readable details in the adjacent JSON. They are measurements of the
