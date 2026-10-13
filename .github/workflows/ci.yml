@@ -32,13 +32,17 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - name: Run Rust checks
-        run: cargo check --lib --no-default-features
+        run: |
+          cargo check --lib --no-default-features --locked
+          cargo test --lib --no-default-features --locked
 
   pg-integration-tests:
     runs-on: ubuntu-24.04
     timeout-minutes: 80
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Build test image
         run: docker build -f docker/Dockerfile.test-trixie -t pg-pinyin-test:ci .
@@ -60,13 +64,19 @@ jobs:
               sleep 1
             done
             cd /work
-            PGURL=postgres://postgres@127.0.0.1:5432/postgres PG_LOADER_TESTS=1 python3 -m unittest discover -s test -p "test_*.py"
             PG_CONFIG=/usr/lib/postgresql/18/bin/pg_config
             if [ ! -x "$PG_CONFIG" ]; then
               PG_CONFIG="$(command -v pg_config)"
             fi
             cargo pgrx init --pg18="$PG_CONFIG"
+            export PG_CONFIG
+            bash test/prepare_upgrade.sh
             cargo pgrx install -v --features pg18 --no-default-features --pg-config "$PG_CONFIG"
+            cp pg_pinyin--*--*.sql "$("$PG_CONFIG" --sharedir)/extension/"
+            psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U postgres -d postgres -c "CREATE EXTENSION IF NOT EXISTS pg_search CASCADE;"
+            pg_search_version="$(psql -At -h 127.0.0.1 -p 5432 -U postgres -d postgres -c "SELECT extversion FROM pg_extension WHERE extname = \$\$pg_search\$\$")"
+            test "$pg_search_version" = "0.26.1"
+            PGURL=postgres://postgres@127.0.0.1:5432/postgres PG_LOADER_TESTS=1 TEST_UPGRADE_DSN=postgres://postgres@127.0.0.1:5432/postgres python3 -m unittest discover -s test -p "test_*.py"
             psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U postgres -d postgres -c "CREATE EXTENSION IF NOT EXISTS pg_pinyin;"
             out="$(psql -At -h 127.0.0.1 -p 5432 -U postgres -d postgres -c "SELECT public.pinyin_word_romanize(\$\$郑爽ABC\$\$)")"
             test "$out" = "zheng shuang abc"
@@ -83,9 +93,11 @@ jobs:
 
   pg19-beta4-tests:
     runs-on: ubuntu-24.04
-    timeout-minutes: 80
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Build PostgreSQL 19 beta 4 + ParadeDB test image
         run: docker build -f docker/Dockerfile.test-pg19beta4-trixie -t pg-pinyin-test:pg19beta4 .
@@ -107,14 +119,17 @@ jobs:
               sleep 1
             done
             cd /work
-            PGURL=postgres://postgres@127.0.0.1:5432/postgres PG_LOADER_TESTS=1 python3 -m unittest discover -s test -p "test_*.py"
             PG_CONFIG=/usr/lib/postgresql/19/bin/pg_config
             cargo pgrx init --pg19="$PG_CONFIG"
+            export PG_CONFIG
+            bash test/prepare_upgrade.sh
             cargo pgrx install -v --features pg19 --no-default-features --pg-config "$PG_CONFIG"
+            cp pg_pinyin--*--*.sql "$("$PG_CONFIG" --sharedir)/extension/"
             psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U postgres -d postgres -c "CREATE EXTENSION IF NOT EXISTS pg_search CASCADE;"
-            psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U postgres -d postgres -c "CREATE EXTENSION IF NOT EXISTS pg_pinyin;"
             pg_search_version="$(psql -At -h 127.0.0.1 -p 5432 -U postgres -d postgres -c "SELECT extversion FROM pg_extension WHERE extname = \$\$pg_search\$\$")"
-            test "$pg_search_version" = "0.25.1"
+            test "$pg_search_version" = "0.26.1"
+            PGURL=postgres://postgres@127.0.0.1:5432/postgres PG_LOADER_TESTS=1 TEST_UPGRADE_DSN=postgres://postgres@127.0.0.1:5432/postgres python3 -m unittest discover -s test -p "test_*.py"
+            psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U postgres -d postgres -c "CREATE EXTENSION IF NOT EXISTS pg_pinyin;"
             out="$(psql -At -h 127.0.0.1 -p 5432 -U postgres -d postgres -c "SELECT public.pinyin_word_romanize(\$\$郑爽ABC\$\$)")"
             test "$out" = "zheng shuang abc"
             PGURL=postgres://postgres@127.0.0.1:5432/postgres ./test/pgtap/run.sh

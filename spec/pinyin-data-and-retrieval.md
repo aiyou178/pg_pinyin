@@ -1,11 +1,11 @@
 # Pinyin Data Integrity and Retrieval Optimization
 
-Status: P0 implementation; P1/P2 proposed, not enabled. Date: 2026-10-13.
+Status: P0 implemented; opt-in P1 query modes implemented in development version 0.0.9; remaining P1/P2 proposed. Date: 2026-10-13.
 
 ## Scope
 
 Keep the Rust extension and optional SQL backend independent. Do not change the
-public API, runtime parallel-safety contract, editable dictionary tables, or
+existing public API, runtime parallel-safety contract, editable dictionary tables, or
 suffix override precedence. No generic stopword list is applied in P0. The
 pre-existing untracked `doc/` directory is not part of this work.
 
@@ -152,11 +152,83 @@ speedup or index reduction. Correctness may increase token count/index size.
 
 ## P1: Retrieval Semantics and Index Reduction
 
-Proposed, requiring independent labeled evaluation before defaults change:
+The first increment adds opt-in query semantics, without changing defaults:
 
-1. Add explicit full-syllable, initials and autocomplete modes. Use exact terms
-   or bounded alternatives for completed syllables; reserve prefix regex for
-   incomplete final tokens. Keep compatibility mode available.
+- `public.pinyin_regex_phrase_mode(value, mode, slope, max_expansions, generated_pinyin)`
+  is an extension-owned Rust-backend query helper. Its pattern core is
+  `pinyin_regex_phrase_patterns_mode(value, mode, generated_pinyin)`.
+- Optional `sql/word.sql` exports independent `sql_`-prefixed equivalents using
+  live token tables. No Rust API is required for the SQL implementation.
+- Separate names avoid ambiguity in existing untyped-NULL calls; do not add a
+  second-text overload to the legacy functions.
+- `full` uses exact syllable term patterns, `initials` splits compact single
+  letters (explicit `zh`/`ch`/`sh` chunks are digraphs), `autocomplete` expands
+  only the final token, and `compat` delegates the original behavior.
+- In the final non-numeric-tone autocomplete chunk, each remaining suffix is
+  first checked as a whole valid syllable prefix before greedy splitting.
+  Thus `yon`/`lon` remain one token, and `niyon` becomes `ni`, `yon.*`.
+- The new normalizer uses NFD, preserves umlauts as `v`, accepts `u:`/`v`, removes
+  valid tone marks, and preserves numeric tones/apostrophes as boundaries.
+  Malformed/unsupported inputs produce empty arrays, unknown modes fail with
+  `22023`, SQL NULL remains NULL. Limits are 256 original Unicode scalars and
+  64 output tokens, with no truncated searches.
+- Complete syllables use token categories 1/3 plus syllabic `m`/`n`. Joined
+  chunks still use a single longest-first path; explicit spaces/apostrophes are
+  authoritative. Bounded ambiguous-path parsing remains a subsequent task.
+- New generated-pinyin mode accepts both plain word-hit terms and pipe-bearing
+  alternatives, with closed syllable boundaries. Whitespace index expressions
+  retain pipe characters; structured queries use the original field as their
+  left operand. Simple tokenization is not an equivalent storage contract.
+- Rust parsing remains SPI-free and parallel safe. Development version 0.0.9
+  includes a catalog-only 0.0.8 upgrade; dictionaries/generated values are not
+  silently replaced. SQL backend installation remains separate.
+
+Independent adversarial fixtures must measure exact pattern arrays, positive and
+negative real BM25 results, precision/false positives and recall/MRR by intent.
+SQL and Rust results must agree within a mode; different modes need not agree.
+Use a fresh independent P1 benchmark/database/report, not overwrite P0 evidence.
+Keep constructor-only and full indexed timing separate, use rotated >=3 repeats
+on 20,000 rows / 2,000 queries, preserve actual IDs/hashes/plans and index bytes.
+Identical index content across modes is not an index-size optimization.
+
+Local validation on 2026-10-13 used PostgreSQL 19 beta 4 and pg_search 0.26.1:
+69 Python tests, 738 pgTAP assertions and 16 Rust unit tests passed. The genuine
+0.0.8 catalog is generated in an isolated baseline Cargo target, with a guard
+against accidentally reusing the newer shared-library/schema artifact. Upgrade
+tests retain old function OIDs, live dictionaries and generated values. The
+forced-worker pgTAP probe executes both the public query constructor and its
+pattern core. Additional isolated checks cover sequential operator fallback,
+private exact bitmap intersection and commit/rollback/VACUUM visibility.
+
+pg_search 0.26.1 has no official PG19 package. Local testing built its pinned
+source with the repository's PG19 compatibility patch in a cached SDK overlay;
+this is experimental compatibility, not full upstream support or a clean
+end-to-end build of the complete Docker recipe. Shared/lossy bitmap paths are
+not covered by these smoke tests. CI also targets PG18, but this local run is
+PG19 only. The P1 benchmark records the same extension version and the shared
+host conditions; its report is separate from historical P0/general results.
+
+The completed P1 run ([report](../benchmarks/p1_query_modes.md),
+[raw JSON](../benchmarks/p1_query_modes.json)) used 20,000 phrases, 2,000 queries
+per method and three rotated repeats. All 57 independent pattern cases passed;
+30 adversarial retrieval cases were recorded, with the new modes satisfying
+their positive/negative contracts and legacy false positives kept visible.
+Ranked backend parity and independently expected autocomplete arrays passed for
+every corpus input.
+In the three matched exact-intent contrasts, four visible compat false positives
+became zero in full, retaining all seven labeled positives. These are small
+targeted/top-k checks, not general accuracy or complete false-positive bounds.
+Plain full-query medians were 400.313 ms (Rust) and 1,167.757 ms (SQL). Rust full
+was faster than compat's 1,378.673 ms on those inputs, but the matching semantics
+differ, so this is not a parser-only speedup. The dual-field index remained
+3,514,368 bytes in all three builds. Pipe-wrapped fields were substantially slower;
+shared-host load and roughly 33.3 GB swap rule out stable speedup claims.
+
+Remaining proposals require independent labeled evaluation before defaults change:
+
+1. Evaluate the opt-in modes on independent business query labels before
+   changing defaults. Keep compatibility and Chinese/unfiltered fallback
+   available; curated adversarial checks are not general retrieval accuracy.
 2. Normalize query `ü`/tone marks/tone numbers/apostrophe boundaries consistently
    and use a bounded candidate lattice for ambiguous joined input, not a single
    greedy segmentation or unbounded Cartesian expansion.

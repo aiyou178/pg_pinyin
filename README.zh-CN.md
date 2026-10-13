@@ -18,6 +18,7 @@
 - `pinyin_word_romanize(tokenizer_input anyelement)`（重载，支持 `pdb` tokenizer 输入，如 `name::pdb.icu::text[]`）
 - `pinyin_word_romanize(tokenizer_input anyelement, suffix text)`（带用户词典后缀的重载）
 - `pinyin_regex_phrase(text, slope integer DEFAULT NULL, max_expansions integer DEFAULT NULL, generated_pinyin boolean DEFAULT false)`（`pg_search` query helper；当 `pg_search` 已在当前数据库启用时，由 `CREATE EXTENSION pg_pinyin` 安装，返回 `pdb.query`）
+- `pinyin_regex_phrase_mode(text, mode text, slope integer DEFAULT NULL, max_expansions integer DEFAULT NULL, generated_pinyin boolean DEFAULT false)`（显式查询模式，安装条件相同，按需使用）
 
 `pinyin_regex_phrase` 是 Rust backend 的公开接口，但返回类型是 `pdb.query`，因此必须先在当前数据库启用 `pg_search`，再 `CREATE EXTENSION pg_pinyin`。PostgreSQL extension script 不能可靠地在安装过程中启用另一个 extension。如果先安装 `pg_pinyin`、后安装 `pg_search`，拼音化接口仍会安装，`pinyin_regex_phrase` 会安装为 error stub，调用时给出明确异常。
 
@@ -27,12 +28,18 @@
 
 当输入为空、仅空白、或无法解析为拼音 token 时，`pinyin_regex_phrase_patterns` 返回空 `text[]`。SQL NULL 输入仍返回 SQL NULL，因为该函数是 strict。
 
+`pinyin_regex_phrase_patterns_mode(text, mode text, generated_pinyin boolean DEFAULT false)`
+是模式感知的内部 helper。Rust 分词仍使用内嵌数据，不执行 runtime SPI，保持
+`PARALLEL SAFE`。旧 helper 与签名均不改变，包括未显式标注类型的 NULL 参数调用。
+
 ## 可选 pg_search SQL Helper
 
-`sql/word.sql` 不会随 `CREATE EXTENSION pg_pinyin` 自动安装。它是 `sql/pinyin.sql` 的 SQL-backend 配套文件；需要先加载 `sql/pinyin.sql`，并且只在数据库里已安装 `pg_search` 时再加载。`pg_search` 0.25.1 需要先 preload，例如启动 PostgreSQL 时加 `-c shared_preload_libraries=pg_search`，之后才能 `CREATE EXTENSION pg_search`。
+`sql/word.sql` 不会随 `CREATE EXTENSION pg_pinyin` 自动安装。它是 `sql/pinyin.sql` 的 SQL-backend 配套文件；需要先加载 `sql/pinyin.sql`，并且只在数据库里已安装 `pg_search` 时再加载。`pg_search` 需要先 preload，例如启动 PostgreSQL 时加 `-c shared_preload_libraries=pg_search`，之后才能 `CREATE EXTENSION pg_search`。
 
 - `sql_pinyin_regex_phrase(text, slope integer DEFAULT NULL, max_expansions integer DEFAULT NULL, generated_pinyin boolean DEFAULT false)`（SQL 分词，返回 `pdb.query`）
 - `sql_pinyin_regex_phrase_patterns(text, generated_pinyin boolean DEFAULT false)`（SQL helper，返回 regex phrase token 的 `text[]`）
+- `sql_pinyin_regex_phrase_mode(text, mode text, slope integer DEFAULT NULL, max_expansions integer DEFAULT NULL, generated_pinyin boolean DEFAULT false)`（独立 SQL 后端的模式查询接口）
+- `sql_pinyin_regex_phrase_patterns_mode(text, mode text, generated_pinyin boolean DEFAULT false)`（独立 SQL 后端的模式 pattern helper）
 `sql_pinyin_regex_phrase_patterns` 使用同样的空数组语义。`sql_pinyin_regex_phrase` 和 Rust-backed `pinyin_regex_phrase` 会把空 pattern 数组映射为 `pdb.empty()`，因此可以安全用于 `@@@`；如果调用方希望空用户查询不影响其他过滤条件，应省略 `@@@` 条件，或显式使用 `pdb.all()`。
 
 推荐组合：
@@ -70,6 +77,50 @@ SELECT *
 FROM voice
 WHERE pinyin @@@ public.sql_pinyin_regex_phrase('zhengshuang');
 ```
+
+### 显式查询模式
+
+开发版本 0.0.9 增加独立的模式接口，不通过可能干扰旧调用的重载实现。
+按用户输入意图选择模式：
+
+| 模式 | 输入 | 普通字段 pattern |
+| --- | --- | --- |
+| `full` | `xi an` 或 `xi'an` | `xi`、`an` |
+| `initials` | `whh` | `w.*`、`h.*`、`h.*` |
+| `initials` | `zh ch sh` | `zh.*`、`ch.*`、`sh.*` |
+| `autocomplete` | `xi a` | `xi`、`a.*` |
+| `compat` | `xi an` | 旧模式的 `xi.*`、`an.*` |
+
+```sql
+SELECT * FROM voice
+WHERE pinyin @@@ public.pinyin_regex_phrase_mode('xi an', 'full');
+SELECT * FROM voice
+WHERE pinyin @@@ public.pinyin_regex_phrase_mode('whh', 'initials');
+SELECT * FROM voice
+WHERE pinyin @@@ public.sql_pinyin_regex_phrase_mode('xi a', 'autocomplete');
+```
+
+新模式把 `ü`、分解形式、`u:` 和 `v` 统一为 `v`，去掉声调符号，
+数字声调 0-5 和撇号保留为音节边界，例如 `lv4liang2 -> lv liang`。
+`compat` 保留旧接口只接受 ASCII 的行为。无分隔输入仍使用最长优先切分，
+尚未做语境消歧；`xin gan` 和 `xing an` 应明确给出边界。
+紧凑首字母按单字母拆分，只有完整的独立 `zh`／`ch`／`sh` 块按双字母声母处理。
+自动补全总是扩展最后一个 token，包括输入末尾带空白的情况。
+合法的末尾音节前缀优先保持完整：`yon -> yon.*`，不拆成 `yo`、`n.*`；
+`niyon -> ni yon.*`。
+
+`full` 精确匹配索引音节 term，不等于全文相等；`an` 不再扩展匹配 `ang`。
+新模式的 `generated_pinyin=true` 同时支持普通词组 term 和管道分隔的多读音，
+限定左右管道边界，避免 `an` 命中 `|ang|`。这类混合字段需要保留管道的
+whitespace tokenizer，例如索引 `(pinyin::pdb.whitespace)`；结构化查询使用
+`WHERE pinyin @@@ ...`，左侧不加 tokenizer cast。
+Rust 普通词级输出不需要这个标志。选择模式不会删减索引内容或词典覆盖。
+
+新模式对不支持的标点、错误声调、超过 256 个 Unicode 字符或 64 个 token
+的输入返回空 pattern 数组／`pdb.empty()`，不截断后搜索。未知模式报 SQLSTATE
+`22023`，SQL NULL 仍保留为 NULL。已有数据库安装新二进制和迁移文件后执行
+`ALTER EXTENSION pg_pinyin UPDATE TO '0.0.9'`；不会覆盖在线词典或 stored generated 值。
+替换 Rust 动态库后，应从新数据库连接执行升级，避免旧连接继续持有已加载的旧库。
 
 ## 生成列用法示例（Raw SQL）
 
@@ -234,6 +285,23 @@ cargo pgrx init --pg19=/usr/lib/postgresql/19/bin/pg_config
 cargo pgrx install --features pg19 --no-default-features --pg-config /usr/lib/postgresql/19/bin/pg_config
 ```
 
+完整 Python 集成与真实升级测试需要 psycopg 3、能创建数据库的管理员 `PGURL`，
+以及预加载的 pg_search 0.26.1。初始化 pgrx 后，先在隔离的 Cargo target 中
+安装旧 catalog，再恢复当前动态库后测试（以下以 PG19 为例）：
+
+```bash
+export PG_CONFIG=/usr/lib/postgresql/19/bin/pg_config
+bash test/prepare_upgrade.sh v0.0.8
+cargo pgrx install --features pg19 --no-default-features --pg-config "$PG_CONFIG"
+cp pg_pinyin--*--*.sql "$("$PG_CONFIG" --sharedir)/extension/"
+PGURL="$PGURL" PG_LOADER_TESTS=1 TEST_UPGRADE_DSN="$PGURL" python3 -m unittest discover -s test
+python3 -m unittest discover -s scripts/data/tests
+cargo test --lib --no-default-features --locked
+```
+
+数据库测试独立创建并清理临时库。pgTAP 还确认真实 parallel worker 执行
+带模式的公开 query API 和 pattern API。
+
 ## Docker（通用上游地址）
 
 - `docker/Dockerfile.test-trixie`
@@ -267,9 +335,11 @@ docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/test:trixie \
 docker build -f docker/Dockerfile.test-pg19beta4-trixie -t pg_pinyin/test:pg19beta4 .
 ```
 
-ParadeDB 0.25.1 没有发布 PostgreSQL 19 安装包，因此 PG19 beta 4 Dockerfile
-会从固定的 `v0.25.1` tag 构建 `pg_search`，将该 checkout 升级到 pgrx
-0.19.3，并应用限定范围的 `docker/patches/paradedb-0.25.1-pg19beta4.patch`
+测试镜像固定为 2026-10-13 核验的最新稳定版
+[pg_search 0.26.1](https://github.com/paradedb/paradedb/releases/tag/v0.26.1)，该版本没有
+PostgreSQL 19 安装包。PG19 beta 4 Dockerfile 从 `v0.26.1` 的固定 commit
+`529c77e9dffe4bd86b6b7971c019bb26b8eadbfa` 构建，使用上游已有的 pgrx
+0.19.3，并应用限定范围的 `docker/patches/paradedb-0.26.1-pg19beta4.patch`
 兼容补丁。这是本项目集成测试和性能测试使用的实验性兼容构建，并非 ParadeDB
 官方发布的 PG19 二进制包。
 
@@ -287,6 +357,44 @@ DOCKER_BUILDKIT=1 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/tes
 ```
 
 ## Benchmark
+
+### P1 查询模式（pg_search 0.26.1）
+
+独立的 [P1 报告](benchmarks/p1_query_modes.md) 和
+[原始 JSON](benchmarks/p1_query_modes.json) 记录 2026-10-13 的 PG19 beta 4
+实验性构建：2 万条词组、每种方法 2 千条查询、3 轮轮换顺序、top-k 10，
+每次使用新的 UUID 数据库并在结束后清理。需要 psycopg 3 和管理员 DSN：
+
+```bash
+python3 scripts/benchmark_pinyin_query_modes.py --pgurl "$PGADMINURL" \
+  --rows 20000 --query-limit 2000 --runs 3 --pg-search-version 0.26.1
+```
+
+普通拼音字段的中位耗时（毫秒）。构造器处理全部 2 万条输入；完整查询包含
+构造、BM25、客户端往返和结果传输：
+
+| 模式 | Rust warm 构造 | SQL warm 构造 | Rust 完整查询总耗时 | SQL 完整查询总耗时 |
+| --- | ---: | ---: | ---: | ---: |
+| `compat` | 12.152 | 1,878.998 | 1,378.673 | 1,576.698 |
+| `full` | 13.902 | 5,729.506 | 400.313 | 1,167.757 |
+| `initials` | 12.593 | 4,251.153 | 2,059.790 | 2,457.391 |
+| `autocomplete` | 14.346 | 5,373.237 | 788.271 | 1,440.392 |
+
+同一模式、同一存储格式下，两端的 pattern 数组和排序结果 ID 全部一致。
+autocomplete 的每条语料输出还独立核对原始音节位置，防止两端共享错误。
+三组相同输入、相同标签的精确边界对照中，compat 出现 4 个可见已标注误匹配，
+full 为 0，7 个正例都保留。57 个 pattern 用例和 30 个对抗检索用例属于定向
+接口检查，不代表通用检索准确率，也不能证明没有任何误匹配。
+
+full 与 compat 的语义不同，不能把耗时差异当作 parser 算法提速。
+管道编码的单读音字段在这里明显更慢：Rust full／initials／autocomplete
+总耗时分别为 4,867.482／15,883.333／9,140.413 ms；并非真实多音字性能语料。
+三次重建的同一双字段索引均为 3,514,368 bytes；查询模式不减少索引内容。
+主机运行时使用约 33.3 GB swap 且有其他任务，不能据此声称稳定性能增益。
+JSON 保留原始重复采样、ID、执行计划和源码哈希。下方历史结果仍标记原来的
+pg_search 版本与协议，不重标，也不与本次绝对耗时直接比较。
+
+### P0 词典覆盖
 
 P0 数据修正对比使用相同的 20,000 条词组和编译后端，每个版本独立新建数据库：
 
@@ -340,7 +448,8 @@ python3 scripts/benchmark_dictionary_p0.py --pgurl "$PGADMINURL" --baseline-ref 
 - Rust 独立查询 token 构造：`cargo run --release --bin benchmark_pinyin_regex_phrase -- --mode tokens`
 - Python 独立查询 token 构造：`scripts/benchmark_pinyin_regex_phrase.py --mode tokens`，使用相同 token 输出
 
-所有基准查询都使用 `EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)`，包含内存占用。
+通用 shell benchmark 使用 `EXPLAIN (ANALYZE, BUFFERS, MEMORY, SUMMARY)`，包含内存占用。
+独立 P0/P1 脚本分别记录客户端耗时和计时外执行计划，绝对耗时不能与该协议直接比较。
 
 默认情况下，`scripts/benchmark_pg18.sh` 会在每次 run 前 drop/create 专用 benchmark database（`BENCHMARK_DATABASE=pg_pinyin_benchmark`），并在每个 benchmark task 前刷新 runtime state。这样可以避免复用旧 extension、SQL helper 定义、BM25 index、bench table 和 Rust 字典缓存。只有在明确想复用 `PGURL` 指向的数据库时，才设置 `BENCHMARK_FRESH_DATABASE=0`。
 

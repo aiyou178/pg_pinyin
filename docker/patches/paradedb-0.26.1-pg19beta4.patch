@@ -1,0 +1,1022 @@
+# PostgreSQL 19 beta 4 compatibility for ParadeDB v0.26.1.
+# Upstream commit: 529c77e9dffe4bd86b6b7971c019bb26b8eadbfa.
+# This test-only patch targets PG19; PG18 uses the unmodified official package.
+diff --git a/pg_search/Cargo.toml b/pg_search/Cargo.toml
+index 5071798..febb584 100644
+--- a/pg_search/Cargo.toml
++++ b/pg_search/Cargo.toml
+@@ -17,6 +17,7 @@ pg15 = ["pgrx/pg15", "pgrx-tests/pg15"]
+ pg16 = ["pgrx/pg16", "pgrx-tests/pg16"]
+ pg17 = ["pgrx/pg17", "pgrx-tests/pg17"]
+ pg18 = ["pgrx/pg18", "pgrx-tests/pg18"]
++pg19 = ["pgrx/pg19", "pgrx-tests/pg19"]
+ pg_test = ["dep:proptest"]
+ # direct dep so the coverage shim survives into the cdylib (see lib.rs)
+ dst = ["dst/enabled", "dep:antithesis-instrumentation"]
+diff --git a/pg_search/src/api/admin.rs b/pg_search/src/api/admin.rs
+index 90bafb6..983d38c 100644
+--- a/pg_search/src/api/admin.rs
++++ b/pg_search/src/api/admin.rs
+@@ -712,11 +712,12 @@ fn verify_heap_references(
+     let heap_rel = PgSearchRelation::with_lock(heap_oid, pg_sys::AccessShareLock as _);
+ 
+     // Set up heap fetch state
+-    let scan = unsafe { pg_sys::table_index_fetch_begin(heap_rel.as_ptr()) };
++    let scan = unsafe { pg_sys::table_index_fetch_begin(heap_rel.as_ptr(), 0) };
+     let slot = unsafe {
+         pg_sys::MakeTupleTableSlot(
+             pg_sys::CreateTupleDesc(0, std::ptr::null_mut()),
+             &pg_sys::TTSOpsBufferHeapTuple,
++            0,
+         )
+     };
+     let snapshot = unsafe { pg_sys::GetActiveSnapshot() };
+diff --git a/pg_search/src/api/mod.rs b/pg_search/src/api/mod.rs
+index eec3cd8..e331cdf 100644
+--- a/pg_search/src/api/mod.rs
++++ b/pg_search/src/api/mod.rs
+@@ -325,7 +325,7 @@ impl SortDirection {
+     }
+ 
+     /// Determines sort direction from a Postgres sort operator OID.
+-    #[cfg(feature = "pg18")]
++    #[cfg(any(feature = "pg18", feature = "pg19"))]
+     pub unsafe fn from_sort_op(sortop: pg_sys::Oid, nulls_first: bool) -> Option<Self> {
+         let mut opfamily = pg_sys::InvalidOid;
+         let mut opcintype = pg_sys::InvalidOid;
+diff --git a/pg_search/src/api/operator.rs b/pg_search/src/api/operator.rs
+index 5072625..1ef74fe 100644
+--- a/pg_search/src/api/operator.rs
++++ b/pg_search/src/api/operator.rs
+@@ -38,7 +38,7 @@ use crate::postgres::rel::PgSearchRelation;
+ use crate::postgres::rel_get_bm25_index;
+ use crate::postgres::sequentialscan::MaybeInlineRow;
+ use crate::postgres::utils::ToPalloc;
+-#[cfg(feature = "pg18")]
++#[cfg(any(feature = "pg18", feature = "pg19"))]
+ use crate::postgres::var::resolve_rte_group_var;
+ use crate::postgres::var::{VarContext, find_json_path, find_var_relation};
+ use crate::query::SearchQueryInput;
+@@ -175,7 +175,7 @@ impl ReturnedNodePointer {
+             "rhs must represent a SearchQueryInput"
+         );
+ 
+-        #[cfg(feature = "pg18")]
++        #[cfg(any(feature = "pg18", feature = "pg19"))]
+         let base_var = resolve_lhs_var_for_group((*request).root, base_var);
+ 
+         let original_lhs = lhs;
+@@ -1124,7 +1124,7 @@ impl SearchLhs {
+                 {
+                     (*var).varnullingrels = pg_sys::bms_copy((*base_var).varnullingrels);
+                 }
+-                #[cfg(feature = "pg18")]
++                #[cfg(any(feature = "pg18", feature = "pg19"))]
+                 {
+                     (*var).varreturningtype = (*base_var).varreturningtype;
+                 }
+@@ -1155,7 +1155,7 @@ impl SearchLhs {
+     }
+ }
+ 
+-#[cfg(feature = "pg18")]
++#[cfg(any(feature = "pg18", feature = "pg19"))]
+ #[inline]
+ unsafe fn resolve_lhs_var_for_group(
+     root: *mut pg_sys::PlannerInfo,
+diff --git a/pg_search/src/lib.rs b/pg_search/src/lib.rs
+index 03a4c14..91133a2 100644
+--- a/pg_search/src/lib.rs
++++ b/pg_search/src/lib.rs
+@@ -153,7 +153,7 @@ pub unsafe extern "C-unwind" fn _PG_init() {
+         postgres::storage::custom_rmgr::register();
+     }
+ 
+-    #[cfg(not(any(feature = "pg17", feature = "pg18")))]
++    #[cfg(not(any(feature = "pg17", feature = "pg18", feature = "pg19")))]
+     postgres::fake_aminsertcleanup::register();
+ 
+     postgres::index_only::register_hook();
+diff --git a/pg_search/src/postgres/build_parallel.rs b/pg_search/src/postgres/build_parallel.rs
+index e674ba6..a69ef68 100644
+--- a/pg_search/src/postgres/build_parallel.rs
++++ b/pg_search/src/postgres/build_parallel.rs
+@@ -348,7 +348,7 @@ impl ParallelWorker for BuildWorker<'_> {
+                 PgSearchRelation::with_lock(config.heaprelid, heap_lock as pg_sys::LOCKMODE);
+             let mut indexrel =
+                 PgSearchRelation::with_lock(config.indexrelid, index_lock as pg_sys::LOCKMODE);
+-            let table_scan_desc = pg_sys::table_beginscan_parallel(heaprel.as_ptr(), scandesc);
++            let table_scan_desc = pg_sys::table_beginscan_parallel(heaprel.as_ptr(), scandesc, 0);
+ 
+             indexrel.set_is_create_index();
+             indexrel.set_need_wal(config.need_wal());
+diff --git a/pg_search/src/postgres/build_partitioning.rs b/pg_search/src/postgres/build_partitioning.rs
+index 618d735..b56fec6 100644
+--- a/pg_search/src/postgres/build_partitioning.rs
++++ b/pg_search/src/postgres/build_partitioning.rs
+@@ -273,7 +273,7 @@ unsafe fn sample_partition_fields(
+     let mut rng = StdRng::seed_from_u64(SAMPLE_SEED as u64);
+     let mut per_block_context = PgMemoryContexts::new("pg_search partition sampling");
+     let slot = unsafe {
+-        pg_sys::MakeTupleTableSlot(heaprel.rd_att, &raw const pg_sys::TTSOpsBufferHeapTuple)
++        pg_sys::MakeTupleTableSlot(heaprel.rd_att, &raw const pg_sys::TTSOpsBufferHeapTuple, 0)
+     };
+     let natts = unsafe { (*heaprel.rd_att).natts as usize };
+     let created_by_version = indexrel.created_by_version();
+diff --git a/pg_search/src/postgres/catalog.rs b/pg_search/src/postgres/catalog.rs
+index 91502d0..1eeaa73 100644
+--- a/pg_search/src/postgres/catalog.rs
++++ b/pg_search/src/postgres/catalog.rs
+@@ -250,7 +250,7 @@ pub fn facet_encoded_str_to_ltree_text(s: &str) -> String {
+ }
+ 
+ pub enum CollationProvider {
+-    #[cfg(any(feature = "pg17", feature = "pg18"))]
++    #[cfg(any(feature = "pg17", feature = "pg18", feature = "pg19"))]
+     Builtin,
+     Icu,
+     Libc,
+@@ -260,7 +260,7 @@ pub enum CollationProvider {
+ impl From<u8> for CollationProvider {
+     fn from(c: u8) -> Self {
+         match c {
+-            #[cfg(any(feature = "pg17", feature = "pg18"))]
++            #[cfg(any(feature = "pg17", feature = "pg18", feature = "pg19"))]
+             pg_sys::COLLPROVIDER_BUILTIN => Self::Builtin,
+             pg_sys::COLLPROVIDER_ICU => Self::Icu,
+             pg_sys::COLLPROVIDER_LIBC => Self::Libc,
+diff --git a/pg_search/src/postgres/customscan/aggregatescan/datafusion_project.rs b/pg_search/src/postgres/customscan/aggregatescan/datafusion_project.rs
+index a6d5c05..6883658 100644
+--- a/pg_search/src/postgres/customscan/aggregatescan/datafusion_project.rs
++++ b/pg_search/src/postgres/customscan/aggregatescan/datafusion_project.rs
+@@ -73,7 +73,7 @@ pub unsafe fn project_aggregate_row_to_slot(
+             {
+                 (*tupdesc).attrs.as_slice(natts)[pg_idx].atttypid
+             }
+-            #[cfg(feature = "pg18")]
++            #[cfg(any(feature = "pg18", feature = "pg19"))]
+             {
+                 (*pg_sys::TupleDescAttr(tupdesc, pg_idx as i32)).atttypid
+             }
+diff --git a/pg_search/src/postgres/customscan/aggregatescan/mod.rs b/pg_search/src/postgres/customscan/aggregatescan/mod.rs
+index 8bf5a6b..1aa65dd 100644
+--- a/pg_search/src/postgres/customscan/aggregatescan/mod.rs
++++ b/pg_search/src/postgres/customscan/aggregatescan/mod.rs
+@@ -947,7 +947,7 @@ impl CustomScan for AggregateScan {
+             // Create a reusable tuple slot for aggregate results
+             // This avoids per-row MakeTupleTableSlot calls which leak memory
+             let scan_slot =
+-                pg_sys::MakeTupleTableSlot((*planstate).ps_ResultTupleDesc, &pg_sys::TTSOpsVirtual);
++                pg_sys::MakeTupleTableSlot((*planstate).ps_ResultTupleDesc, &pg_sys::TTSOpsVirtual, 0);
+             state.custom_state_mut().scan_slot = Some(scan_slot);
+ 
+             // Set up the projection for wrapped aggregate expressions.
+@@ -2757,7 +2757,7 @@ unsafe fn replace_aggrefs_in_target_list(plan: *mut pg_sys::Plan) {
+         }
+ 
+         // For all other nodes, use the standard mutator to walk children
+-        #[cfg(not(any(feature = "pg16", feature = "pg17", feature = "pg18")))]
++        #[cfg(not(any(feature = "pg16", feature = "pg17", feature = "pg18", feature = "pg19")))]
+         {
+             let fnptr = aggref_mutator as *const ();
+             let mutator: unsafe extern "C-unwind" fn() -> *mut pg_sys::Node =
+@@ -2765,7 +2765,7 @@ unsafe fn replace_aggrefs_in_target_list(plan: *mut pg_sys::Plan) {
+             pg_sys::expression_tree_mutator(node, Some(mutator), context)
+         }
+ 
+-        #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18"))]
++        #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18", feature = "pg19"))]
+         {
+             pg_sys::expression_tree_mutator_impl(node, Some(aggref_mutator), context)
+         }
+diff --git a/pg_search/src/postgres/customscan/basescan/exec_methods/fast_fields/columnar.rs b/pg_search/src/postgres/customscan/basescan/exec_methods/fast_fields/columnar.rs
+index 720a98a..1193390 100644
+--- a/pg_search/src/postgres/customscan/basescan/exec_methods/fast_fields/columnar.rs
++++ b/pg_search/src/postgres/customscan/basescan/exec_methods/fast_fields/columnar.rs
+@@ -92,6 +92,7 @@ impl Inner {
+             self.slot = pg_sys::MakeTupleTableSlot(
+                 (*cstate).ss.ps.ps_ResultTupleDesc,
+                 &pg_sys::TTSOpsVirtual,
++                0,
+             );
+             // Initialize the fast field helper wrapped in Arc for sharing
+             self.ffhelper = Some(Arc::new(FFHelper::with_fields(
+diff --git a/pg_search/src/postgres/customscan/basescan/exec_methods/normal.rs b/pg_search/src/postgres/customscan/basescan/exec_methods/normal.rs
+index f411eb0..00fef32 100644
+--- a/pg_search/src/postgres/customscan/basescan/exec_methods/normal.rs
++++ b/pg_search/src/postgres/customscan/basescan/exec_methods/normal.rs
+@@ -206,7 +206,7 @@ impl ExecMethod for NormalScanExecState {
+     fn init(&mut self, state: &mut BaseScanState, cstate: *mut pg_sys::CustomScanState) {
+         let cstate_ref = unsafe { &*cstate };
+         self.slot = unsafe {
+-            pg_sys::MakeTupleTableSlot(cstate_ref.ss.ps.ps_ResultTupleDesc, &pg_sys::TTSOpsVirtual)
++            pg_sys::MakeTupleTableSlot(cstate_ref.ss.ps.ps_ResultTupleDesc, &pg_sys::TTSOpsVirtual, 0)
+         };
+         // Use the visibility map only when we have no columns to project AND no
+         // executor-level quals (e.g. RLS SubPlan expressions). Virtual slots lack
+diff --git a/pg_search/src/postgres/customscan/basescan/mod.rs b/pg_search/src/postgres/customscan/basescan/mod.rs
+index 81074fc..83d4db3 100644
+--- a/pg_search/src/postgres/customscan/basescan/mod.rs
++++ b/pg_search/src/postgres/customscan/basescan/mod.rs
+@@ -1008,7 +1008,7 @@ impl CustomScan for BaseScan {
+ 
+             #[cfg(feature = "pg15")]
+             let baserels = (*builder.args().root).all_baserels;
+-            #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18"))]
++            #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18", feature = "pg19"))]
+             let baserels = (*builder.args().root).all_query_rels;
+ 
+             // Detect if we are in a join context (more than 1 base relation in the query)
+@@ -1687,7 +1687,7 @@ impl CustomScan for BaseScan {
+         // (matching what begin_custom_scan will use via table_slot_callbacks).
+         // This ensures ExecInitQual compiles plan.qual expressions for the
+         // correct slot type, avoiding TTS_IS_VIRTUAL assertion failures.
+-        #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18"))]
++        #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18", feature = "pg19"))]
+         unsafe {
+             (*state).csstate.slotOps =
+                 pg_sys::table_slot_callbacks((*state).custom_state().heaprel().as_ptr());
+@@ -1924,6 +1924,7 @@ impl CustomScan for BaseScan {
+                 addr_of_mut!(state.csstate.ss),
+                 tupdesc,
+                 pg_sys::table_slot_callbacks(state.custom_state().heaprel().as_ptr()),
++                0,
+             );
+ 
+             // On PG15, ExecInitCustomScan hardcodes &TTSOpsVirtual for the scan slot
+diff --git a/pg_search/src/postgres/customscan/basescan/scan_state.rs b/pg_search/src/postgres/customscan/basescan/scan_state.rs
+index f8a5ff1..3408617 100644
+--- a/pg_search/src/postgres/customscan/basescan/scan_state.rs
++++ b/pg_search/src/postgres/customscan/basescan/scan_state.rs
+@@ -728,7 +728,7 @@ mod tests {
+         state.reset();
+ 
+         let slot =
+-            unsafe { pg_sys::MakeTupleTableSlot(heaprel.rd_att, &pg_sys::TTSOpsBufferHeapTuple) };
++            unsafe { pg_sys::MakeTupleTableSlot(heaprel.rd_att, &pg_sys::TTSOpsBufferHeapTuple, 0) };
+         let visible = state
+             .visibility_checker()
+             .exec_if_visible(stale_ctid, slot, |_| true);
+diff --git a/pg_search/src/postgres/customscan/builders/custom_path.rs b/pg_search/src/postgres/customscan/builders/custom_path.rs
+index 17ef562..7cf9861 100644
+--- a/pg_search/src/postgres/customscan/builders/custom_path.rs
++++ b/pg_search/src/postgres/customscan/builders/custom_path.rs
+@@ -66,7 +66,7 @@ impl OrderByStyle {
+             pg_sys::BTGreaterStrategyNumber => false,
+             value => panic!("unrecognized sort strategy number: {value}"),
+         };
+-        #[cfg(feature = "pg18")]
++        #[cfg(any(feature = "pg18", feature = "pg19"))]
+         let is_asc = match pathkey.pk_cmptype {
+             pg_sys::CompareType::COMPARE_LT => true,
+             pg_sys::CompareType::COMPARE_GT => false,
+diff --git a/pg_search/src/postgres/customscan/builders/custom_state.rs b/pg_search/src/postgres/customscan/builders/custom_state.rs
+index 6b95bf8..f20bb00 100644
+--- a/pg_search/src/postgres/customscan/builders/custom_state.rs
++++ b/pg_search/src/postgres/customscan/builders/custom_state.rs
+@@ -126,7 +126,7 @@ impl<CS: CustomScan, P: From<*mut pg_sys::List>> CustomScanStateBuilder<CS, P> {
+                 custom_ps: std::ptr::null_mut(),
+                 pscan_len: 0,
+                 methods: CS::custom_exec_methods(),
+-                #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18"))]
++                #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18", feature = "pg19"))]
+                 slotOps: std::ptr::null_mut(),
+             },
+             custom_state: self.custom_state,
+diff --git a/pg_search/src/postgres/customscan/collation_semantics.rs b/pg_search/src/postgres/customscan/collation_semantics.rs
+index 2e9f47b..925f1b3 100644
+--- a/pg_search/src/postgres/customscan/collation_semantics.rs
++++ b/pg_search/src/postgres/customscan/collation_semantics.rs
+@@ -119,7 +119,7 @@ fn is_byte_ordered_collation(collation: pg_sys::Oid) -> bool {
+     };
+ 
+     match locale {
+-        #[cfg(any(feature = "pg17", feature = "pg18"))]
++        #[cfg(any(feature = "pg17", feature = "pg18", feature = "pg19"))]
+         Some(CollationLocale {
+             provider: CollationProvider::Builtin,
+             ..
+diff --git a/pg_search/src/postgres/customscan/hook.rs b/pg_search/src/postgres/customscan/hook.rs
+index e4b31fc..6b3171c 100644
+--- a/pg_search/src/postgres/customscan/hook.rs
++++ b/pg_search/src/postgres/customscan/hook.rs
+@@ -461,15 +461,16 @@ unsafe extern "C-unwind" fn paradedb_planner_hook(
+     query_string: *const ::core::ffi::c_char,
+     cursor_options: ::core::ffi::c_int,
+     bound_params: pg_sys::ParamListInfo,
++    explain_state: *mut pg_sys::ExplainState,
+ ) -> *mut pg_sys::PlannedStmt {
+     // Clear any existing warnings for this planning cycle
+     clear_planner_warnings();
+ 
+     if !pg_search_extension_installed() {
+         let result = if let Some(prev_hook) = PREV_PLANNER_HOOK {
+-            prev_hook(parse, query_string, cursor_options, bound_params)
++            prev_hook(parse, query_string, cursor_options, bound_params, explain_state)
+         } else {
+-            pg_sys::standard_planner(parse, query_string, cursor_options, bound_params)
++            pg_sys::standard_planner(parse, query_string, cursor_options, bound_params, explain_state)
+         };
+         return result;
+     }
+@@ -501,9 +502,9 @@ unsafe extern "C-unwind" fn paradedb_planner_hook(
+     // still as written, for the scans planned inside this call.
+     let result = search_operator_relations::record_during(parse, || {
+         if let Some(prev_hook) = PREV_PLANNER_HOOK {
+-            prev_hook(parse, query_string, cursor_options, bound_params)
++            prev_hook(parse, query_string, cursor_options, bound_params, explain_state)
+         } else {
+-            pg_sys::standard_planner(parse, query_string, cursor_options, bound_params)
++            pg_sys::standard_planner(parse, query_string, cursor_options, bound_params, explain_state)
+         }
+     });
+ 
+diff --git a/pg_search/src/postgres/customscan/joinscan/build.rs b/pg_search/src/postgres/customscan/joinscan/build.rs
+index a5dae18..bb40b20 100644
+--- a/pg_search/src/postgres/customscan/joinscan/build.rs
++++ b/pg_search/src/postgres/customscan/joinscan/build.rs
+@@ -253,9 +253,9 @@ impl TryFrom<pg_sys::JoinType::Type> for JoinType {
+             // null-aware case is constructed in `wrap_with_semi_anti` for
+             // un-pulled-up `NOT IN`.
+             pg_sys::JoinType::JOIN_ANTI => Ok(JoinType::Anti { null_aware: false }),
+-            #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18"))]
++            #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18", feature = "pg19"))]
+             pg_sys::JoinType::JOIN_RIGHT_ANTI => Ok(JoinType::RightAnti),
+-            #[cfg(feature = "pg18")]
++            #[cfg(any(feature = "pg18", feature = "pg19"))]
+             pg_sys::JoinType::JOIN_RIGHT_SEMI => Ok(JoinType::RightSemi),
+             pg_sys::JoinType::JOIN_UNIQUE_OUTER => Ok(JoinType::UniqueOuter),
+             pg_sys::JoinType::JOIN_UNIQUE_INNER => Ok(JoinType::UniqueInner),
+diff --git a/pg_search/src/postgres/customscan/joinscan/mod.rs b/pg_search/src/postgres/customscan/joinscan/mod.rs
+index b5f0d20..30adb50 100644
+--- a/pg_search/src/postgres/customscan/joinscan/mod.rs
++++ b/pg_search/src/postgres/customscan/joinscan/mod.rs
+@@ -1610,7 +1610,7 @@ impl CustomScan for JoinScan {
+                     let visibility_checker =
+                         VisibilityChecker::with_rel_and_snap(&heaprel, snapshot);
+                     let fetch_slot =
+-                        pg_sys::MakeTupleTableSlot(heaprel.rd_att, &pg_sys::TTSOpsBufferHeapTuple);
++                        pg_sys::MakeTupleTableSlot(heaprel.rd_att, &pg_sys::TTSOpsBufferHeapTuple, 0);
+                     state.custom_state_mut().relations.insert(
+                         plan_position,
+                         scan_state::RelationState {
+@@ -2833,7 +2833,7 @@ impl JoinScan {
+                         {
+                             (*result_tupdesc).attrs.as_slice(natts)[i].atttypid
+                         }
+-                        #[cfg(feature = "pg18")]
++                        #[cfg(any(feature = "pg18", feature = "pg19"))]
+                         {
+                             (*pg_sys::TupleDescAttr(result_tupdesc, i as i32)).atttypid
+                         }
+diff --git a/pg_search/src/postgres/customscan/joinscan/planning.rs b/pg_search/src/postgres/customscan/joinscan/planning.rs
+index 11da402..8feb153 100644
+--- a/pg_search/src/postgres/customscan/joinscan/planning.rs
++++ b/pg_search/src/postgres/customscan/joinscan/planning.rs
+@@ -1006,7 +1006,7 @@ pub(crate) unsafe fn find_live_lower_path(
+ 
+ /// Same preference order as `set_cheapest`.
+ unsafe fn cheaper_path(a: *mut pg_sys::Path, b: *mut pg_sys::Path) -> bool {
+-    #[cfg(feature = "pg18")]
++    #[cfg(any(feature = "pg18", feature = "pg19"))]
+     if (*a).disabled_nodes != (*b).disabled_nodes {
+         return (*a).disabled_nodes < (*b).disabled_nodes;
+     }
+@@ -2898,7 +2898,7 @@ pub(super) unsafe fn extract_orderby(
+             pg_sys::BTGreaterStrategyNumber => false,
+             _ => true,
+         };
+-        #[cfg(feature = "pg18")]
++        #[cfg(any(feature = "pg18", feature = "pg19"))]
+         let is_asc = match (*pathkey).pk_cmptype {
+             pg_sys::CompareType::COMPARE_LT => true,
+             pg_sys::CompareType::COMPARE_GT => false,
+diff --git a/pg_search/src/postgres/customscan/joinscan/predicate.rs b/pg_search/src/postgres/customscan/joinscan/predicate.rs
+index 25fdfb1..606b3fc 100644
+--- a/pg_search/src/postgres/customscan/joinscan/predicate.rs
++++ b/pg_search/src/postgres/customscan/joinscan/predicate.rs
+@@ -353,9 +353,9 @@ pub unsafe fn resolve_join_conditions(
+         jointype,
+         pg_sys::JoinType::JOIN_SEMI | pg_sys::JoinType::JOIN_ANTI
+     );
+-    #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18"))]
++    #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18", feature = "pg19"))]
+     let is_semi_or_anti = is_semi_or_anti || jointype == pg_sys::JoinType::JOIN_RIGHT_ANTI;
+-    #[cfg(feature = "pg18")]
++    #[cfg(any(feature = "pg18", feature = "pg19"))]
+     let is_semi_or_anti = is_semi_or_anti || jointype == pg_sys::JoinType::JOIN_RIGHT_SEMI;
+ 
+     let mut absorbed_clauses: Vec<*mut pg_sys::Node> = Vec::new();
+diff --git a/pg_search/src/postgres/customscan/joinscan/window_func.rs b/pg_search/src/postgres/customscan/joinscan/window_func.rs
+index 0abc4e7..c1964aa 100644
+--- a/pg_search/src/postgres/customscan/joinscan/window_func.rs
++++ b/pg_search/src/postgres/customscan/joinscan/window_func.rs
+@@ -503,7 +503,7 @@ unsafe extern "C-unwind" fn placeholder_mutator(
+         }
+     }
+ 
+-    #[cfg(not(any(feature = "pg16", feature = "pg17", feature = "pg18")))]
++    #[cfg(not(any(feature = "pg16", feature = "pg17", feature = "pg18", feature = "pg19")))]
+     {
+         let fnptr = placeholder_mutator as *const ();
+         let mutator: unsafe extern "C-unwind" fn() -> *mut pg_sys::Node =
+@@ -511,7 +511,7 @@ unsafe extern "C-unwind" fn placeholder_mutator(
+         pg_sys::expression_tree_mutator(node, Some(mutator), context)
+     }
+ 
+-    #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18"))]
++    #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18", feature = "pg19"))]
+     {
+         pg_sys::expression_tree_mutator_impl(node, Some(placeholder_mutator), context)
+     }
+@@ -607,7 +607,7 @@ unsafe extern "C-unwind" fn sentinel_mutator(
+         .cast();
+     }
+ 
+-    #[cfg(not(any(feature = "pg16", feature = "pg17", feature = "pg18")))]
++    #[cfg(not(any(feature = "pg16", feature = "pg17", feature = "pg18", feature = "pg19")))]
+     {
+         let fnptr = sentinel_mutator as *const ();
+         let mutator: unsafe extern "C-unwind" fn() -> *mut pg_sys::Node =
+@@ -615,7 +615,7 @@ unsafe extern "C-unwind" fn sentinel_mutator(
+         pg_sys::expression_tree_mutator(node, Some(mutator), context)
+     }
+ 
+-    #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18"))]
++    #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18", feature = "pg19"))]
+     {
+         pg_sys::expression_tree_mutator_impl(node, Some(sentinel_mutator), context)
+     }
+diff --git a/pg_search/src/postgres/customscan/projections.rs b/pg_search/src/postgres/customscan/projections.rs
+index 309956d..841c240 100644
+--- a/pg_search/src/postgres/customscan/projections.rs
++++ b/pg_search/src/postgres/customscan/projections.rs
+@@ -136,7 +136,7 @@ pub(crate) fn create_placeholder_targetlist(
+         }
+ 
+         // For all other nodes, use the standard mutator to walk children
+-        #[cfg(not(any(feature = "pg16", feature = "pg17", feature = "pg18")))]
++        #[cfg(not(any(feature = "pg16", feature = "pg17", feature = "pg18", feature = "pg19")))]
+         {
+             let fnptr = placeholder_mutator as *const ();
+             let mutator: unsafe extern "C-unwind" fn() -> *mut pg_sys::Node =
+@@ -144,7 +144,7 @@ pub(crate) fn create_placeholder_targetlist(
+             pg_sys::expression_tree_mutator(node, Some(mutator), context)
+         }
+ 
+-        #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18"))]
++        #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18", feature = "pg19"))]
+         {
+             pg_sys::expression_tree_mutator_impl(node, Some(placeholder_mutator), context)
+         }
+@@ -519,7 +519,7 @@ pub unsafe fn inject_placeholders(
+             return replacement;
+         }
+ 
+-        #[cfg(not(any(feature = "pg16", feature = "pg17", feature = "pg18")))]
++        #[cfg(not(any(feature = "pg16", feature = "pg17", feature = "pg18", feature = "pg19")))]
+         {
+             let fnptr = walker as *const ();
+             let walker: unsafe extern "C-unwind" fn() -> *mut pg_sys::Node =
+@@ -527,7 +527,7 @@ pub unsafe fn inject_placeholders(
+             pg_sys::expression_tree_mutator(node, Some(walker), context)
+         }
+ 
+-        #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18"))]
++        #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18", feature = "pg19"))]
+         {
+             pg_sys::expression_tree_mutator_impl(node, Some(walker), context)
+         }
+diff --git a/pg_search/src/postgres/delete.rs b/pg_search/src/postgres/delete.rs
+index ae327e0..b3170e1 100644
+--- a/pg_search/src/postgres/delete.rs
++++ b/pg_search/src/postgres/delete.rs
+@@ -175,7 +175,7 @@ pub unsafe extern "C-unwind" fn ambulkdelete(
+     let vacuum_delay_point = || unsafe {
+         #[cfg(any(feature = "pg15", feature = "pg16", feature = "pg17"))]
+         pg_sys::vacuum_delay_point();
+-        #[cfg(feature = "pg18")]
++        #[cfg(any(feature = "pg18", feature = "pg19"))]
+         pg_sys::vacuum_delay_point(false);
+     };
+ 
+diff --git a/pg_search/src/postgres/fake_aminsertcleanup.rs b/pg_search/src/postgres/fake_aminsertcleanup.rs
+index 49b4457..377635b 100644
+--- a/pg_search/src/postgres/fake_aminsertcleanup.rs
++++ b/pg_search/src/postgres/fake_aminsertcleanup.rs
+@@ -314,7 +314,7 @@ pub unsafe fn register() {
+     {
+         pg_sys::ExecutorRun_hook = Some(executor_run_hook_pg15_17);
+     }
+-    #[cfg(feature = "pg18")]
++    #[cfg(any(feature = "pg18", feature = "pg19"))]
+     {
+         pg_sys::ExecutorRun_hook = Some(executor_run_hook_pg18);
+     }
+@@ -381,7 +381,7 @@ pub unsafe fn register() {
+         // _frame drops here → FrameGuard::drop → insertcleanup for all accumulated states.
+     }
+ 
+-    #[cfg(feature = "pg18")]
++    #[cfg(any(feature = "pg18", feature = "pg19"))]
+     #[pg_guard]
+     unsafe extern "C-unwind" fn executor_run_hook_pg18(
+         query_desc: *mut QueryDesc,
+diff --git a/pg_search/src/postgres/heap.rs b/pg_search/src/postgres/heap.rs
+index 70e78a0..92c51d5 100644
+--- a/pg_search/src/postgres/heap.rs
++++ b/pg_search/src/postgres/heap.rs
+@@ -317,7 +317,7 @@ impl VisibilityChecker {
+             let nblocks =
+                 pg_sys::RelationGetNumberOfBlocksInFork(heaprel.as_ptr(), heaprel.fork_number());
+             Self {
+-                scan: pg_sys::table_index_fetch_begin(heaprel.as_ptr()),
++                scan: pg_sys::table_index_fetch_begin(heaprel.as_ptr(), 0),
+                 snapshot,
+                 tid: pg_sys::ItemPointerData::default(),
+                 heaprel: Clone::clone(heaprel),
+@@ -1263,9 +1263,9 @@ impl HeapFetchState {
+     /// Create a HeapFetchState which will fetch the entire content of the given relation.
+     pub fn new(heaprel: &PgSearchRelation) -> Self {
+         unsafe {
+-            let scan = pg_sys::table_index_fetch_begin(heaprel.as_ptr());
+-            let slot = pg_sys::MakeTupleTableSlot(heaprel.rd_att, &pg_sys::TTSOpsBufferHeapTuple);
+-            let virtual_slot = pg_sys::MakeTupleTableSlot(heaprel.rd_att, &pg_sys::TTSOpsVirtual);
++            let scan = pg_sys::table_index_fetch_begin(heaprel.as_ptr(), 0);
++            let slot = pg_sys::MakeTupleTableSlot(heaprel.rd_att, &pg_sys::TTSOpsBufferHeapTuple, 0);
++            let virtual_slot = pg_sys::MakeTupleTableSlot(heaprel.rd_att, &pg_sys::TTSOpsVirtual, 0);
+             let nblocks =
+                 pg_sys::RelationGetNumberOfBlocksInFork(heaprel.as_ptr(), heaprel.fork_number());
+             Self {
+diff --git a/pg_search/src/postgres/insert.rs b/pg_search/src/postgres/insert.rs
+index 31c72e8..050166b 100644
+--- a/pg_search/src/postgres/insert.rs
++++ b/pg_search/src/postgres/insert.rs
+@@ -84,7 +84,7 @@ pub struct InsertState {
+ impl InsertState {
+     unsafe fn new(indexrel: &PgSearchRelation) -> anyhow::Result<Self> {
+         let per_row_context = pg_sys::AllocSetContextCreateExtended(
+-            if cfg!(any(feature = "pg17", feature = "pg18")) {
++            if cfg!(any(feature = "pg17", feature = "pg18", feature = "pg19")) {
+                 if IsLogicalWorker() {
+                     PgMemoryContexts::TopTransactionContext.value()
+                 } else {
+@@ -118,7 +118,7 @@ impl InsertState {
+     }
+ }
+ 
+-#[cfg(not(any(feature = "pg17", feature = "pg18")))]
++#[cfg(not(any(feature = "pg17", feature = "pg18", feature = "pg19")))]
+ unsafe fn init_insert_state(
+     index_relation: pg_sys::Relation,
+     index_info: &mut pg_sys::IndexInfo,
+@@ -137,7 +137,7 @@ unsafe fn init_insert_state(
+     get_insert_state((*index_relation).rd_id).expect("should have a pending insert state")
+ }
+ 
+-#[cfg(any(feature = "pg17", feature = "pg18"))]
++#[cfg(any(feature = "pg17", feature = "pg18", feature = "pg19"))]
+ #[allow(static_mut_refs)]
+ unsafe fn logical_worker_state() -> &'static mut rustc_hash::FxHashMap<pg_sys::Oid, InsertState> {
+     static mut LOGICAL_WORKER_STATE: Option<rustc_hash::FxHashMap<pg_sys::Oid, InsertState>> = None;
+@@ -163,7 +163,7 @@ unsafe fn logical_worker_state() -> &'static mut rustc_hash::FxHashMap<pg_sys::O
+     LOGICAL_WORKER_STATE.as_mut().unwrap()
+ }
+ 
+-#[cfg(any(feature = "pg17", feature = "pg18"))]
++#[cfg(any(feature = "pg17", feature = "pg18", feature = "pg19"))]
+ pub unsafe fn init_insert_state(
+     index_relation: pg_sys::Relation,
+     index_info: &mut pg_sys::IndexInfo,
+@@ -321,7 +321,7 @@ unsafe fn insert(
+     }
+ }
+ 
+-#[cfg(any(feature = "pg17", feature = "pg18"))]
++#[cfg(any(feature = "pg17", feature = "pg18", feature = "pg19"))]
+ #[pg_guard]
+ pub unsafe extern "C-unwind" fn aminsertcleanup(
+     _index_relation: pg_sys::Relation,
+diff --git a/pg_search/src/postgres/mod.rs b/pg_search/src/postgres/mod.rs
+index 29bb1ea..ed00ca0 100644
+--- a/pg_search/src/postgres/mod.rs
++++ b/pg_search/src/postgres/mod.rs
+@@ -59,7 +59,7 @@ pub mod composite;
+ mod condition_variable;
+ pub mod customscan;
+ pub mod datetime;
+-#[cfg(not(any(feature = "pg17", feature = "pg18")))]
++#[cfg(not(any(feature = "pg17", feature = "pg18", feature = "pg19")))]
+ pub mod fake_aminsertcleanup;
+ pub mod heap;
+ pub mod index;
+@@ -122,7 +122,7 @@ fn bm25_handler(_fcinfo: pg_sys::FunctionCallInfo) -> PgBox<pg_sys::IndexAmRouti
+     amroutine.ambuild = Some(build::ambuild);
+     amroutine.ambuildempty = Some(build::ambuildempty);
+     amroutine.aminsert = Some(insert::aminsert);
+-    #[cfg(any(feature = "pg17", feature = "pg18"))]
++    #[cfg(any(feature = "pg17", feature = "pg18", feature = "pg19"))]
+     {
+         amroutine.aminsertcleanup = Some(insert::aminsertcleanup);
+         amroutine.amcanbuildparallel = true;
+diff --git a/pg_search/src/postgres/parallel.rs b/pg_search/src/postgres/parallel.rs
+index 8197327..f0a0ed1 100644
+--- a/pg_search/src/postgres/parallel.rs
++++ b/pg_search/src/postgres/parallel.rs
+@@ -59,7 +59,7 @@ pub unsafe extern "C-unwind" fn amestimateparallelscan(
+     ParallelScanState::size_of(&[u16::MAX as usize], &[], false, false)
+ }
+ 
+-#[cfg(feature = "pg18")]
++#[cfg(any(feature = "pg18", feature = "pg19"))]
+ #[pg_guard]
+ pub extern "C-unwind" fn amestimateparallelscan(
+     rel: *mut pg_sys::RelationData,
+@@ -89,7 +89,7 @@ unsafe fn bm25_shared_state(
+                 {
+                     (*scan.parallel_scan).ps_offset
+                 }
+-                #[cfg(feature = "pg18")]
++                #[cfg(any(feature = "pg18", feature = "pg19"))]
+                 {
+                     (*scan.parallel_scan).ps_offset_am
+                 }
+diff --git a/pg_search/src/postgres/ps_status.rs b/pg_search/src/postgres/ps_status.rs
+index 4be05ed..770ff70 100644
+--- a/pg_search/src/postgres/ps_status.rs
++++ b/pg_search/src/postgres/ps_status.rs
+@@ -29,11 +29,11 @@ pub unsafe fn set_ps_display_suffix(suffix: *const c_char) {
+     #[cfg(feature = "pg15")]
+     pg_sys::set_ps_display(suffix);
+ 
+-    #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18"))]
++    #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18", feature = "pg19"))]
+     pg_sys::set_ps_display_suffix(suffix);
+ }
+ 
+ pub unsafe fn set_ps_display_remove_suffix() {
+-    #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18"))]
++    #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18", feature = "pg19"))]
+     pg_sys::set_ps_display_remove_suffix();
+ }
+diff --git a/pg_search/src/postgres/rel.rs b/pg_search/src/postgres/rel.rs
+index 0fe8f0e..38c5401 100644
+--- a/pg_search/src/postgres/rel.rs
++++ b/pg_search/src/postgres/rel.rs
+@@ -604,7 +604,7 @@ fn relation_needs_wal(relation: pg_sys::Relation) -> bool {
+                 || ((*relation).rd_createSubid == INVALID_SUB_TRANSACTION_ID
+                     && (*relation).rd_firstRelfilenodeSubid == INVALID_SUB_TRANSACTION_ID))
+     }
+-    #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18"))]
++    #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18", feature = "pg19"))]
+     unsafe {
+         relation_is_permanent(relation)
+             && (xlog_is_needed()
+diff --git a/pg_search/src/postgres/scan.rs b/pg_search/src/postgres/scan.rs
+index bef5e46..e68ca02 100644
+--- a/pg_search/src/postgres/scan.rs
++++ b/pg_search/src/postgres/scan.rs
+@@ -402,7 +402,7 @@ unsafe fn get_parallel_scan_state(scan: IndexScanDesc) -> Option<&'static mut Pa
+         {
+             (*ps).ps_offset
+         }
+-        #[cfg(feature = "pg18")]
++        #[cfg(any(feature = "pg18", feature = "pg19"))]
+         {
+             (*ps).ps_offset_am
+         }
+diff --git a/pg_search/src/postgres/sequentialscan/inline.rs b/pg_search/src/postgres/sequentialscan/inline.rs
+index b344eb8..9abcad2 100644
+--- a/pg_search/src/postgres/sequentialscan/inline.rs
++++ b/pg_search/src/postgres/sequentialscan/inline.rs
+@@ -70,11 +70,11 @@ impl MaybeInlineRow {
+         };
+ 
+         let whole_row = pg_sys::makeWholeRowVar(rte, (*base_var).varno, 0, false);
+-        #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18"))]
++        #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18", feature = "pg19"))]
+         {
+             (*whole_row).varnullingrels = pg_sys::bms_copy((*base_var).varnullingrels);
+         }
+-        #[cfg(feature = "pg18")]
++        #[cfg(any(feature = "pg18", feature = "pg19"))]
+         {
+             (*whole_row).varreturningtype = (*base_var).varreturningtype;
+         }
+@@ -219,14 +219,14 @@ impl MaybeInlineRow {
+         let predicate = pg_sys::RelationGetIndexPredicate(indexrel.as_ptr());
+         if !predicate.is_null() {
+             pg_sys::ChangeVarNodes(predicate.cast(), 1, (*base_var).varno, 0);
+-            #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18"))]
++            #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18", feature = "pg19"))]
+             let predicate = pg_sys::add_nulling_relids(
+                 predicate.cast(),
+                 std::ptr::null_mut(),
+                 (*base_var).varnullingrels,
+             )
+             .cast::<pg_sys::List>();
+-            #[cfg(feature = "pg18")]
++            #[cfg(any(feature = "pg18", feature = "pg19"))]
+             for var in predicate.collect_nodes::<pg_sys::Var>() {
+                 (*var).varreturningtype = (*base_var).varreturningtype;
+             }
+@@ -373,14 +373,14 @@ impl RowMatcher {
+         let tuple_desc = pg_sys::CreateTupleDescCopy(heap_relation.rd_att);
+         for attribute in 0..(*tuple_desc).natts as usize {
+             if !required_attributes.contains(&attribute) {
+-                #[cfg(not(feature = "pg18"))]
++                #[cfg(not(any(feature = "pg18", feature = "pg19")))]
+                 {
+                     (*tuple_desc)
+                         .attrs
+                         .as_mut_slice((*tuple_desc).natts as usize)[attribute]
+                         .attisdropped = true;
+                 }
+-                #[cfg(feature = "pg18")]
++                #[cfg(any(feature = "pg18", feature = "pg19"))]
+                 {
+                     (*pg_sys::TupleDescAttr(tuple_desc, attribute as _)).attisdropped = true;
+                     pg_sys::populate_compact_attribute(tuple_desc, attribute as _);
+diff --git a/pg_search/src/postgres/storage/block.rs b/pg_search/src/postgres/storage/block.rs
+index ef975ee..ecdafc7 100644
+--- a/pg_search/src/postgres/storage/block.rs
++++ b/pg_search/src/postgres/storage/block.rs
+@@ -159,7 +159,7 @@ impl From<MutableSegmentEntry> for PgItem {
+         let mut buf = pgrx::StringInfo::new();
+         let len = bincode::serde::encode_into_std_write(val, &mut buf, bincode::config::legacy())
+             .expect("expected to serialize valid MutableSegmentEntry");
+-        PgItem(buf.into_char_ptr() as pg_sys::Item, len as pg_sys::Size)
++        PgItem(buf.into_char_ptr() as pg_sys::Pointer, len as pg_sys::Size)
+     }
+ }
+ 
+@@ -820,9 +820,9 @@ impl SegmentMetaEntry {
+ // Linked list entry <-> PgItem
+ // ---------------------------------------------------------
+ 
+-/// Wrapper for pg_sys::Item that also stores its size
++/// Wrapper for pg_sys::Pointer that also stores its size
+ #[derive(Clone)]
+-pub struct PgItem(pub pg_sys::Item, pub pg_sys::Size);
++pub struct PgItem(pub pg_sys::Pointer, pub pg_sys::Size);
+ 
+ impl From<SegmentMetaEntry> for PgItem {
+     fn from(val: SegmentMetaEntry) -> Self {
+@@ -845,7 +845,7 @@ impl From<SegmentMetaEntry> for PgItem {
+             }
+         };
+ 
+-        PgItem(buf.into_char_ptr() as pg_sys::Item, len as pg_sys::Size)
++        PgItem(buf.into_char_ptr() as pg_sys::Pointer, len as pg_sys::Size)
+     }
+ }
+ 
+@@ -1086,7 +1086,7 @@ mod tests {
+     }
+ 
+     fn decoded(bytes: &[u8]) -> SegmentMetaEntry {
+-        PgItem(bytes.as_ptr() as pg_sys::Item, bytes.len()).into()
++        PgItem(bytes.as_ptr() as pg_sys::Pointer, bytes.len()).into()
+     }
+ 
+     /// Entries written before a trailing component existed are shorter by that component's
+diff --git a/pg_search/src/postgres/storage/buffer.rs b/pg_search/src/postgres/storage/buffer.rs
+index ee0e40b..79a9c39 100644
+--- a/pg_search/src/postgres/storage/buffer.rs
++++ b/pg_search/src/postgres/storage/buffer.rs
+@@ -493,7 +493,7 @@ impl BorrowedBuffer {
+     /// This will acquire a share lock on the buffer, and release it on Drop.
+     pub unsafe fn from_pg(pg_buffer: pg_sys::Buffer) -> Self {
+         assert!(pg_buffer != pg_sys::InvalidBuffer as pg_sys::Buffer);
+-        pg_sys::LockBuffer(pg_buffer, pg_sys::BUFFER_LOCK_SHARE as i32);
++        pg_sys::LockBuffer(pg_buffer, pg_sys::BUFFER_LOCK_SHARE as _);
+         Self { pg_buffer }
+     }
+ }
+@@ -502,7 +502,7 @@ crate::impl_safe_drop!(BorrowedBuffer, |self| {
+     unsafe {
+         if crate::postgres::utils::IsTransactionState() {
+             // Only unlock, don't release
+-            pg_sys::LockBuffer(self.pg_buffer, pg_sys::BUFFER_LOCK_UNLOCK as i32);
++            pg_sys::LockBuffer(self.pg_buffer, pg_sys::BUFFER_LOCK_UNLOCK as _);
+         }
+     }
+ });
+@@ -632,7 +632,7 @@ impl<'a> PageMut<'a> {
+     #[track_caller]
+     pub fn append_item(
+         &mut self,
+-        item: pg_sys::Item,
++        item: pg_sys::Pointer,
+         size: pg_sys::Size,
+         flags: i32,
+     ) -> pg_sys::OffsetNumber {
+@@ -656,7 +656,7 @@ impl<'a> PageMut<'a> {
+     pub fn replace_item(
+         &mut self,
+         offno: pg_sys::OffsetNumber,
+-        item: pg_sys::Item,
++        item: pg_sys::Pointer,
+         size: pg_sys::Size,
+     ) -> bool {
+         self.buffer.assert_mutable();
+diff --git a/pg_search/src/postgres/storage/linked_items.rs b/pg_search/src/postgres/storage/linked_items.rs
+index cbf0222..ffab4cf 100644
+--- a/pg_search/src/postgres/storage/linked_items.rs
++++ b/pg_search/src/postgres/storage/linked_items.rs
+@@ -26,7 +26,7 @@ use std::fmt::Debug;
+ use std::ops::{Deref, DerefMut};
+ // ---------------------------------------------------------------
+ // Linked list implementation over block storage,
+-// where each node in the list is a pg_sys::Item
++// where each node in the list is a pg_sys::Pointer
+ // ---------------------------------------------------------------
+ 
+ // +-------------------------------------------------------------+
+diff --git a/pg_search/src/postgres/storage/merge.rs b/pg_search/src/postgres/storage/merge.rs
+index 4051620..a746b5f 100644
+--- a/pg_search/src/postgres/storage/merge.rs
++++ b/pg_search/src/postgres/storage/merge.rs
+@@ -235,7 +235,7 @@ impl From<MergeEntry> for PgItem {
+         let mut buf = StringInfo::new();
+         let len = bincode::serde::encode_into_std_write(value, &mut buf, bincode::config::legacy())
+             .expect("expected to serialize valid MergeEntry");
+-        PgItem(buf.into_char_ptr() as pg_sys::Item, len as pg_sys::Size)
++        PgItem(buf.into_char_ptr() as pg_sys::Pointer, len as pg_sys::Size)
+     }
+ }
+ 
+diff --git a/pg_search/src/postgres/storage/utils.rs b/pg_search/src/postgres/storage/utils.rs
+index 3a2ea87..f40eb0c 100644
+--- a/pg_search/src/postgres/storage/utils.rs
++++ b/pg_search/src/postgres/storage/utils.rs
+@@ -218,7 +218,7 @@ impl RelationBufferAccess {
+ 
+             debug_assert!(buffer != pg_sys::InvalidBuffer as pg_sys::Buffer);
+             if let Some(lock) = lock {
+-                pg_sys::LockBuffer(buffer, lock as i32);
++                pg_sys::LockBuffer(buffer, lock as _);
+             }
+             buffer
+         };
+@@ -252,7 +252,7 @@ unsafe fn extend_by_one_buffer(
+         )
+     }
+ 
+-    #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18"))]
++    #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18", feature = "pg19"))]
+     {
+         pg_sys::ExtendBufferedRel(
+             pg_sys::BufferManagerRelation {
+@@ -303,7 +303,7 @@ unsafe fn bulk_extend_relation(
+         && (pg_sys::MyBackendType == pg_sys::BackendType::B_BG_WORKER
+             || pg_sys::MyBackendType == pg_sys::BackendType::B_BACKEND);
+ 
+-    #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18"))]
++    #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18", feature = "pg19"))]
+     {
+         // `ExtendBufferedRelBy` is only allowed from certain backends
+         if is_backend_bulk_compatible {
+diff --git a/pg_search/src/postgres/var.rs b/pg_search/src/postgres/var.rs
+index c294822..5724827 100644
+--- a/pg_search/src/postgres/var.rs
++++ b/pg_search/src/postgres/var.rs
+@@ -219,7 +219,7 @@ pub enum VarContext {
+ /// - The expression at that position contains exactly one Var
+ ///
+ /// Returns `None` otherwise, indicating the resolution should fall back to InvalidOid.
+-#[cfg(feature = "pg18")]
++#[cfg(any(feature = "pg18", feature = "pg19"))]
+ pub(crate) unsafe fn resolve_rte_group_var(
+     rte: *mut pg_sys::RangeTblEntry,
+     varattno: pg_sys::AttrNumber,
+@@ -300,7 +300,7 @@ impl VarContext {
+                     }
+                 }
+ 
+-                #[cfg(feature = "pg18")]
++                #[cfg(any(feature = "pg18", feature = "pg19"))]
+                 if rtekind == pg_sys::RTEKind::RTE_GROUP {
+                     // PG18: grouped Vars point at RTE_GROUP, not the base relation.
+                     if let Some(group_var) = unsafe { resolve_rte_group_var(rte, varattno) } {
+@@ -422,7 +422,7 @@ pub unsafe fn find_var_relation(
+             (pg_sys::Oid::INVALID, pg_sys::InvalidAttrNumber as i16, None)
+         }
+ 
+-        #[cfg(feature = "pg18")]
++        #[cfg(any(feature = "pg18", feature = "pg19"))]
+         pg_sys::RTEKind::RTE_GROUP => {
+             // PG18: resolve grouped Vars back to their originating relation/column.
+             if let Some(group_var) = resolve_rte_group_var(rte, (*var).varattno) {
+diff --git a/pg_search/src/query/heap_field_filter.rs b/pg_search/src/query/heap_field_filter.rs
+index 1888bbf..d3a1cad 100644
+--- a/pg_search/src/query/heap_field_filter.rs
++++ b/pg_search/src/query/heap_field_filter.rs
+@@ -209,7 +209,7 @@ impl HeapFieldFilter {
+                 return;
+             }
+ 
+-            #[cfg(not(any(feature = "pg16", feature = "pg17", feature = "pg18")))]
++            #[cfg(not(any(feature = "pg16", feature = "pg17", feature = "pg18", feature = "pg19")))]
+             let new_node = {
+                 let fnptr = param_resolver_mutator as *const ();
+                 let mutator: unsafe extern "C-unwind" fn() -> *mut pg_sys::Node =
+@@ -221,7 +221,7 @@ impl HeapFieldFilter {
+                 )
+             };
+ 
+-            #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18"))]
++            #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18", feature = "pg19"))]
+             let new_node = pg_sys::expression_tree_mutator_impl(
+                 expr_node,
+                 Some(param_resolver_mutator),
+@@ -273,7 +273,7 @@ unsafe extern "C-unwind" fn param_resolver_mutator(
+         return const_node.cast();
+     }
+ 
+-    #[cfg(not(any(feature = "pg16", feature = "pg17", feature = "pg18")))]
++    #[cfg(not(any(feature = "pg16", feature = "pg17", feature = "pg18", feature = "pg19")))]
+     {
+         let fnptr = param_resolver_mutator as *const ();
+         let mutator: unsafe extern "C-unwind" fn() -> *mut pg_sys::Node =
+@@ -281,7 +281,7 @@ unsafe extern "C-unwind" fn param_resolver_mutator(
+         pg_sys::expression_tree_mutator(node, Some(mutator), context)
+     }
+ 
+-    #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18"))]
++    #[cfg(any(feature = "pg16", feature = "pg17", feature = "pg18", feature = "pg19"))]
+     {
+         pg_sys::expression_tree_mutator_impl(node, Some(param_resolver_mutator), context)
+     }
+diff --git a/pg_search/src/query/tid_bitmap_stream.rs b/pg_search/src/query/tid_bitmap_stream.rs
+index f425803..b6ac0c5 100644
+--- a/pg_search/src/query/tid_bitmap_stream.rs
++++ b/pg_search/src/query/tid_bitmap_stream.rs
+@@ -109,11 +109,11 @@ impl std::fmt::Debug for BitmapCursorSource {
+ pub(crate) unsafe fn create_area() -> *mut pg_sys::dsa_area {
+     unsafe {
+         let tranche = pg_sys::BuiltinTrancheIds::LWTRANCHE_PARALLEL_QUERY_DSA as i32;
+-        #[cfg(not(any(feature = "pg17", feature = "pg18")))]
++        #[cfg(not(any(feature = "pg17", feature = "pg18", feature = "pg19")))]
+         {
+             pg_sys::dsa_create(tranche)
+         }
+-        #[cfg(any(feature = "pg17", feature = "pg18"))]
++        #[cfg(any(feature = "pg17", feature = "pg18", feature = "pg19"))]
+         {
+             pg_sys::dsa_create_ext(tranche, 1024 * 1024, 1 << 40)
+         }
+@@ -302,9 +302,9 @@ pub(crate) unsafe fn free_shared_table(area: *mut pg_sys::dsa_area, table: pg_sy
+ 
+ /// Version-specific iterator handle.
+ enum CursorIter {
+-    #[cfg(not(feature = "pg18"))]
++    #[cfg(not(any(feature = "pg18", feature = "pg19")))]
+     Private(*mut pg_sys::TBMIterator),
+-    #[cfg(feature = "pg18")]
++    #[cfg(any(feature = "pg18", feature = "pg19"))]
+     Private(*mut pg_sys::TBMPrivateIterator),
+     Shared(*mut pg_sys::TBMSharedIterator),
+ }
+@@ -339,9 +339,9 @@ unsafe impl Sync for BitmapCursor {}
+ impl BitmapCursor {
+     unsafe fn private(tbm: *mut pg_sys::TIDBitmap, counters: *const CursorCounters) -> Self {
+         unsafe {
+-            #[cfg(not(feature = "pg18"))]
++            #[cfg(not(any(feature = "pg18", feature = "pg19")))]
+             let iter = CursorIter::Private(pg_sys::tbm_begin_iterate(tbm));
+-            #[cfg(feature = "pg18")]
++            #[cfg(any(feature = "pg18", feature = "pg19"))]
+             let iter = CursorIter::Private(pg_sys::tbm_begin_private_iterate(tbm));
+             Self::new(iter, counters)
+         }
+@@ -429,7 +429,7 @@ impl BitmapCursor {
+         }
+     }
+ 
+-    #[cfg(feature = "pg18")]
++    #[cfg(any(feature = "pg18", feature = "pg19"))]
+     unsafe fn next_page(&mut self) {
+         unsafe {
+             let mut res = pg_sys::TBMIterateResult::default();
+@@ -461,7 +461,7 @@ impl BitmapCursor {
+         }
+     }
+ 
+-    #[cfg(not(feature = "pg18"))]
++    #[cfg(not(any(feature = "pg18", feature = "pg19")))]
+     unsafe fn next_page(&mut self) {
+         let res = match &mut self.iter {
+             CursorIter::Private(iter) => unsafe { pg_sys::tbm_iterate(*iter) },
+@@ -497,9 +497,9 @@ impl BitmapCursor {
+ crate::impl_safe_drop!(BitmapCursor, |self| {
+     unsafe {
+         match self.iter {
+-            #[cfg(not(feature = "pg18"))]
++            #[cfg(not(any(feature = "pg18", feature = "pg19")))]
+             CursorIter::Private(iter) => pg_sys::tbm_end_iterate(iter),
+-            #[cfg(feature = "pg18")]
++            #[cfg(any(feature = "pg18", feature = "pg19"))]
+             CursorIter::Private(iter) => pg_sys::tbm_end_private_iterate(iter),
+             CursorIter::Shared(iter) => pg_sys::tbm_end_shared_iterate(iter),
+         }
