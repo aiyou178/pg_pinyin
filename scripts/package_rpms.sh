@@ -43,6 +43,12 @@ for deb in "${DEBS[@]}"; do
   rm -rf "$root"
   mkdir -p "$root"
   dpkg-deb -x "$deb" "$root"
+  for file in NOTICE.md MIT-sources.txt CC-BY-SA-3.0.txt CC-BY-SA-4.0.txt manifest.json sources.lock.json LICENSE.code; do
+    test -s "$root/usr/share/doc/postgresql-${pg}-pg-pinyin/$file" || {
+      echo "missing dictionary attribution in $base: $file" >&2
+      exit 1
+    }
+  done
 
   fpm -s dir -t rpm \
     --name "postgresql-${pg}-pg-pinyin" \

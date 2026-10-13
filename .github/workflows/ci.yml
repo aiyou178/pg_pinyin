@@ -10,6 +10,22 @@ on:
   workflow_dispatch:
 
 jobs:
+  dictionary-check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify deterministic dictionaries and exact accuracy
+        run: |
+          python3 -m unittest discover -s scripts/data/tests
+          ./scripts/generate_data.sh
+          python3 test/test_dictionary_accuracy.py
+          git diff --exit-code -- sql/data
+
   rust-check:
     runs-on: ubuntu-24.04
     steps:
@@ -44,6 +60,7 @@ jobs:
               sleep 1
             done
             cd /work
+            PGURL=postgres://postgres@127.0.0.1:5432/postgres PG_LOADER_TESTS=1 python3 -m unittest discover -s test -p "test_*.py"
             PG_CONFIG=/usr/lib/postgresql/18/bin/pg_config
             if [ ! -x "$PG_CONFIG" ]; then
               PG_CONFIG="$(command -v pg_config)"
@@ -90,6 +107,7 @@ jobs:
               sleep 1
             done
             cd /work
+            PGURL=postgres://postgres@127.0.0.1:5432/postgres PG_LOADER_TESTS=1 python3 -m unittest discover -s test -p "test_*.py"
             PG_CONFIG=/usr/lib/postgresql/19/bin/pg_config
             cargo pgrx init --pg19="$PG_CONFIG"
             cargo pgrx install -v --features pg19 --no-default-features --pg-config "$PG_CONFIG"

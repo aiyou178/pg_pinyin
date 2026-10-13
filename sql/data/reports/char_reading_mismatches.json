@@ -1,0 +1,8054 @@
+[
+  {
+    "mismatches": [
+      {
+        "character": "㐖",
+        "known_readings": [
+          "xie"
+        ],
+        "position": 0,
+        "syllable": "ye"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 66,
+        "priority": 30,
+        "raw_syllables": [
+          "Ye4",
+          "du2"
+        ],
+        "simplified": "㐖毒",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "㐖毒",
+        "traditional": "㐖毒"
+      }
+    ],
+    "selected": false,
+    "syllables": [
+      "ye",
+      "du"
+    ],
+    "word": "㐖毒"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "麼",
+        "known_readings": [
+          "me"
+        ],
+        "position": 1,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 4133,
+        "priority": 50,
+        "raw_syllables": [
+          "yao1",
+          "mo2",
+          "xiao3",
+          "chou3"
+        ],
+        "simplified": "幺麽小丑",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "么麼小醜",
+        "traditional": "么麼小醜"
+      },
+      {
+        "line": 3824,
+        "priority": 40,
+        "raw_syllables": [
+          "yao1",
+          "mo2",
+          "xiao3",
+          "chou3"
+        ],
+        "simplified": "幺麽小丑",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "么麼小醜",
+        "traditional": "么麼小醜"
+      },
+      {
+        "line": 3461,
+        "priority": 30,
+        "raw_syllables": [
+          "yao1",
+          "mo2",
+          "xiao3",
+          "chou3"
+        ],
+        "simplified": "幺麽小丑",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "么麼小醜",
+        "traditional": "么麼小醜"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "yao",
+      "mo",
+      "xiao",
+      "chou"
+    ],
+    "word": "么麼小醜"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "乐",
+        "known_readings": [
+          "le",
+          "yue"
+        ],
+        "position": 0,
+        "syllable": "lao"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 118,
+        "priority": 300,
+        "raw_syllables": [
+          "lào",
+          "tíng"
+        ],
+        "source_id": "phrase-overwrite",
+        "source_key": "乐亭"
+      },
+      {
+        "line": 2970,
+        "priority": 200,
+        "raw_syllables": [
+          "lào",
+          "tíng"
+        ],
+        "source_id": "phrase-pinyin",
+        "source_key": "乐亭"
+      },
+      {
+        "line": 51469,
+        "priority": 100,
+        "raw_syllables": [
+          "lào",
+          "tíng"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "乐亭"
+      },
+      {
+        "line": 59011,
+        "priority": 50,
+        "raw_syllables": [
+          "Lao4",
+          "ting2"
+        ],
+        "simplified": "乐亭",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "乐亭",
+        "traditional": "樂亭"
+      },
+      {
+        "line": 55305,
+        "priority": 40,
+        "raw_syllables": [
+          "Lao4",
+          "ting2"
+        ],
+        "simplified": "乐亭",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "乐亭",
+        "traditional": "樂亭"
+      },
+      {
+        "line": 50966,
+        "priority": 30,
+        "raw_syllables": [
+          "Lao4",
+          "ting2"
+        ],
+        "simplified": "乐亭",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "乐亭",
+        "traditional": "樂亭"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "lao",
+      "ting"
+    ],
+    "word": "乐亭"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "乐",
+        "known_readings": [
+          "le",
+          "yue"
+        ],
+        "position": 0,
+        "syllable": "lao"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 119,
+        "priority": 300,
+        "raw_syllables": [
+          "lào",
+          "tíng",
+          "xiàn"
+        ],
+        "source_id": "phrase-overwrite",
+        "source_key": "乐亭县"
+      },
+      {
+        "line": 2971,
+        "priority": 200,
+        "raw_syllables": [
+          "lào",
+          "tíng",
+          "xiàn"
+        ],
+        "source_id": "phrase-pinyin",
+        "source_key": "乐亭县"
+      },
+      {
+        "line": 51470,
+        "priority": 100,
+        "raw_syllables": [
+          "lào",
+          "tíng",
+          "xiàn"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "乐亭县"
+      },
+      {
+        "line": 59012,
+        "priority": 50,
+        "raw_syllables": [
+          "Lao4",
+          "ting2",
+          "Xian4"
+        ],
+        "simplified": "乐亭县",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "乐亭县",
+        "traditional": "樂亭縣"
+      },
+      {
+        "line": 55306,
+        "priority": 40,
+        "raw_syllables": [
+          "Lao4",
+          "ting2",
+          "xian4"
+        ],
+        "simplified": "乐亭县",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "乐亭县",
+        "traditional": "樂亭縣"
+      },
+      {
+        "line": 50967,
+        "priority": 30,
+        "raw_syllables": [
+          "Lao4",
+          "ting2",
+          "xian4"
+        ],
+        "simplified": "乐亭县",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "乐亭县",
+        "traditional": "樂亭縣"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "lao",
+      "ting",
+      "xian"
+    ],
+    "word": "乐亭县"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "乐",
+        "known_readings": [
+          "le",
+          "yue"
+        ],
+        "position": 0,
+        "syllable": "lao"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 59090,
+        "priority": 50,
+        "raw_syllables": [
+          "Lao4",
+          "ling2"
+        ],
+        "simplified": "乐陵",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "乐陵",
+        "traditional": "樂陵"
+      }
+    ],
+    "selected": false,
+    "syllables": [
+      "lao",
+      "ling"
+    ],
+    "word": "乐陵"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "乐",
+        "known_readings": [
+          "le",
+          "yue"
+        ],
+        "position": 0,
+        "syllable": "lao"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 59091,
+        "priority": 50,
+        "raw_syllables": [
+          "Lao4",
+          "ling2",
+          "Shi4"
+        ],
+        "simplified": "乐陵市",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "乐陵市",
+        "traditional": "樂陵市"
+      }
+    ],
+    "selected": false,
+    "syllables": [
+      "lao",
+      "ling",
+      "shi"
+    ],
+    "word": "乐陵市"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "𠈌",
+        "known_readings": [],
+        "position": 3,
+        "syllable": "yu"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 5063,
+        "priority": 100,
+        "raw_syllables": [
+          "rén",
+          "cóng",
+          "zhòng",
+          "yú"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "人从众𠈌"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "ren",
+      "cong",
+      "zhong",
+      "yu"
+    ],
+    "word": "人从众𠈌"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "剎",
+        "known_readings": [
+          "sha"
+        ],
+        "position": 1,
+        "syllable": "cha"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 6027,
+        "priority": 50,
+        "raw_syllables": [
+          "shi2",
+          "cha4",
+          "hai3"
+        ],
+        "simplified": "什刹海",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "什剎海",
+        "traditional": "什剎海"
+      },
+      {
+        "line": 5610,
+        "priority": 40,
+        "raw_syllables": [
+          "shi2",
+          "cha4",
+          "hai3"
+        ],
+        "simplified": "什刹海",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "什剎海",
+        "traditional": "什剎海"
+      },
+      {
+        "line": 5095,
+        "priority": 30,
+        "raw_syllables": [
+          "shi2",
+          "cha4",
+          "hai3"
+        ],
+        "simplified": "什刹海",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "什剎海",
+        "traditional": "什剎海"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "shi",
+      "cha",
+      "hai"
+    ],
+    "word": "什剎海"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "克",
+        "known_readings": [
+          "ke"
+        ],
+        "position": 0,
+        "syllable": "kei"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 13434,
+        "priority": 40,
+        "raw_syllables": [
+          "kei1",
+          "jia4"
+        ],
+        "simplified": "克架",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "克架",
+        "traditional": "剋架"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "kei",
+      "jia"
+    ],
+    "word": "克架"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "沒",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 3,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 11454,
+        "priority": 50,
+        "raw_syllables": [
+          "quan2",
+          "jun1",
+          "fu4",
+          "mo4"
+        ],
+        "simplified": "全军覆没",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "全軍覆沒",
+        "traditional": "全軍覆沒"
+      },
+      {
+        "line": 10723,
+        "priority": 40,
+        "raw_syllables": [
+          "quan2",
+          "jun1",
+          "fu4",
+          "mo4"
+        ],
+        "simplified": "全军覆没",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "全軍覆沒",
+        "traditional": "全軍覆沒"
+      },
+      {
+        "line": 9865,
+        "priority": 30,
+        "raw_syllables": [
+          "quan2",
+          "jun1",
+          "fu4",
+          "mo4"
+        ],
+        "simplified": "全军覆没",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "全軍覆沒",
+        "traditional": "全軍覆沒"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "quan",
+      "jun",
+      "fu",
+      "mo"
+    ],
+    "word": "全軍覆沒"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "沒",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 1,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 13223,
+        "priority": 50,
+        "raw_syllables": [
+          "chu1",
+          "mo4"
+        ],
+        "simplified": "出没",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "出沒",
+        "traditional": "出沒"
+      },
+      {
+        "line": 12368,
+        "priority": 40,
+        "raw_syllables": [
+          "chu1",
+          "mo4"
+        ],
+        "simplified": "出没",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "出沒",
+        "traditional": "出沒"
+      },
+      {
+        "line": 11412,
+        "priority": 30,
+        "raw_syllables": [
+          "chu1",
+          "mo4"
+        ],
+        "simplified": "出没",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "出沒",
+        "traditional": "出沒"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "chu",
+      "mo"
+    ],
+    "word": "出沒"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "沒",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 1,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 13224,
+        "priority": 50,
+        "raw_syllables": [
+          "chu1",
+          "mo4",
+          "wu2",
+          "chang2"
+        ],
+        "simplified": "出没无常",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "出沒無常",
+        "traditional": "出沒無常"
+      },
+      {
+        "line": 12369,
+        "priority": 40,
+        "raw_syllables": [
+          "chu1",
+          "mo4",
+          "wu2",
+          "chang2"
+        ],
+        "simplified": "出没无常",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "出沒無常",
+        "traditional": "出沒無常"
+      },
+      {
+        "line": 11413,
+        "priority": 30,
+        "raw_syllables": [
+          "chu1",
+          "mo4",
+          "wu2",
+          "chang2"
+        ],
+        "simplified": "出没无常",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "出沒無常",
+        "traditional": "出沒無常"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "chu",
+      "mo",
+      "wu",
+      "chang"
+    ],
+    "word": "出沒無常"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "刈",
+        "known_readings": [
+          "yi"
+        ],
+        "position": 0,
+        "syllable": "gua"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 12143,
+        "priority": 100,
+        "raw_syllables": [
+          "guà",
+          "bāo"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "刈包"
+      },
+      {
+        "line": 13765,
+        "priority": 50,
+        "raw_syllables": [
+          "gua4",
+          "bao1"
+        ],
+        "simplified": "刈包",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "刈包",
+        "traditional": "刈包"
+      },
+      {
+        "line": 12863,
+        "priority": 40,
+        "raw_syllables": [
+          "gua4",
+          "bao1"
+        ],
+        "simplified": "刈包",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "刈包",
+        "traditional": "刈包"
+      },
+      {
+        "line": 11879,
+        "priority": 30,
+        "raw_syllables": [
+          "gua4",
+          "bao1"
+        ],
+        "simplified": "刈包",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "刈包",
+        "traditional": "刈包"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "gua",
+      "bao"
+    ],
+    "word": "刈包"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "剎",
+        "known_readings": [
+          "sha"
+        ],
+        "position": 0,
+        "syllable": "cha"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 14601,
+        "priority": 50,
+        "raw_syllables": [
+          "cha4",
+          "shi2"
+        ],
+        "simplified": "刹时",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "剎時",
+        "traditional": "剎時"
+      },
+      {
+        "line": 13624,
+        "priority": 40,
+        "raw_syllables": [
+          "cha4",
+          "shi2"
+        ],
+        "simplified": "刹时",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "剎時",
+        "traditional": "剎時"
+      },
+      {
+        "line": 12586,
+        "priority": 30,
+        "raw_syllables": [
+          "cha4",
+          "shi2"
+        ],
+        "simplified": "刹时",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "剎時",
+        "traditional": "剎時"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "cha",
+      "shi"
+    ],
+    "word": "剎時"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "剎",
+        "known_readings": [
+          "sha"
+        ],
+        "position": 0,
+        "syllable": "cha"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 14604,
+        "priority": 50,
+        "raw_syllables": [
+          "cha4",
+          "na4"
+        ],
+        "simplified": "刹那",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "剎那",
+        "traditional": "剎那"
+      },
+      {
+        "line": 13627,
+        "priority": 40,
+        "raw_syllables": [
+          "cha4",
+          "na4"
+        ],
+        "simplified": "刹那",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "剎那",
+        "traditional": "剎那"
+      },
+      {
+        "line": 12589,
+        "priority": 30,
+        "raw_syllables": [
+          "cha4",
+          "na4"
+        ],
+        "simplified": "刹那",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "剎那",
+        "traditional": "剎那"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "cha",
+      "na"
+    ],
+    "word": "剎那"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "剝",
+        "known_readings": [
+          "bo"
+        ],
+        "position": 0,
+        "syllable": "bao"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 14674,
+        "priority": 50,
+        "raw_syllables": [
+          "bao1",
+          "pi2"
+        ],
+        "simplified": "剥皮",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "剝皮",
+        "traditional": "剝皮"
+      },
+      {
+        "line": 13697,
+        "priority": 40,
+        "raw_syllables": [
+          "bao1",
+          "pi2"
+        ],
+        "simplified": "剥皮",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "剝皮",
+        "traditional": "剝皮"
+      },
+      {
+        "line": 12655,
+        "priority": 30,
+        "raw_syllables": [
+          "bao1",
+          "pi2"
+        ],
+        "simplified": "剥皮",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "剝皮",
+        "traditional": "剝皮"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "bao",
+      "pi"
+    ],
+    "word": "剝皮"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "割",
+        "known_readings": [
+          "ge"
+        ],
+        "position": 0,
+        "syllable": "gua"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 13034,
+        "priority": 100,
+        "raw_syllables": [
+          "guà",
+          "bāo"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "割包"
+      },
+      {
+        "line": 14799,
+        "priority": 50,
+        "raw_syllables": [
+          "gua4",
+          "bao1"
+        ],
+        "simplified": "割包",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "割包",
+        "traditional": "割包"
+      },
+      {
+        "line": 13807,
+        "priority": 40,
+        "raw_syllables": [
+          "gua4",
+          "bao1"
+        ],
+        "simplified": "割包",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "割包",
+        "traditional": "割包"
+      },
+      {
+        "line": 12755,
+        "priority": 30,
+        "raw_syllables": [
+          "gua4",
+          "bao1"
+        ],
+        "simplified": "割包",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "割包",
+        "traditional": "割包"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "gua",
+      "bao"
+    ],
+    "word": "割包"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "弄",
+        "known_readings": [
+          "nong",
+          "long"
+        ],
+        "position": 1,
+        "syllable": "leng"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 13259,
+        "priority": 100,
+        "raw_syllables": [
+          "huō",
+          "leng"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "劐弄"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "huo",
+      "leng"
+    ],
+    "word": "劐弄"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "沒",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 3,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 15134,
+        "priority": 50,
+        "raw_syllables": [
+          "gong1",
+          "bu4",
+          "ke3",
+          "mo4"
+        ],
+        "simplified": "功不可没",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "功不可沒",
+        "traditional": "功不可沒"
+      },
+      {
+        "line": 14118,
+        "priority": 40,
+        "raw_syllables": [
+          "gong1",
+          "bu4",
+          "ke3",
+          "mo4"
+        ],
+        "simplified": "功不可没",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "功不可沒",
+        "traditional": "功不可沒"
+      },
+      {
+        "line": 13042,
+        "priority": 30,
+        "raw_syllables": [
+          "gong1",
+          "bu4",
+          "ke3",
+          "mo4"
+        ],
+        "simplified": "功不可没",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "功不可沒",
+        "traditional": "功不可沒"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "gong",
+      "bu",
+      "ke",
+      "mo"
+    ],
+    "word": "功不可沒"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "間",
+        "known_readings": [
+          "jian"
+        ],
+        "position": 1,
+        "syllable": "gan"
+      },
+      {
+        "character": "界",
+        "known_readings": [
+          "jie"
+        ],
+        "position": 3,
+        "syllable": "ga"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 16952,
+        "priority": 50,
+        "raw_syllables": [
+          "ban4",
+          "gan1",
+          "bu4",
+          "ga4"
+        ],
+        "simplified": "半间不界",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "半間不界",
+        "traditional": "半間不界"
+      },
+      {
+        "line": 15855,
+        "priority": 40,
+        "raw_syllables": [
+          "ban4",
+          "gan1",
+          "bu4",
+          "ga4"
+        ],
+        "simplified": "半间不界",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "半間不界",
+        "traditional": "半間不界"
+      },
+      {
+        "line": 14675,
+        "priority": 30,
+        "raw_syllables": [
+          "ban4",
+          "gan1",
+          "bu4",
+          "ga4"
+        ],
+        "simplified": "半间不界",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "半間不界",
+        "traditional": "半間不界"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "ban",
+      "gan",
+      "bu",
+      "ga"
+    ],
+    "word": "半間不界"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "间",
+        "known_readings": [
+          "jian"
+        ],
+        "position": 1,
+        "syllable": "gan"
+      },
+      {
+        "character": "界",
+        "known_readings": [
+          "jie"
+        ],
+        "position": 3,
+        "syllable": "ga"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 14976,
+        "priority": 100,
+        "raw_syllables": [
+          "bàn",
+          "gān",
+          "bù",
+          "gà"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "半间不界"
+      },
+      {
+        "line": 16952,
+        "priority": 50,
+        "raw_syllables": [
+          "ban4",
+          "gan1",
+          "bu4",
+          "ga4"
+        ],
+        "simplified": "半间不界",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "半间不界",
+        "traditional": "半間不界"
+      },
+      {
+        "line": 15855,
+        "priority": 40,
+        "raw_syllables": [
+          "ban4",
+          "gan1",
+          "bu4",
+          "ga4"
+        ],
+        "simplified": "半间不界",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "半间不界",
+        "traditional": "半間不界"
+      },
+      {
+        "line": 14675,
+        "priority": 30,
+        "raw_syllables": [
+          "ban4",
+          "gan1",
+          "bu4",
+          "ga4"
+        ],
+        "simplified": "半间不界",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "半间不界",
+        "traditional": "半間不界"
+      }
+    ],
+    "selected": false,
+    "syllables": [
+      "ban",
+      "gan",
+      "bu",
+      "ga"
+    ],
+    "word": "半间不界"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "双",
+        "known_readings": [
+          "shuang"
+        ],
+        "position": 0,
+        "syllable": "huang"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 99180,
+        "priority": 100,
+        "raw_syllables": [
+          "huāng",
+          "bān",
+          "lǜ",
+          "liǔ",
+          "yīng"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "双斑绿柳莺"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "huang",
+      "ban",
+      "lv",
+      "liu",
+      "ying"
+    ],
+    "word": "双斑绿柳莺"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "剎",
+        "known_readings": [
+          "sha"
+        ],
+        "position": 1,
+        "syllable": "cha"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 18891,
+        "priority": 50,
+        "raw_syllables": [
+          "gu3",
+          "cha4"
+        ],
+        "simplified": "古刹",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "古剎",
+        "traditional": "古剎"
+      },
+      {
+        "line": 17688,
+        "priority": 40,
+        "raw_syllables": [
+          "gu3",
+          "cha4"
+        ],
+        "simplified": "古刹",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "古剎",
+        "traditional": "古剎"
+      },
+      {
+        "line": 16385,
+        "priority": 30,
+        "raw_syllables": [
+          "gu3",
+          "cha4"
+        ],
+        "simplified": "古刹",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "古剎",
+        "traditional": "古剎"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "gu",
+      "cha"
+    ],
+    "word": "古剎"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "幀",
+        "known_readings": [
+          "zheng"
+        ],
+        "position": 3,
+        "syllable": "zhen"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 19516,
+        "priority": 50,
+        "raw_syllables": [
+          "Si1",
+          "ma3",
+          "Cheng2",
+          "zhen1"
+        ],
+        "simplified": "司马承帧",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "司馬承幀",
+        "traditional": "司馬承幀"
+      },
+      {
+        "line": 18302,
+        "priority": 40,
+        "raw_syllables": [
+          "Si1",
+          "ma3",
+          "Cheng2",
+          "zhen1"
+        ],
+        "simplified": "司马承帧",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "司馬承幀",
+        "traditional": "司馬承幀"
+      },
+      {
+        "line": 16957,
+        "priority": 30,
+        "raw_syllables": [
+          "Si1",
+          "ma3",
+          "Cheng2",
+          "zhen1"
+        ],
+        "simplified": "司马承帧",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "司馬承幀",
+        "traditional": "司馬承幀"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "si",
+      "ma",
+      "cheng",
+      "zhen"
+    ],
+    "word": "司馬承幀"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "沒",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 1,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 20481,
+        "priority": 50,
+        "raw_syllables": [
+          "tun1",
+          "mo4"
+        ],
+        "simplified": "吞没",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "吞沒",
+        "traditional": "吞沒"
+      },
+      {
+        "line": 19215,
+        "priority": 40,
+        "raw_syllables": [
+          "tun1",
+          "mo4"
+        ],
+        "simplified": "吞没",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "吞沒",
+        "traditional": "吞沒"
+      },
+      {
+        "line": 17798,
+        "priority": 30,
+        "raw_syllables": [
+          "tun1",
+          "mo4"
+        ],
+        "simplified": "吞没",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "吞沒",
+        "traditional": "吞沒"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "tun",
+      "mo"
+    ],
+    "word": "吞沒"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "呒",
+        "known_readings": [
+          "wu",
+          "m"
+        ],
+        "position": 0,
+        "syllable": "fu"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 21900,
+        "priority": 40,
+        "raw_syllables": [
+          "fu3",
+          "xia1",
+          "mi3",
+          "shu1",
+          "ru4",
+          "fa3"
+        ],
+        "simplified": "呒虾米输入法",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "呒虾米输入法",
+        "traditional": "嘸蝦米輸入法"
+      },
+      {
+        "line": 20276,
+        "priority": 30,
+        "raw_syllables": [
+          "fu3",
+          "xia1",
+          "mi3",
+          "shu1",
+          "ru4",
+          "fa3"
+        ],
+        "simplified": "呒虾米输入法",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "呒虾米输入法",
+        "traditional": "嘸蝦米輸入法"
+      }
+    ],
+    "selected": false,
+    "syllables": [
+      "fu",
+      "xia",
+      "mi",
+      "shu",
+      "ru",
+      "fa"
+    ],
+    "word": "呒虾米输入法"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "呫",
+        "known_readings": [
+          "tie",
+          "che"
+        ],
+        "position": 0,
+        "syllable": "zhan"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 18704,
+        "priority": 100,
+        "raw_syllables": [
+          "zhān",
+          "dūn"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "呫吨"
+      },
+      {
+        "line": 21033,
+        "priority": 50,
+        "raw_syllables": [
+          "zhan1",
+          "dun1"
+        ],
+        "simplified": "呫吨",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "呫吨",
+        "traditional": "呫噸"
+      },
+      {
+        "line": 19732,
+        "priority": 40,
+        "raw_syllables": [
+          "zhan1",
+          "dun1"
+        ],
+        "simplified": "呫吨",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "呫吨",
+        "traditional": "呫噸"
+      },
+      {
+        "line": 18270,
+        "priority": 30,
+        "raw_syllables": [
+          "zhan1",
+          "dun1"
+        ],
+        "simplified": "呫吨",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "呫吨",
+        "traditional": "呫噸"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "zhan",
+      "dun"
+    ],
+    "word": "呫吨"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "呫",
+        "known_readings": [
+          "tie",
+          "che"
+        ],
+        "position": 0,
+        "syllable": "zhan"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 18705,
+        "priority": 100,
+        "raw_syllables": [
+          "zhān",
+          "dūn",
+          "tóng"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "呫吨酮"
+      },
+      {
+        "line": 21034,
+        "priority": 50,
+        "raw_syllables": [
+          "zhan1",
+          "dun1",
+          "tong2"
+        ],
+        "simplified": "呫吨酮",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "呫吨酮",
+        "traditional": "呫噸酮"
+      },
+      {
+        "line": 19733,
+        "priority": 40,
+        "raw_syllables": [
+          "zhan1",
+          "dun1",
+          "tong2"
+        ],
+        "simplified": "呫吨酮",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "呫吨酮",
+        "traditional": "呫噸酮"
+      },
+      {
+        "line": 18271,
+        "priority": 30,
+        "raw_syllables": [
+          "zhan1",
+          "dun1",
+          "tong2"
+        ],
+        "simplified": "呫吨酮",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "呫吨酮",
+        "traditional": "呫噸酮"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "zhan",
+      "dun",
+      "tong"
+    ],
+    "word": "呫吨酮"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "呫",
+        "known_readings": [
+          "tie",
+          "che"
+        ],
+        "position": 0,
+        "syllable": "zhan"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 21033,
+        "priority": 50,
+        "raw_syllables": [
+          "zhan1",
+          "dun1"
+        ],
+        "simplified": "呫吨",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "呫噸",
+        "traditional": "呫噸"
+      },
+      {
+        "line": 19732,
+        "priority": 40,
+        "raw_syllables": [
+          "zhan1",
+          "dun1"
+        ],
+        "simplified": "呫吨",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "呫噸",
+        "traditional": "呫噸"
+      },
+      {
+        "line": 18270,
+        "priority": 30,
+        "raw_syllables": [
+          "zhan1",
+          "dun1"
+        ],
+        "simplified": "呫吨",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "呫噸",
+        "traditional": "呫噸"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "zhan",
+      "dun"
+    ],
+    "word": "呫噸"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "呫",
+        "known_readings": [
+          "tie",
+          "che"
+        ],
+        "position": 0,
+        "syllable": "zhan"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 21034,
+        "priority": 50,
+        "raw_syllables": [
+          "zhan1",
+          "dun1",
+          "tong2"
+        ],
+        "simplified": "呫吨酮",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "呫噸酮",
+        "traditional": "呫噸酮"
+      },
+      {
+        "line": 19733,
+        "priority": 40,
+        "raw_syllables": [
+          "zhan1",
+          "dun1",
+          "tong2"
+        ],
+        "simplified": "呫吨酮",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "呫噸酮",
+        "traditional": "呫噸酮"
+      },
+      {
+        "line": 18271,
+        "priority": 30,
+        "raw_syllables": [
+          "zhan1",
+          "dun1",
+          "tong2"
+        ],
+        "simplified": "呫吨酮",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "呫噸酮",
+        "traditional": "呫噸酮"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "zhan",
+      "dun",
+      "tong"
+    ],
+    "word": "呫噸酮"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "舌",
+        "known_readings": [
+          "she",
+          "gua"
+        ],
+        "position": 1,
+        "syllable": "ji"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 19891,
+        "priority": 100,
+        "raw_syllables": [
+          "lǎ",
+          "jī"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "喇舌"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "la",
+      "ji"
+    ],
+    "word": "喇舌"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "嗯",
+        "known_readings": [
+          "n",
+          "ng"
+        ],
+        "position": 0,
+        "syllable": "en"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 20347,
+        "priority": 100,
+        "raw_syllables": [
+          "en",
+          "hēng"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "嗯哼"
+      },
+      {
+        "line": 23089,
+        "priority": 50,
+        "raw_syllables": [
+          "en5",
+          "heng1"
+        ],
+        "simplified": "嗯哼",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "嗯哼",
+        "traditional": "嗯哼"
+      },
+      {
+        "line": 21686,
+        "priority": 40,
+        "raw_syllables": [
+          "en5",
+          "heng1"
+        ],
+        "simplified": "嗯哼",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "嗯哼",
+        "traditional": "嗯哼"
+      },
+      {
+        "line": 20076,
+        "priority": 30,
+        "raw_syllables": [
+          "en5",
+          "heng1"
+        ],
+        "simplified": "嗯哼",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "嗯哼",
+        "traditional": "嗯哼"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "en",
+      "heng"
+    ],
+    "word": "嗯哼"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "沒",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 1,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 25663,
+        "priority": 50,
+        "raw_syllables": [
+          "mai2",
+          "mo4"
+        ],
+        "simplified": "埋没",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "埋沒",
+        "traditional": "埋沒"
+      },
+      {
+        "line": 24061,
+        "priority": 40,
+        "raw_syllables": [
+          "mai2",
+          "mo4"
+        ],
+        "simplified": "埋没",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "埋沒",
+        "traditional": "埋沒"
+      },
+      {
+        "line": 22280,
+        "priority": 30,
+        "raw_syllables": [
+          "mai2",
+          "mo4"
+        ],
+        "simplified": "埋没",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "埋沒",
+        "traditional": "埋沒"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "mai",
+      "mo"
+    ],
+    "word": "埋沒"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "培",
+        "known_readings": [
+          "pei",
+          "pou",
+          "pi"
+        ],
+        "position": 0,
+        "syllable": "bei"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 22583,
+        "priority": 100,
+        "raw_syllables": [
+          "bèi",
+          "guǒ"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "培果"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "bei",
+      "guo"
+    ],
+    "word": "培果"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "堆",
+        "known_readings": [
+          "dui",
+          "zui"
+        ],
+        "position": 0,
+        "syllable": "tui"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 22805,
+        "priority": 100,
+        "raw_syllables": [
+          "tuī",
+          "gāo",
+          "chē"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "堆高车"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "tui",
+      "gao",
+      "che"
+    ],
+    "word": "堆高车"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "剎",
+        "known_readings": [
+          "sha"
+        ],
+        "position": 1,
+        "syllable": "cha"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 26306,
+        "priority": 50,
+        "raw_syllables": [
+          "ta3",
+          "cha4"
+        ],
+        "simplified": "塔刹",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "塔剎",
+        "traditional": "塔剎"
+      },
+      {
+        "line": 24656,
+        "priority": 40,
+        "raw_syllables": [
+          "ta3",
+          "cha4"
+        ],
+        "simplified": "塔刹",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "塔剎",
+        "traditional": "塔剎"
+      },
+      {
+        "line": 22846,
+        "priority": 30,
+        "raw_syllables": [
+          "ta3",
+          "cha4"
+        ],
+        "simplified": "塔刹",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "塔剎",
+        "traditional": "塔剎"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "ta",
+      "cha"
+    ],
+    "word": "塔剎"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "缪",
+        "known_readings": [
+          "mou",
+          "miao",
+          "miu"
+        ],
+        "position": 1,
+        "syllable": "mu"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 22952,
+        "priority": 30,
+        "raw_syllables": [
+          "Sai1",
+          "mu2",
+          "er3"
+        ],
+        "simplified": "塞缪尔",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "塞缪尔",
+        "traditional": "塞繆爾"
+      }
+    ],
+    "selected": false,
+    "syllables": [
+      "sai",
+      "mu",
+      "er"
+    ],
+    "word": "塞缪尔"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "鳽",
+        "known_readings": [
+          "jian",
+          "qian",
+          "zhan"
+        ],
+        "position": 2,
+        "syllable": "yan"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 25160,
+        "priority": 100,
+        "raw_syllables": [
+          "dà",
+          "má",
+          "yán"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "大麻鳽"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "da",
+      "ma",
+      "yan"
+    ],
+    "word": "大麻鳽"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "姆",
+        "known_readings": [
+          "mu"
+        ],
+        "position": 0,
+        "syllable": "m"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 30469,
+        "priority": 50,
+        "raw_syllables": [
+          "m1",
+          "ma1"
+        ],
+        "simplified": "姆妈",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "姆妈",
+        "traditional": "姆媽"
+      }
+    ],
+    "selected": false,
+    "syllables": [
+      "m",
+      "ma"
+    ],
+    "word": "姆妈"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "姆",
+        "known_readings": [
+          "mu"
+        ],
+        "position": 0,
+        "syllable": "m"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 30469,
+        "priority": 50,
+        "raw_syllables": [
+          "m1",
+          "ma1"
+        ],
+        "simplified": "姆妈",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "姆媽",
+        "traditional": "姆媽"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "m",
+      "ma"
+    ],
+    "word": "姆媽"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "碁",
+        "known_readings": [
+          "qi"
+        ],
+        "position": 1,
+        "syllable": "ji"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 28269,
+        "priority": 100,
+        "raw_syllables": [
+          "hóng",
+          "jī"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "宏碁"
+      },
+      {
+        "line": 32300,
+        "priority": 50,
+        "raw_syllables": [
+          "Hong2",
+          "ji1"
+        ],
+        "simplified": "宏碁",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "宏碁",
+        "traditional": "宏碁"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "hong",
+      "ji"
+    ],
+    "word": "宏碁"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "碁",
+        "known_readings": [
+          "qi"
+        ],
+        "position": 1,
+        "syllable": "ji"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 28270,
+        "priority": 100,
+        "raw_syllables": [
+          "hóng",
+          "jī",
+          "jí",
+          "tuán"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "宏碁集团"
+      },
+      {
+        "line": 32301,
+        "priority": 50,
+        "raw_syllables": [
+          "Hong2",
+          "ji1",
+          "Ji2",
+          "tuan2"
+        ],
+        "simplified": "宏碁集团",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "宏碁集团",
+        "traditional": "宏碁集團"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "hong",
+      "ji",
+      "ji",
+      "tuan"
+    ],
+    "word": "宏碁集团"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "碁",
+        "known_readings": [
+          "qi"
+        ],
+        "position": 1,
+        "syllable": "ji"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 32301,
+        "priority": 50,
+        "raw_syllables": [
+          "Hong2",
+          "ji1",
+          "Ji2",
+          "tuan2"
+        ],
+        "simplified": "宏碁集团",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "宏碁集團",
+        "traditional": "宏碁集團"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "hong",
+      "ji",
+      "ji",
+      "tuan"
+    ],
+    "word": "宏碁集團"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "宕",
+        "known_readings": [
+          "dang"
+        ],
+        "position": 0,
+        "syllable": "tan"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 32314,
+        "priority": 50,
+        "raw_syllables": [
+          "Tan4",
+          "chang1"
+        ],
+        "simplified": "宕昌",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "宕昌",
+        "traditional": "宕昌"
+      }
+    ],
+    "selected": false,
+    "syllables": [
+      "tan",
+      "chang"
+    ],
+    "word": "宕昌"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "宕",
+        "known_readings": [
+          "dang"
+        ],
+        "position": 0,
+        "syllable": "tan"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 32315,
+        "priority": 50,
+        "raw_syllables": [
+          "Tan4",
+          "chang1",
+          "Xian4"
+        ],
+        "simplified": "宕昌县",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "宕昌县",
+        "traditional": "宕昌縣"
+      }
+    ],
+    "selected": false,
+    "syllables": [
+      "tan",
+      "chang",
+      "xian"
+    ],
+    "word": "宕昌县"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "宕",
+        "known_readings": [
+          "dang"
+        ],
+        "position": 0,
+        "syllable": "tan"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 32315,
+        "priority": 50,
+        "raw_syllables": [
+          "Tan4",
+          "chang1",
+          "Xian4"
+        ],
+        "simplified": "宕昌县",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "宕昌縣",
+        "traditional": "宕昌縣"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "tan",
+      "chang",
+      "xian"
+    ],
+    "word": "宕昌縣"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "工",
+        "known_readings": [
+          "gong"
+        ],
+        "position": 0,
+        "syllable": "ei"
+      },
+      {
+        "character": "口",
+        "known_readings": [
+          "kou"
+        ],
+        "position": 1,
+        "syllable": "luo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 31872,
+        "priority": 100,
+        "raw_syllables": [
+          "ēi",
+          "luó"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "工口"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "ei",
+      "luo"
+    ],
+    "word": "工口"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "兄",
+        "known_readings": [
+          "xiong",
+          "kuang"
+        ],
+        "position": 1,
+        "syllable": "xing"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 32717,
+        "priority": 100,
+        "raw_syllables": [
+          "shī",
+          "xīng",
+          "dì"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "师兄弟"
+      },
+      {
+        "line": 35027,
+        "priority": 40,
+        "raw_syllables": [
+          "shi1",
+          "xing1",
+          "di4"
+        ],
+        "simplified": "师兄弟",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "师兄弟",
+        "traditional": "師兄弟"
+      },
+      {
+        "line": 32351,
+        "priority": 30,
+        "raw_syllables": [
+          "shi1",
+          "xing1",
+          "di4"
+        ],
+        "simplified": "师兄弟",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "师兄弟",
+        "traditional": "師兄弟"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "shi",
+      "xing",
+      "di"
+    ],
+    "word": "师兄弟"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "兄",
+        "known_readings": [
+          "xiong",
+          "kuang"
+        ],
+        "position": 1,
+        "syllable": "xing"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 35027,
+        "priority": 40,
+        "raw_syllables": [
+          "shi1",
+          "xing1",
+          "di4"
+        ],
+        "simplified": "师兄弟",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "師兄弟",
+        "traditional": "師兄弟"
+      },
+      {
+        "line": 32351,
+        "priority": 30,
+        "raw_syllables": [
+          "shi1",
+          "xing1",
+          "di4"
+        ],
+        "simplified": "师兄弟",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "師兄弟",
+        "traditional": "師兄弟"
+      }
+    ],
+    "selected": false,
+    "syllables": [
+      "shi",
+      "xing",
+      "di"
+    ],
+    "word": "師兄弟"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "幀",
+        "known_readings": [
+          "zheng"
+        ],
+        "position": 0,
+        "syllable": "zhen"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 37585,
+        "priority": 50,
+        "raw_syllables": [
+          "zhen1",
+          "zhong1",
+          "ji4"
+        ],
+        "simplified": "帧中继",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "幀中繼",
+        "traditional": "幀中繼"
+      },
+      {
+        "line": 35214,
+        "priority": 40,
+        "raw_syllables": [
+          "zhen1",
+          "zhong1",
+          "ji4"
+        ],
+        "simplified": "帧中继",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "幀中繼",
+        "traditional": "幀中繼"
+      },
+      {
+        "line": 32523,
+        "priority": 30,
+        "raw_syllables": [
+          "zhen1",
+          "zhong1",
+          "ji4"
+        ],
+        "simplified": "帧中继",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "幀中繼",
+        "traditional": "幀中繼"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "zhen",
+      "zhong",
+      "ji"
+    ],
+    "word": "幀中繼"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "幀",
+        "known_readings": [
+          "zheng"
+        ],
+        "position": 0,
+        "syllable": "zhen"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 37586,
+        "priority": 50,
+        "raw_syllables": [
+          "zhen1",
+          "ge2",
+          "shi4"
+        ],
+        "simplified": "帧格式",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "幀格式",
+        "traditional": "幀格式"
+      },
+      {
+        "line": 35215,
+        "priority": 40,
+        "raw_syllables": [
+          "zhen1",
+          "ge2",
+          "shi4"
+        ],
+        "simplified": "帧格式",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "幀格式",
+        "traditional": "幀格式"
+      },
+      {
+        "line": 32524,
+        "priority": 30,
+        "raw_syllables": [
+          "zhen1",
+          "ge2",
+          "shi4"
+        ],
+        "simplified": "帧格式",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "幀格式",
+        "traditional": "幀格式"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "zhen",
+      "ge",
+      "shi"
+    ],
+    "word": "幀格式"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "幀",
+        "known_readings": [
+          "zheng"
+        ],
+        "position": 0,
+        "syllable": "zhen"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 37587,
+        "priority": 50,
+        "raw_syllables": [
+          "zhen1",
+          "jian3",
+          "yan4",
+          "xu4",
+          "lie4"
+        ],
+        "simplified": "帧检验序列",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "幀檢驗序列",
+        "traditional": "幀檢驗序列"
+      },
+      {
+        "line": 35216,
+        "priority": 40,
+        "raw_syllables": [
+          "zhen1",
+          "jian3",
+          "yan4",
+          "xu4",
+          "lie4"
+        ],
+        "simplified": "帧检验序列",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "幀檢驗序列",
+        "traditional": "幀檢驗序列"
+      },
+      {
+        "line": 32525,
+        "priority": 30,
+        "raw_syllables": [
+          "zhen1",
+          "jian3",
+          "yan4",
+          "xu4",
+          "lie4"
+        ],
+        "simplified": "帧检验序列",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "幀檢驗序列",
+        "traditional": "幀檢驗序列"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "zhen",
+      "jian",
+      "yan",
+      "xu",
+      "lie"
+    ],
+    "word": "幀檢驗序列"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "幀",
+        "known_readings": [
+          "zheng"
+        ],
+        "position": 0,
+        "syllable": "zhen"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 37588,
+        "priority": 50,
+        "raw_syllables": [
+          "zhen1",
+          "lu:4"
+        ],
+        "simplified": "帧率",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "幀率",
+        "traditional": "幀率"
+      },
+      {
+        "line": 35217,
+        "priority": 40,
+        "raw_syllables": [
+          "zhen1",
+          "lu:4"
+        ],
+        "simplified": "帧率",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "幀率",
+        "traditional": "幀率"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "zhen",
+      "lv"
+    ],
+    "word": "幀率"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "幀",
+        "known_readings": [
+          "zheng"
+        ],
+        "position": 0,
+        "syllable": "zhen"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 37589,
+        "priority": 50,
+        "raw_syllables": [
+          "zhen1",
+          "pin2"
+        ],
+        "simplified": "帧频",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "幀頻",
+        "traditional": "幀頻"
+      },
+      {
+        "line": 35218,
+        "priority": 40,
+        "raw_syllables": [
+          "zhen1",
+          "pin2"
+        ],
+        "simplified": "帧频",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "幀頻",
+        "traditional": "幀頻"
+      },
+      {
+        "line": 32526,
+        "priority": 30,
+        "raw_syllables": [
+          "zhen1",
+          "pin2"
+        ],
+        "simplified": "帧频",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "幀頻",
+        "traditional": "幀頻"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "zhen",
+      "pin"
+    ],
+    "word": "幀頻"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "幀",
+        "known_readings": [
+          "zheng"
+        ],
+        "position": 0,
+        "syllable": "zhen"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 37590,
+        "priority": 50,
+        "raw_syllables": [
+          "zhen1",
+          "shou3",
+          "ding4",
+          "jie4",
+          "fu2"
+        ],
+        "simplified": "帧首定界符",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "幀首定界符",
+        "traditional": "幀首定界符"
+      },
+      {
+        "line": 35219,
+        "priority": 40,
+        "raw_syllables": [
+          "zhen1",
+          "shou3",
+          "ding4",
+          "jie4",
+          "fu2"
+        ],
+        "simplified": "帧首定界符",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "幀首定界符",
+        "traditional": "幀首定界符"
+      },
+      {
+        "line": 32527,
+        "priority": 30,
+        "raw_syllables": [
+          "zhen1",
+          "shou3",
+          "ding4",
+          "jie4",
+          "fu2"
+        ],
+        "simplified": "帧首定界符",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "幀首定界符",
+        "traditional": "幀首定界符"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "zhen",
+      "shou",
+      "ding",
+      "jie",
+      "fu"
+    ],
+    "word": "幀首定界符"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "麼",
+        "known_readings": [
+          "me"
+        ],
+        "position": 1,
+        "syllable": "ma"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 38110,
+        "priority": 50,
+        "raw_syllables": [
+          "gan4",
+          "ma2"
+        ],
+        "simplified": "干么",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "幹麼",
+        "traditional": "幹麼"
+      },
+      {
+        "line": 35695,
+        "priority": 40,
+        "raw_syllables": [
+          "gan4",
+          "ma2"
+        ],
+        "simplified": "干么",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "幹麼",
+        "traditional": "幹麼"
+      },
+      {
+        "line": 32981,
+        "priority": 30,
+        "raw_syllables": [
+          "gan4",
+          "ma2"
+        ],
+        "simplified": "干么",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "幹麼",
+        "traditional": "幹麼"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "gan",
+      "ma"
+    ],
+    "word": "幹麼"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "缀",
+        "known_readings": [
+          "zhui"
+        ],
+        "position": 3,
+        "syllable": "chuo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 34310,
+        "priority": 100,
+        "raw_syllables": [
+          "xián",
+          "sòng",
+          "bù",
+          "chuò"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "弦诵不缀"
+      },
+      {
+        "line": 36771,
+        "priority": 40,
+        "raw_syllables": [
+          "xian2",
+          "song4",
+          "bu4",
+          "chuo4"
+        ],
+        "simplified": "弦诵不缀",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "弦诵不缀",
+        "traditional": "弦誦不綴"
+      },
+      {
+        "line": 33981,
+        "priority": 30,
+        "raw_syllables": [
+          "xian2",
+          "song4",
+          "bu4",
+          "chuo4"
+        ],
+        "simplified": "弦诵不缀",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "弦诵不缀",
+        "traditional": "弦誦不綴"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "xian",
+      "song",
+      "bu",
+      "chuo"
+    ],
+    "word": "弦诵不缀"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "着",
+        "known_readings": [
+          "zhe",
+          "zhao",
+          "zhuo"
+        ],
+        "position": 3,
+        "syllable": "zhu"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 18675,
+        "priority": 200,
+        "raw_syllables": [
+          "zhāng",
+          "míng",
+          "jiào",
+          "zhù"
+        ],
+        "source_id": "phrase-pinyin",
+        "source_key": "彰明较着"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "zhang",
+      "ming",
+      "jiao",
+      "zhu"
+    ],
+    "word": "彰明较着"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "畲",
+        "known_readings": [
+          "she"
+        ],
+        "position": 2,
+        "syllable": "yu"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 35162,
+        "priority": 100,
+        "raw_syllables": [
+          "xú",
+          "jì",
+          "yú"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "徐继畲"
+      },
+      {
+        "line": 37669,
+        "priority": 40,
+        "raw_syllables": [
+          "Xu2",
+          "Ji4",
+          "yu2"
+        ],
+        "simplified": "徐继畲",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "徐继畲",
+        "traditional": "徐繼畬"
+      },
+      {
+        "line": 34810,
+        "priority": 30,
+        "raw_syllables": [
+          "Xu2",
+          "Ji4",
+          "yu2"
+        ],
+        "simplified": "徐继畲",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "徐继畲",
+        "traditional": "徐繼畬"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "xu",
+      "ji",
+      "yu"
+    ],
+    "word": "徐继畲"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "槑",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 1,
+        "syllable": "dai"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 103596,
+        "priority": 100,
+        "raw_syllables": [
+          "jīng",
+          "dāi"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "惊槑"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "jing",
+      "dai"
+    ],
+    "word": "惊槑"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "剝",
+        "known_readings": [
+          "bo"
+        ],
+        "position": 2,
+        "syllable": "bao"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 42996,
+        "priority": 40,
+        "raw_syllables": [
+          "chou1",
+          "si1",
+          "bao1",
+          "jian3"
+        ],
+        "simplified": "抽丝剥茧",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "抽絲剝繭",
+        "traditional": "抽絲剝繭"
+      },
+      {
+        "line": 39698,
+        "priority": 30,
+        "raw_syllables": [
+          "chou1",
+          "si1",
+          "bao1",
+          "jian3"
+        ],
+        "simplified": "抽丝剥茧",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "抽絲剝繭",
+        "traditional": "抽絲剝繭"
+      }
+    ],
+    "selected": false,
+    "syllables": [
+      "chou",
+      "si",
+      "bao",
+      "jian"
+    ],
+    "word": "抽絲剝繭"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "克",
+        "known_readings": [
+          "ke"
+        ],
+        "position": 1,
+        "syllable": "kei"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 44052,
+        "priority": 40,
+        "raw_syllables": [
+          "ai2",
+          "kei1"
+        ],
+        "simplified": "挨克",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "挨克",
+        "traditional": "挨剋"
+      },
+      {
+        "line": 40678,
+        "priority": 30,
+        "raw_syllables": [
+          "ai2",
+          "kei1"
+        ],
+        "simplified": "挨克",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "挨克",
+        "traditional": "挨剋"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "ai",
+      "kei"
+    ],
+    "word": "挨克"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "揘",
+        "known_readings": [
+          "yong",
+          "huang"
+        ],
+        "position": 0,
+        "syllable": "heng"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 48385,
+        "priority": 50,
+        "raw_syllables": [
+          "heng2",
+          "bi4"
+        ],
+        "simplified": "揘毕",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "揘毕",
+        "traditional": "揘畢"
+      }
+    ],
+    "selected": false,
+    "syllables": [
+      "heng",
+      "bi"
+    ],
+    "word": "揘毕"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "揘",
+        "known_readings": [
+          "yong",
+          "huang"
+        ],
+        "position": 0,
+        "syllable": "heng"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 48385,
+        "priority": 50,
+        "raw_syllables": [
+          "heng2",
+          "bi4"
+        ],
+        "simplified": "揘毕",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "揘畢",
+        "traditional": "揘畢"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "heng",
+      "bi"
+    ],
+    "word": "揘畢"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "畲",
+        "known_readings": [
+          "she"
+        ],
+        "position": 1,
+        "syllable": "yu"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 45118,
+        "priority": 100,
+        "raw_syllables": [
+          "zhuó",
+          "yú"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "斫畲"
+      },
+      {
+        "line": 48352,
+        "priority": 40,
+        "raw_syllables": [
+          "zhuo2",
+          "yu2"
+        ],
+        "simplified": "斫畲",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "斫畲",
+        "traditional": "斫畬"
+      },
+      {
+        "line": 44632,
+        "priority": 30,
+        "raw_syllables": [
+          "zhuo2",
+          "yu2"
+        ],
+        "simplified": "斫畲",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "斫畲",
+        "traditional": "斫畬"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "zhuo",
+      "yu"
+    ],
+    "word": "斫畲"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "干",
+        "known_readings": [
+          "gan",
+          "an"
+        ],
+        "position": 1,
+        "syllable": "qian"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 448,
+        "priority": 300,
+        "raw_syllables": [
+          "xuán",
+          "qián",
+          "zhuǎn",
+          "kūn"
+        ],
+        "source_id": "phrase-overwrite",
+        "source_key": "旋干转坤"
+      },
+      {
+        "line": 23363,
+        "priority": 200,
+        "raw_syllables": [
+          "xuán",
+          "qián",
+          "zhuǎn",
+          "kūn"
+        ],
+        "source_id": "phrase-pinyin",
+        "source_key": "旋干转坤"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "xuan",
+      "qian",
+      "zhuan",
+      "kun"
+    ],
+    "word": "旋干转坤"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "沒",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 1,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 52683,
+        "priority": 50,
+        "raw_syllables": [
+          "ri4",
+          "mo4"
+        ],
+        "simplified": "日没",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "日沒",
+        "traditional": "日沒"
+      },
+      {
+        "line": 49281,
+        "priority": 40,
+        "raw_syllables": [
+          "ri4",
+          "mo4"
+        ],
+        "simplified": "日没",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "日沒",
+        "traditional": "日沒"
+      },
+      {
+        "line": 45490,
+        "priority": 30,
+        "raw_syllables": [
+          "ri4",
+          "mo4"
+        ],
+        "simplified": "日没",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "日沒",
+        "traditional": "日沒"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "ri",
+      "mo"
+    ],
+    "word": "日沒"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "沒",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 1,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 53374,
+        "priority": 50,
+        "raw_syllables": [
+          "mei4",
+          "mo4"
+        ],
+        "simplified": "昧没",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "昧沒",
+        "traditional": "昧沒"
+      },
+      {
+        "line": 49932,
+        "priority": 40,
+        "raw_syllables": [
+          "mei4",
+          "mo4"
+        ],
+        "simplified": "昧没",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "昧沒",
+        "traditional": "昧沒"
+      },
+      {
+        "line": 46095,
+        "priority": 30,
+        "raw_syllables": [
+          "mei4",
+          "mo4"
+        ],
+        "simplified": "昧没",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "昧沒",
+        "traditional": "昧沒"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "mei",
+      "mo"
+    ],
+    "word": "昧沒"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "沒",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 2,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 54958,
+        "priority": 50,
+        "raw_syllables": [
+          "you3",
+          "zui3",
+          "mo4",
+          "she2"
+        ],
+        "simplified": "有嘴没舌",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "有嘴沒舌",
+        "traditional": "有嘴沒舌"
+      },
+      {
+        "line": 51385,
+        "priority": 40,
+        "raw_syllables": [
+          "you3",
+          "zui3",
+          "mo4",
+          "she2"
+        ],
+        "simplified": "有嘴没舌",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "有嘴沒舌",
+        "traditional": "有嘴沒舌"
+      },
+      {
+        "line": 47417,
+        "priority": 30,
+        "raw_syllables": [
+          "you3",
+          "zui3",
+          "mo4",
+          "she2"
+        ],
+        "simplified": "有嘴没舌",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "有嘴沒舌",
+        "traditional": "有嘴沒舌"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "you",
+      "zui",
+      "mo",
+      "she"
+    ],
+    "word": "有嘴沒舌"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "順",
+        "known_readings": [
+          "shun"
+        ],
+        "position": 1,
+        "syllable": "xun"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 49290,
+        "priority": 30,
+        "raw_syllables": [
+          "rou2",
+          "xun4",
+          "ji4"
+        ],
+        "simplified": "柔顺剂",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "柔順劑",
+        "traditional": "柔順劑"
+      }
+    ],
+    "selected": false,
+    "syllables": [
+      "rou",
+      "xun",
+      "ji"
+    ],
+    "word": "柔順劑"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "顺",
+        "known_readings": [
+          "shun"
+        ],
+        "position": 1,
+        "syllable": "xun"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 49290,
+        "priority": 30,
+        "raw_syllables": [
+          "rou2",
+          "xun4",
+          "ji4"
+        ],
+        "simplified": "柔顺剂",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "柔顺剂",
+        "traditional": "柔順劑"
+      }
+    ],
+    "selected": false,
+    "syllables": [
+      "rou",
+      "xun",
+      "ji"
+    ],
+    "word": "柔顺剂"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "栉",
+        "known_readings": [
+          "zhi"
+        ],
+        "position": 0,
+        "syllable": "jie"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 52202,
+        "priority": 100,
+        "raw_syllables": [
+          "jié",
+          "shuǐ",
+          "mǔ"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "栉水母"
+      },
+      {
+        "line": 56132,
+        "priority": 40,
+        "raw_syllables": [
+          "jie2",
+          "shui3",
+          "mu3"
+        ],
+        "simplified": "栉水母",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "栉水母",
+        "traditional": "櫛水母"
+      },
+      {
+        "line": 51729,
+        "priority": 30,
+        "raw_syllables": [
+          "jie2",
+          "shui3",
+          "mu3"
+        ],
+        "simplified": "栉水母",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "栉水母",
+        "traditional": "櫛水母"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "jie",
+      "shui",
+      "mu"
+    ],
+    "word": "栉水母"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "鳽",
+        "known_readings": [
+          "jian",
+          "qian",
+          "zhan"
+        ],
+        "position": 2,
+        "syllable": "yan"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 50099,
+        "priority": 100,
+        "raw_syllables": [
+          "lì",
+          "wěi",
+          "yán"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "栗苇鳽"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "li",
+      "wei",
+      "yan"
+    ],
+    "word": "栗苇鳽"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "鳽",
+        "known_readings": [
+          "jian",
+          "qian",
+          "zhan"
+        ],
+        "position": 1,
+        "syllable": "yan"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 50109,
+        "priority": 100,
+        "raw_syllables": [
+          "lì",
+          "yán"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "栗鳽"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "li",
+      "yan"
+    ],
+    "word": "栗鳽"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "剎",
+        "known_readings": [
+          "sha"
+        ],
+        "position": 1,
+        "syllable": "cha"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 58074,
+        "priority": 50,
+        "raw_syllables": [
+          "Fan4",
+          "cha4"
+        ],
+        "simplified": "梵刹",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "梵剎",
+        "traditional": "梵剎"
+      },
+      {
+        "line": 54407,
+        "priority": 40,
+        "raw_syllables": [
+          "Fan4",
+          "cha4"
+        ],
+        "simplified": "梵刹",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "梵剎",
+        "traditional": "梵剎"
+      },
+      {
+        "line": 50192,
+        "priority": 30,
+        "raw_syllables": [
+          "Fan4",
+          "cha4"
+        ],
+        "simplified": "梵刹",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "梵剎",
+        "traditional": "梵剎"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "fan",
+      "cha"
+    ],
+    "word": "梵剎"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "樂",
+        "known_readings": [
+          "le",
+          "yue",
+          "yao",
+          "luo",
+          "liao"
+        ],
+        "position": 0,
+        "syllable": "lao"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 59011,
+        "priority": 50,
+        "raw_syllables": [
+          "Lao4",
+          "ting2"
+        ],
+        "simplified": "乐亭",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "樂亭",
+        "traditional": "樂亭"
+      },
+      {
+        "line": 55305,
+        "priority": 40,
+        "raw_syllables": [
+          "Lao4",
+          "ting2"
+        ],
+        "simplified": "乐亭",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "樂亭",
+        "traditional": "樂亭"
+      },
+      {
+        "line": 50966,
+        "priority": 30,
+        "raw_syllables": [
+          "Lao4",
+          "ting2"
+        ],
+        "simplified": "乐亭",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "樂亭",
+        "traditional": "樂亭"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "lao",
+      "ting"
+    ],
+    "word": "樂亭"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "樂",
+        "known_readings": [
+          "le",
+          "yue",
+          "yao",
+          "luo",
+          "liao"
+        ],
+        "position": 0,
+        "syllable": "lao"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 59012,
+        "priority": 50,
+        "raw_syllables": [
+          "Lao4",
+          "ting2",
+          "Xian4"
+        ],
+        "simplified": "乐亭县",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "樂亭縣",
+        "traditional": "樂亭縣"
+      },
+      {
+        "line": 55306,
+        "priority": 40,
+        "raw_syllables": [
+          "Lao4",
+          "ting2",
+          "xian4"
+        ],
+        "simplified": "乐亭县",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "樂亭縣",
+        "traditional": "樂亭縣"
+      },
+      {
+        "line": 50967,
+        "priority": 30,
+        "raw_syllables": [
+          "Lao4",
+          "ting2",
+          "xian4"
+        ],
+        "simplified": "乐亭县",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "樂亭縣",
+        "traditional": "樂亭縣"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "lao",
+      "ting",
+      "xian"
+    ],
+    "word": "樂亭縣"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "樂",
+        "known_readings": [
+          "le",
+          "yue",
+          "yao",
+          "luo",
+          "liao"
+        ],
+        "position": 0,
+        "syllable": "lao"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 59090,
+        "priority": 50,
+        "raw_syllables": [
+          "Lao4",
+          "ling2"
+        ],
+        "simplified": "乐陵",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "樂陵",
+        "traditional": "樂陵"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "lao",
+      "ling"
+    ],
+    "word": "樂陵"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "樂",
+        "known_readings": [
+          "le",
+          "yue",
+          "yao",
+          "luo",
+          "liao"
+        ],
+        "position": 0,
+        "syllable": "lao"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 59091,
+        "priority": 50,
+        "raw_syllables": [
+          "Lao4",
+          "ling2",
+          "Shi4"
+        ],
+        "simplified": "乐陵市",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "樂陵市",
+        "traditional": "樂陵市"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "lao",
+      "ling",
+      "shi"
+    ],
+    "word": "樂陵市"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "組",
+        "known_readings": [
+          "zu",
+          "qu"
+        ],
+        "position": 2,
+        "syllable": "zhu"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 51356,
+        "priority": 30,
+        "raw_syllables": [
+          "ju2",
+          "pi2",
+          "zhu3",
+          "zhi1"
+        ],
+        "simplified": "橘皮组织",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "橘皮組織",
+        "traditional": "橘皮組織"
+      }
+    ],
+    "selected": false,
+    "syllables": [
+      "ju",
+      "pi",
+      "zhu",
+      "zhi"
+    ],
+    "word": "橘皮組織"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "组",
+        "known_readings": [
+          "zu"
+        ],
+        "position": 2,
+        "syllable": "zhu"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 51356,
+        "priority": 30,
+        "raw_syllables": [
+          "ju2",
+          "pi2",
+          "zhu3",
+          "zhi1"
+        ],
+        "simplified": "橘皮组织",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "橘皮组织",
+        "traditional": "橘皮組織"
+      }
+    ],
+    "selected": false,
+    "syllables": [
+      "ju",
+      "pi",
+      "zhu",
+      "zhi"
+    ],
+    "word": "橘皮组织"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "櫛",
+        "known_readings": [
+          "zhi"
+        ],
+        "position": 0,
+        "syllable": "jie"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 56132,
+        "priority": 40,
+        "raw_syllables": [
+          "jie2",
+          "shui3",
+          "mu3"
+        ],
+        "simplified": "栉水母",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "櫛水母",
+        "traditional": "櫛水母"
+      },
+      {
+        "line": 51729,
+        "priority": 30,
+        "raw_syllables": [
+          "jie2",
+          "shui3",
+          "mu3"
+        ],
+        "simplified": "栉水母",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "櫛水母",
+        "traditional": "櫛水母"
+      }
+    ],
+    "selected": false,
+    "syllables": [
+      "jie",
+      "shui",
+      "mu"
+    ],
+    "word": "櫛水母"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "彟",
+        "known_readings": [
+          "yue"
+        ],
+        "position": 2,
+        "syllable": "huo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 52902,
+        "priority": 100,
+        "raw_syllables": [
+          "wǔ",
+          "shì",
+          "huò"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "武士彟"
+      },
+      {
+        "line": 60712,
+        "priority": 50,
+        "raw_syllables": [
+          "Wu3",
+          "Shi4",
+          "huo4"
+        ],
+        "simplified": "武士彟",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "武士彟",
+        "traditional": "武士彠"
+      },
+      {
+        "line": 56900,
+        "priority": 40,
+        "raw_syllables": [
+          "Wu3",
+          "Shi4",
+          "huo4"
+        ],
+        "simplified": "武士彟",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "武士彟",
+        "traditional": "武士彠"
+      },
+      {
+        "line": 52425,
+        "priority": 30,
+        "raw_syllables": [
+          "Wu3",
+          "Shi4",
+          "huo4"
+        ],
+        "simplified": "武士彟",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "武士彟",
+        "traditional": "武士彠"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "wu",
+      "shi",
+      "huo"
+    ],
+    "word": "武士彟"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "彠",
+        "known_readings": [
+          "yue"
+        ],
+        "position": 2,
+        "syllable": "huo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 60712,
+        "priority": 50,
+        "raw_syllables": [
+          "Wu3",
+          "Shi4",
+          "huo4"
+        ],
+        "simplified": "武士彟",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "武士彠",
+        "traditional": "武士彠"
+      },
+      {
+        "line": 56900,
+        "priority": 40,
+        "raw_syllables": [
+          "Wu3",
+          "Shi4",
+          "huo4"
+        ],
+        "simplified": "武士彟",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "武士彠",
+        "traditional": "武士彠"
+      },
+      {
+        "line": 52425,
+        "priority": 30,
+        "raw_syllables": [
+          "Wu3",
+          "Shi4",
+          "huo4"
+        ],
+        "simplified": "武士彟",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "武士彠",
+        "traditional": "武士彠"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "wu",
+      "shi",
+      "huo"
+    ],
+    "word": "武士彠"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "沒",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 1,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 63157,
+        "priority": 50,
+        "raw_syllables": [
+          "chen2",
+          "mo4"
+        ],
+        "simplified": "沉没",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "沉沒",
+        "traditional": "沉沒"
+      },
+      {
+        "line": 59193,
+        "priority": 40,
+        "raw_syllables": [
+          "chen2",
+          "mo4"
+        ],
+        "simplified": "沉没",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "沉沒",
+        "traditional": "沉沒"
+      },
+      {
+        "line": 54542,
+        "priority": 30,
+        "raw_syllables": [
+          "chen2",
+          "mo4"
+        ],
+        "simplified": "沉没",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "沉沒",
+        "traditional": "沉沒"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "chen",
+      "mo"
+    ],
+    "word": "沉沒"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "沒",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 1,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 63158,
+        "priority": 50,
+        "raw_syllables": [
+          "chen2",
+          "mo4",
+          "cheng2",
+          "ben3"
+        ],
+        "simplified": "沉没成本",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "沉沒成本",
+        "traditional": "沉沒成本"
+      },
+      {
+        "line": 59194,
+        "priority": 40,
+        "raw_syllables": [
+          "chen2",
+          "mo4",
+          "cheng2",
+          "ben3"
+        ],
+        "simplified": "沉没成本",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "沉沒成本",
+        "traditional": "沉沒成本"
+      },
+      {
+        "line": 54543,
+        "priority": 30,
+        "raw_syllables": [
+          "chen2",
+          "mo4",
+          "cheng2",
+          "ben3"
+        ],
+        "simplified": "沉没成本",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "沉沒成本",
+        "traditional": "沉沒成本"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "chen",
+      "mo",
+      "cheng",
+      "ben"
+    ],
+    "word": "沉沒成本"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "沒",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 0,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 63246,
+        "priority": 50,
+        "raw_syllables": [
+          "mo4",
+          "nai4",
+          "he2"
+        ],
+        "simplified": "没奈何",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "沒奈何",
+        "traditional": "沒奈何"
+      },
+      {
+        "line": 59277,
+        "priority": 40,
+        "raw_syllables": [
+          "mo4",
+          "nai4",
+          "he2"
+        ],
+        "simplified": "没奈何",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "沒奈何",
+        "traditional": "沒奈何"
+      },
+      {
+        "line": 54623,
+        "priority": 30,
+        "raw_syllables": [
+          "mo4",
+          "nai4",
+          "he2"
+        ],
+        "simplified": "没奈何",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "沒奈何",
+        "traditional": "沒奈何"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "mo",
+      "nai",
+      "he"
+    ],
+    "word": "沒奈何"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "沒",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 0,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 63259,
+        "priority": 50,
+        "raw_syllables": [
+          "mo4",
+          "shou1"
+        ],
+        "simplified": "没收",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "沒收",
+        "traditional": "沒收"
+      },
+      {
+        "line": 59287,
+        "priority": 40,
+        "raw_syllables": [
+          "mo4",
+          "shou1"
+        ],
+        "simplified": "没收",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "沒收",
+        "traditional": "沒收"
+      },
+      {
+        "line": 54633,
+        "priority": 30,
+        "raw_syllables": [
+          "mo4",
+          "shou1"
+        ],
+        "simplified": "没收",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "沒收",
+        "traditional": "沒收"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "mo",
+      "shou"
+    ],
+    "word": "沒收"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "沒",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 0,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 63297,
+        "priority": 50,
+        "raw_syllables": [
+          "mo4",
+          "luo4"
+        ],
+        "simplified": "没落",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "沒落",
+        "traditional": "沒落"
+      },
+      {
+        "line": 59324,
+        "priority": 40,
+        "raw_syllables": [
+          "mo4",
+          "luo4"
+        ],
+        "simplified": "没落",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "沒落",
+        "traditional": "沒落"
+      },
+      {
+        "line": 54668,
+        "priority": 30,
+        "raw_syllables": [
+          "mo4",
+          "luo4"
+        ],
+        "simplified": "没落",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "沒落",
+        "traditional": "沒落"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "mo",
+      "luo"
+    ],
+    "word": "沒落"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "沒",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 0,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 63298,
+        "priority": 50,
+        "raw_syllables": [
+          "mo4",
+          "yao4"
+        ],
+        "simplified": "没药",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "沒藥",
+        "traditional": "沒藥"
+      },
+      {
+        "line": 59325,
+        "priority": 40,
+        "raw_syllables": [
+          "mo4",
+          "yao4"
+        ],
+        "simplified": "没药",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "沒藥",
+        "traditional": "沒藥"
+      },
+      {
+        "line": 54669,
+        "priority": 30,
+        "raw_syllables": [
+          "mo4",
+          "yao4"
+        ],
+        "simplified": "没药",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "沒藥",
+        "traditional": "沒藥"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "mo",
+      "yao"
+    ],
+    "word": "沒藥"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "沒",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 0,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 63317,
+        "priority": 50,
+        "raw_syllables": [
+          "mo4",
+          "chi3",
+          "bu4",
+          "wang4"
+        ],
+        "simplified": "没齿不忘",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "沒齒不忘",
+        "traditional": "沒齒不忘"
+      },
+      {
+        "line": 59342,
+        "priority": 40,
+        "raw_syllables": [
+          "mo4",
+          "chi3",
+          "bu4",
+          "wang4"
+        ],
+        "simplified": "没齿不忘",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "沒齒不忘",
+        "traditional": "沒齒不忘"
+      },
+      {
+        "line": 54682,
+        "priority": 30,
+        "raw_syllables": [
+          "mo4",
+          "chi3",
+          "bu4",
+          "wang4"
+        ],
+        "simplified": "没齿不忘",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "沒齒不忘",
+        "traditional": "沒齒不忘"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "mo",
+      "chi",
+      "bu",
+      "wang"
+    ],
+    "word": "沒齒不忘"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "沒",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 0,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 63318,
+        "priority": 50,
+        "raw_syllables": [
+          "mo4",
+          "chi3",
+          "nan2",
+          "wang4"
+        ],
+        "simplified": "没齿难忘",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "沒齒難忘",
+        "traditional": "沒齒難忘"
+      },
+      {
+        "line": 59343,
+        "priority": 40,
+        "raw_syllables": [
+          "mo4",
+          "chi3",
+          "nan2",
+          "wang4"
+        ],
+        "simplified": "没齿难忘",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "沒齒難忘",
+        "traditional": "沒齒難忘"
+      },
+      {
+        "line": 54683,
+        "priority": 30,
+        "raw_syllables": [
+          "mo4",
+          "chi3",
+          "nan2",
+          "wang4"
+        ],
+        "simplified": "没齿难忘",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "沒齒難忘",
+        "traditional": "沒齒難忘"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "mo",
+      "chi",
+      "nan",
+      "wang"
+    ],
+    "word": "沒齒難忘"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "鳽",
+        "known_readings": [
+          "jian",
+          "qian",
+          "zhan"
+        ],
+        "position": 2,
+        "syllable": "yan"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 56966,
+        "priority": 100,
+        "raw_syllables": [
+          "hǎi",
+          "nán",
+          "yán"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "海南鳽"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "hai",
+      "nan",
+      "yan"
+    ],
+    "word": "海南鳽"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "沒",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 1,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 65619,
+        "priority": 50,
+        "raw_syllables": [
+          "jin4",
+          "mo4"
+        ],
+        "simplified": "浸没",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "浸沒",
+        "traditional": "浸沒"
+      },
+      {
+        "line": 61474,
+        "priority": 40,
+        "raw_syllables": [
+          "jin4",
+          "mo4"
+        ],
+        "simplified": "浸没",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "浸沒",
+        "traditional": "浸沒"
+      },
+      {
+        "line": 56654,
+        "priority": 30,
+        "raw_syllables": [
+          "jin4",
+          "mo4"
+        ],
+        "simplified": "浸没",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "浸沒",
+        "traditional": "浸沒"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "jin",
+      "mo"
+    ],
+    "word": "浸沒"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "沒",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 1,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 66109,
+        "priority": 50,
+        "raw_syllables": [
+          "lun2",
+          "mo4"
+        ],
+        "simplified": "沦没",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "淪沒",
+        "traditional": "淪沒"
+      },
+      {
+        "line": 61921,
+        "priority": 40,
+        "raw_syllables": [
+          "lun2",
+          "mo4"
+        ],
+        "simplified": "沦没",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "淪沒",
+        "traditional": "淪沒"
+      },
+      {
+        "line": 57068,
+        "priority": 30,
+        "raw_syllables": [
+          "lun2",
+          "mo4"
+        ],
+        "simplified": "沦没",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "淪沒",
+        "traditional": "淪沒"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "lun",
+      "mo"
+    ],
+    "word": "淪沒"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "沒",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 1,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 61922,
+        "priority": 40,
+        "raw_syllables": [
+          "lun2",
+          "mo4",
+          "sang4",
+          "wang2"
+        ],
+        "simplified": "沦没丧亡",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "淪沒喪亡",
+        "traditional": "淪沒喪亡"
+      },
+      {
+        "line": 57069,
+        "priority": 30,
+        "raw_syllables": [
+          "lun2",
+          "mo4",
+          "sang4",
+          "wang2"
+        ],
+        "simplified": "沦没丧亡",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "淪沒喪亡",
+        "traditional": "淪沒喪亡"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "lun",
+      "mo",
+      "sang",
+      "wang"
+    ],
+    "word": "淪沒喪亡"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "沒",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 1,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 66396,
+        "priority": 50,
+        "raw_syllables": [
+          "yan1",
+          "mo4"
+        ],
+        "simplified": "淹没",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "淹沒",
+        "traditional": "淹沒"
+      },
+      {
+        "line": 62192,
+        "priority": 40,
+        "raw_syllables": [
+          "yan1",
+          "mo4"
+        ],
+        "simplified": "淹没",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "淹沒",
+        "traditional": "淹沒"
+      },
+      {
+        "line": 57330,
+        "priority": 30,
+        "raw_syllables": [
+          "yan1",
+          "mo4"
+        ],
+        "simplified": "淹没",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "淹沒",
+        "traditional": "淹沒"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "yan",
+      "mo"
+    ],
+    "word": "淹沒"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "說",
+        "known_readings": [
+          "shuo"
+        ],
+        "position": 1,
+        "syllable": "shui"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 66884,
+        "priority": 50,
+        "raw_syllables": [
+          "you2",
+          "shui4",
+          "tuan2"
+        ],
+        "simplified": "游说团",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "游說團",
+        "traditional": "游說團"
+      },
+      {
+        "line": 62654,
+        "priority": 40,
+        "raw_syllables": [
+          "you2",
+          "shui4",
+          "tuan2"
+        ],
+        "simplified": "游说团",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "游說團",
+        "traditional": "游說團"
+      },
+      {
+        "line": 57757,
+        "priority": 30,
+        "raw_syllables": [
+          "you2",
+          "shui4",
+          "tuan2"
+        ],
+        "simplified": "游说团",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "游說團",
+        "traditional": "游說團"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "you",
+      "shui",
+      "tuan"
+    ],
+    "word": "游說團"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "說",
+        "known_readings": [
+          "shuo"
+        ],
+        "position": 1,
+        "syllable": "shui"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 66885,
+        "priority": 50,
+        "raw_syllables": [
+          "you2",
+          "shui4",
+          "tuan2",
+          "ti3"
+        ],
+        "simplified": "游说团体",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "游說團體",
+        "traditional": "游說團體"
+      },
+      {
+        "line": 62655,
+        "priority": 40,
+        "raw_syllables": [
+          "you2",
+          "shui4",
+          "tuan2",
+          "ti3"
+        ],
+        "simplified": "游说团体",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "游說團體",
+        "traditional": "游說團體"
+      },
+      {
+        "line": 57758,
+        "priority": 30,
+        "raw_syllables": [
+          "you2",
+          "shui4",
+          "tuan2",
+          "ti3"
+        ],
+        "simplified": "游说团体",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "游說團體",
+        "traditional": "游說團體"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "you",
+      "shui",
+      "tuan",
+      "ti"
+    ],
+    "word": "游說團體"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "沒",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 1,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 67062,
+        "priority": 50,
+        "raw_syllables": [
+          "yan1",
+          "mo4"
+        ],
+        "simplified": "湮没",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "湮沒",
+        "traditional": "湮沒"
+      },
+      {
+        "line": 62827,
+        "priority": 40,
+        "raw_syllables": [
+          "yan1",
+          "mo4"
+        ],
+        "simplified": "湮没",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "湮沒",
+        "traditional": "湮沒"
+      },
+      {
+        "line": 57915,
+        "priority": 30,
+        "raw_syllables": [
+          "yan1",
+          "mo4"
+        ],
+        "simplified": "湮没",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "湮沒",
+        "traditional": "湮沒"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "yan",
+      "mo"
+    ],
+    "word": "湮沒"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "沒",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 1,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 67063,
+        "priority": 50,
+        "raw_syllables": [
+          "yan1",
+          "mo4",
+          "wu2",
+          "wen2"
+        ],
+        "simplified": "湮没无闻",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "湮沒無聞",
+        "traditional": "湮沒無聞"
+      },
+      {
+        "line": 62828,
+        "priority": 40,
+        "raw_syllables": [
+          "yan1",
+          "mo4",
+          "wu2",
+          "wen2"
+        ],
+        "simplified": "湮没无闻",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "湮沒無聞",
+        "traditional": "湮沒無聞"
+      },
+      {
+        "line": 57916,
+        "priority": 30,
+        "raw_syllables": [
+          "yan1",
+          "mo4",
+          "wu2",
+          "wen2"
+        ],
+        "simplified": "湮没无闻",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "湮沒無聞",
+        "traditional": "湮沒無聞"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "yan",
+      "mo",
+      "wu",
+      "wen"
+    ],
+    "word": "湮沒無聞"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "沒",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 1,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 67350,
+        "priority": 50,
+        "raw_syllables": [
+          "rong2",
+          "mo4"
+        ],
+        "simplified": "溶没",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "溶沒",
+        "traditional": "溶沒"
+      },
+      {
+        "line": 63101,
+        "priority": 40,
+        "raw_syllables": [
+          "rong2",
+          "mo4"
+        ],
+        "simplified": "溶没",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "溶沒",
+        "traditional": "溶沒"
+      },
+      {
+        "line": 58174,
+        "priority": 30,
+        "raw_syllables": [
+          "rong2",
+          "mo4"
+        ],
+        "simplified": "溶没",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "溶沒",
+        "traditional": "溶沒"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "rong",
+      "mo"
+    ],
+    "word": "溶沒"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "沒",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 1,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 68248,
+        "priority": 50,
+        "raw_syllables": [
+          "qian2",
+          "mo4"
+        ],
+        "simplified": "潜没",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "潛沒",
+        "traditional": "潛沒"
+      },
+      {
+        "line": 63941,
+        "priority": 40,
+        "raw_syllables": [
+          "qian2",
+          "mo4"
+        ],
+        "simplified": "潜没",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "潛沒",
+        "traditional": "潛沒"
+      },
+      {
+        "line": 58949,
+        "priority": 30,
+        "raw_syllables": [
+          "qian2",
+          "mo4"
+        ],
+        "simplified": "潜没",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "潛沒",
+        "traditional": "潛沒"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "qian",
+      "mo"
+    ],
+    "word": "潛沒"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "潰",
+        "known_readings": [
+          "kui",
+          "xie"
+        ],
+        "position": 0,
+        "syllable": "hui"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 68369,
+        "priority": 50,
+        "raw_syllables": [
+          "hui4",
+          "nong2"
+        ],
+        "simplified": "溃脓",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "潰膿",
+        "traditional": "潰膿"
+      },
+      {
+        "line": 64058,
+        "priority": 40,
+        "raw_syllables": [
+          "hui4",
+          "nong2"
+        ],
+        "simplified": "溃脓",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "潰膿",
+        "traditional": "潰膿"
+      },
+      {
+        "line": 59058,
+        "priority": 30,
+        "raw_syllables": [
+          "hui4",
+          "nong2"
+        ],
+        "simplified": "溃脓",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "潰膿",
+        "traditional": "潰膿"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "hui",
+      "nong"
+    ],
+    "word": "潰膿"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "燵",
+        "known_readings": [
+          "da"
+        ],
+        "position": 1,
+        "syllable": "ta"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 48,
+        "priority": 300,
+        "raw_syllables": [
+          "huǒ",
+          "tā"
+        ],
+        "source_id": "phrase-overwrite",
+        "source_key": "火燵"
+      },
+      {
+        "line": 29203,
+        "priority": 200,
+        "raw_syllables": [
+          "huǒ",
+          "tā"
+        ],
+        "source_id": "phrase-pinyin",
+        "source_key": "火燵"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "huo",
+      "ta"
+    ],
+    "word": "火燵"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "殻",
+        "known_readings": [
+          "qiao"
+        ],
+        "position": 1,
+        "syllable": "ke"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 60411,
+        "priority": 30,
+        "raw_syllables": [
+          "wu2",
+          "ke2",
+          "zu2"
+        ],
+        "simplified": "无壳族",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "無殻族",
+        "traditional": "無殻族"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "wu",
+      "ke",
+      "zu"
+    ],
+    "word": "無殻族"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "焢",
+        "known_readings": [
+          "hong"
+        ],
+        "position": 0,
+        "syllable": "kong"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 61130,
+        "priority": 100,
+        "raw_syllables": [
+          "kòng",
+          "ròu"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "焢肉"
+      },
+      {
+        "line": 70236,
+        "priority": 50,
+        "raw_syllables": [
+          "kong4",
+          "rou4"
+        ],
+        "simplified": "焢肉",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "焢肉",
+        "traditional": "焢肉"
+      },
+      {
+        "line": 65786,
+        "priority": 40,
+        "raw_syllables": [
+          "kong4",
+          "rou4"
+        ],
+        "simplified": "焢肉",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "焢肉",
+        "traditional": "焢肉"
+      },
+      {
+        "line": 60594,
+        "priority": 30,
+        "raw_syllables": [
+          "kong4",
+          "rou4"
+        ],
+        "simplified": "焢肉",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "焢肉",
+        "traditional": "焢肉"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "kong",
+      "rou"
+    ],
+    "word": "焢肉"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "爌",
+        "known_readings": [
+          "kuang",
+          "huang"
+        ],
+        "position": 0,
+        "syllable": "kong"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 61945,
+        "priority": 100,
+        "raw_syllables": [
+          "kòng",
+          "ròu"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "爌肉"
+      },
+      {
+        "line": 71241,
+        "priority": 50,
+        "raw_syllables": [
+          "kong4",
+          "rou4"
+        ],
+        "simplified": "爌肉",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "爌肉",
+        "traditional": "爌肉"
+      },
+      {
+        "line": 66715,
+        "priority": 40,
+        "raw_syllables": [
+          "kong4",
+          "rou4"
+        ],
+        "simplified": "爌肉",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "爌肉",
+        "traditional": "爌肉"
+      },
+      {
+        "line": 61457,
+        "priority": 30,
+        "raw_syllables": [
+          "kong4",
+          "rou4"
+        ],
+        "simplified": "爌肉",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "爌肉",
+        "traditional": "爌肉"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "kong",
+      "rou"
+    ],
+    "word": "爌肉"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "剝",
+        "known_readings": [
+          "bo"
+        ],
+        "position": 2,
+        "syllable": "bao"
+      },
+      {
+        "character": "剝",
+        "known_readings": [
+          "bo"
+        ],
+        "position": 3,
+        "syllable": "bao"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 70441,
+        "priority": 40,
+        "raw_syllables": [
+          "bi4",
+          "bi4",
+          "bao1",
+          "bao1"
+        ],
+        "simplified": "毕毕剥剥",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "畢畢剝剝",
+        "traditional": "畢畢剝剝"
+      },
+      {
+        "line": 64903,
+        "priority": 30,
+        "raw_syllables": [
+          "bi4",
+          "bi4",
+          "bao1",
+          "bao1"
+        ],
+        "simplified": "毕毕剥剥",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "畢畢剝剝",
+        "traditional": "畢畢剝剝"
+      }
+    ],
+    "selected": false,
+    "syllables": [
+      "bi",
+      "bi",
+      "bao",
+      "bao"
+    ],
+    "word": "畢畢剝剝"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "畲",
+        "known_readings": [
+          "she"
+        ],
+        "position": 0,
+        "syllable": "yu"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 65313,
+        "priority": 100,
+        "raw_syllables": [
+          "yú",
+          "xiāng"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "畲乡"
+      },
+      {
+        "line": 70550,
+        "priority": 40,
+        "raw_syllables": [
+          "yu2",
+          "xiang1"
+        ],
+        "simplified": "畲乡",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "畲乡",
+        "traditional": "畬鄉"
+      },
+      {
+        "line": 65000,
+        "priority": 30,
+        "raw_syllables": [
+          "yu2",
+          "xiang1"
+        ],
+        "simplified": "畲乡",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "畲乡",
+        "traditional": "畬鄉"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "yu",
+      "xiang"
+    ],
+    "word": "畲乡"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "瞓",
+        "known_readings": [
+          "fen"
+        ],
+        "position": 1,
+        "syllable": "xun"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 67683,
+        "priority": 30,
+        "raw_syllables": [
+          "yan3",
+          "xun4"
+        ],
+        "simplified": "眼瞓",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "眼瞓",
+        "traditional": "眼瞓"
+      }
+    ],
+    "selected": false,
+    "syllables": [
+      "yan",
+      "xun"
+    ],
+    "word": "眼瞓"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "睥",
+        "known_readings": [
+          "pi"
+        ],
+        "position": 0,
+        "syllable": "bi"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 68220,
+        "priority": 100,
+        "raw_syllables": [
+          "bì",
+          "nì"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "睥睨"
+      },
+      {
+        "line": 73725,
+        "priority": 40,
+        "raw_syllables": [
+          "bi4",
+          "ni4"
+        ],
+        "simplified": "睥睨",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "睥睨",
+        "traditional": "睥睨"
+      },
+      {
+        "line": 67836,
+        "priority": 30,
+        "raw_syllables": [
+          "bi4",
+          "ni4"
+        ],
+        "simplified": "睥睨",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "睥睨",
+        "traditional": "睥睨"
+      }
+    ],
+    "selected": false,
+    "syllables": [
+      "bi",
+      "ni"
+    ],
+    "word": "睥睨"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "瞓",
+        "known_readings": [
+          "fen"
+        ],
+        "position": 0,
+        "syllable": "xun"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 67904,
+        "priority": 30,
+        "raw_syllables": [
+          "xun4",
+          "jiao4"
+        ],
+        "simplified": "瞓觉",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "瞓覺",
+        "traditional": "瞓覺"
+      }
+    ],
+    "selected": false,
+    "syllables": [
+      "xun",
+      "jiao"
+    ],
+    "word": "瞓覺"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "瞓",
+        "known_readings": [
+          "fen"
+        ],
+        "position": 0,
+        "syllable": "xun"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 67904,
+        "priority": 30,
+        "raw_syllables": [
+          "xun4",
+          "jiao4"
+        ],
+        "simplified": "瞓觉",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "瞓觉",
+        "traditional": "瞓覺"
+      }
+    ],
+    "selected": false,
+    "syllables": [
+      "xun",
+      "jiao"
+    ],
+    "word": "瞓觉"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "硙",
+        "known_readings": [
+          "wei"
+        ],
+        "position": 0,
+        "syllable": "ai"
+      },
+      {
+        "character": "硙",
+        "known_readings": [
+          "wei"
+        ],
+        "position": 1,
+        "syllable": "ai"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 69321,
+        "priority": 100,
+        "raw_syllables": [
+          "ái",
+          "ái"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "硙硙"
+      },
+      {
+        "line": 80123,
+        "priority": 50,
+        "raw_syllables": [
+          "ai2",
+          "ai2"
+        ],
+        "simplified": "硙硙",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "硙硙",
+        "traditional": "磑磑"
+      },
+      {
+        "line": 74995,
+        "priority": 40,
+        "raw_syllables": [
+          "ai2",
+          "ai2"
+        ],
+        "simplified": "硙硙",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "硙硙",
+        "traditional": "磑磑"
+      },
+      {
+        "line": 68994,
+        "priority": 30,
+        "raw_syllables": [
+          "ai2",
+          "ai2"
+        ],
+        "simplified": "硙硙",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "硙硙",
+        "traditional": "磑磑"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "ai",
+      "ai"
+    ],
+    "word": "硙硙"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "沒",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 3,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 80578,
+        "priority": 50,
+        "raw_syllables": [
+          "shen2",
+          "chu1",
+          "gui3",
+          "mo4"
+        ],
+        "simplified": "神出鬼没",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "神出鬼沒",
+        "traditional": "神出鬼沒"
+      },
+      {
+        "line": 75414,
+        "priority": 40,
+        "raw_syllables": [
+          "shen2",
+          "chu1",
+          "gui3",
+          "mo4"
+        ],
+        "simplified": "神出鬼没",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "神出鬼沒",
+        "traditional": "神出鬼沒"
+      },
+      {
+        "line": 69402,
+        "priority": 30,
+        "raw_syllables": [
+          "shen2",
+          "chu1",
+          "gui3",
+          "mo4"
+        ],
+        "simplified": "神出鬼没",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "神出鬼沒",
+        "traditional": "神出鬼沒"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "shen",
+      "chu",
+      "gui",
+      "mo"
+    ],
+    "word": "神出鬼沒"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "身",
+        "known_readings": [
+          "shen",
+          "juan"
+        ],
+        "position": 3,
+        "syllable": "sheng"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 75996,
+        "priority": 40,
+        "raw_syllables": [
+          "si1",
+          "ding4",
+          "zhong1",
+          "sheng1"
+        ],
+        "simplified": "私定终身",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "私定終身",
+        "traditional": "私定終身"
+      },
+      {
+        "line": 69950,
+        "priority": 30,
+        "raw_syllables": [
+          "si1",
+          "ding4",
+          "zhong1",
+          "sheng1"
+        ],
+        "simplified": "私定终身",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "私定終身",
+        "traditional": "私定終身"
+      }
+    ],
+    "selected": false,
+    "syllables": [
+      "si",
+      "ding",
+      "zhong",
+      "sheng"
+    ],
+    "word": "私定終身"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "身",
+        "known_readings": [
+          "shen",
+          "juan"
+        ],
+        "position": 3,
+        "syllable": "sheng"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 70202,
+        "priority": 100,
+        "raw_syllables": [
+          "sī",
+          "dìng",
+          "zhōng",
+          "shēng"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "私定终身"
+      },
+      {
+        "line": 75996,
+        "priority": 40,
+        "raw_syllables": [
+          "si1",
+          "ding4",
+          "zhong1",
+          "sheng1"
+        ],
+        "simplified": "私定终身",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "私定终身",
+        "traditional": "私定終身"
+      },
+      {
+        "line": 69950,
+        "priority": 30,
+        "raw_syllables": [
+          "si1",
+          "ding4",
+          "zhong1",
+          "sheng1"
+        ],
+        "simplified": "私定终身",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "私定终身",
+        "traditional": "私定終身"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "si",
+      "ding",
+      "zhong",
+      "sheng"
+    ],
+    "word": "私定终身"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "爆",
+        "known_readings": [
+          "bao",
+          "bo"
+        ],
+        "position": 2,
+        "syllable": "zha"
+      },
+      {
+        "character": "炸",
+        "known_readings": [
+          "zha"
+        ],
+        "position": 3,
+        "syllable": "dan"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 72226,
+        "priority": 100,
+        "raw_syllables": [
+          "jiǎn",
+          "yì",
+          "zhà",
+          "dàn",
+          "zhuāng",
+          "zhì"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "简易爆炸装置"
+      },
+      {
+        "line": 78290,
+        "priority": 40,
+        "raw_syllables": [
+          "jian3",
+          "yi4",
+          "zha4",
+          "dan4",
+          "zhuang1",
+          "zhi4"
+        ],
+        "simplified": "简易爆炸装置",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "简易爆炸装置",
+        "traditional": "簡易爆炸裝置"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "jian",
+      "yi",
+      "zha",
+      "dan",
+      "zhuang",
+      "zhi"
+    ],
+    "word": "简易爆炸装置"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "爆",
+        "known_readings": [
+          "bao",
+          "bo"
+        ],
+        "position": 2,
+        "syllable": "zha"
+      },
+      {
+        "character": "炸",
+        "known_readings": [
+          "zha"
+        ],
+        "position": 3,
+        "syllable": "dan"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 78290,
+        "priority": 40,
+        "raw_syllables": [
+          "jian3",
+          "yi4",
+          "zha4",
+          "dan4",
+          "zhuang1",
+          "zhi4"
+        ],
+        "simplified": "简易爆炸装置",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "簡易爆炸裝置",
+        "traditional": "簡易爆炸裝置"
+      }
+    ],
+    "selected": false,
+    "syllables": [
+      "jian",
+      "yi",
+      "zha",
+      "dan",
+      "zhuang",
+      "zhi"
+    ],
+    "word": "簡易爆炸裝置"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "鳽",
+        "known_readings": [
+          "jian",
+          "qian",
+          "zhan"
+        ],
+        "position": 3,
+        "syllable": "yan"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 73550,
+        "priority": 100,
+        "raw_syllables": [
+          "zǐ",
+          "bèi",
+          "wěi",
+          "yán"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "紫背苇鳽"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "zi",
+      "bei",
+      "wei",
+      "yan"
+    ],
+    "word": "紫背苇鳽"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "絛",
+        "known_readings": [
+          "tao"
+        ],
+        "position": 0,
+        "syllable": "di"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 85787,
+        "priority": 50,
+        "raw_syllables": [
+          "di2",
+          "lun2"
+        ],
+        "simplified": "绦纶",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "絛綸",
+        "traditional": "絛綸"
+      },
+      {
+        "line": 80203,
+        "priority": 40,
+        "raw_syllables": [
+          "di2",
+          "lun2"
+        ],
+        "simplified": "绦纶",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "絛綸",
+        "traditional": "絛綸"
+      },
+      {
+        "line": 73789,
+        "priority": 30,
+        "raw_syllables": [
+          "di2",
+          "lun2"
+        ],
+        "simplified": "绦纶",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "絛綸",
+        "traditional": "絛綸"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "di",
+      "lun"
+    ],
+    "word": "絛綸"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "綠",
+        "known_readings": [
+          "lv"
+        ],
+        "position": 0,
+        "syllable": "lu"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 86172,
+        "priority": 50,
+        "raw_syllables": [
+          "Lu4",
+          "yuan2"
+        ],
+        "simplified": "绿园",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "綠園",
+        "traditional": "綠園"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "lu",
+      "yuan"
+    ],
+    "word": "綠園"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "綠",
+        "known_readings": [
+          "lv"
+        ],
+        "position": 0,
+        "syllable": "lu"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 86173,
+        "priority": 50,
+        "raw_syllables": [
+          "Lu4",
+          "yuan2",
+          "Qu1"
+        ],
+        "simplified": "绿园区",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "綠園區",
+        "traditional": "綠園區"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "lu",
+      "yuan",
+      "qu"
+    ],
+    "word": "綠園區"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "綠",
+        "known_readings": [
+          "lv"
+        ],
+        "position": 0,
+        "syllable": "lu"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 86191,
+        "priority": 50,
+        "raw_syllables": [
+          "Lu4",
+          "lin2"
+        ],
+        "simplified": "绿林",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "綠林",
+        "traditional": "綠林"
+      },
+      {
+        "line": 80588,
+        "priority": 40,
+        "raw_syllables": [
+          "Lu4",
+          "lin2"
+        ],
+        "simplified": "绿林",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "綠林",
+        "traditional": "綠林"
+      },
+      {
+        "line": 74145,
+        "priority": 30,
+        "raw_syllables": [
+          "Lu4",
+          "lin2"
+        ],
+        "simplified": "绿林",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "綠林",
+        "traditional": "綠林"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "lu",
+      "lin"
+    ],
+    "word": "綠林"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "綠",
+        "known_readings": [
+          "lv"
+        ],
+        "position": 0,
+        "syllable": "lu"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 86192,
+        "priority": 50,
+        "raw_syllables": [
+          "lu4",
+          "lin2",
+          "hao3",
+          "han4"
+        ],
+        "simplified": "绿林好汉",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "綠林好漢",
+        "traditional": "綠林好漢"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "lu",
+      "lin",
+      "hao",
+      "han"
+    ],
+    "word": "綠林好漢"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "綠",
+        "known_readings": [
+          "lv"
+        ],
+        "position": 0,
+        "syllable": "lu"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 86193,
+        "priority": 50,
+        "raw_syllables": [
+          "lu4",
+          "lin2",
+          "hao2",
+          "ke4"
+        ],
+        "simplified": "绿林豪客",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "綠林豪客",
+        "traditional": "綠林豪客"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "lu",
+      "lin",
+      "hao",
+      "ke"
+    ],
+    "word": "綠林豪客"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "绦",
+        "known_readings": [
+          "tao"
+        ],
+        "position": 0,
+        "syllable": "di"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 73976,
+        "priority": 100,
+        "raw_syllables": [
+          "dí",
+          "lún"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "绦纶"
+      },
+      {
+        "line": 85787,
+        "priority": 50,
+        "raw_syllables": [
+          "di2",
+          "lun2"
+        ],
+        "simplified": "绦纶",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "绦纶",
+        "traditional": "絛綸"
+      },
+      {
+        "line": 80203,
+        "priority": 40,
+        "raw_syllables": [
+          "di2",
+          "lun2"
+        ],
+        "simplified": "绦纶",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "绦纶",
+        "traditional": "絛綸"
+      },
+      {
+        "line": 73789,
+        "priority": 30,
+        "raw_syllables": [
+          "di2",
+          "lun2"
+        ],
+        "simplified": "绦纶",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "绦纶",
+        "traditional": "絛綸"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "di",
+      "lun"
+    ],
+    "word": "绦纶"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "剎",
+        "known_readings": [
+          "sha"
+        ],
+        "position": 1,
+        "syllable": "cha"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 87694,
+        "priority": 50,
+        "raw_syllables": [
+          "luo2",
+          "cha4"
+        ],
+        "simplified": "罗刹",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "羅剎",
+        "traditional": "羅剎"
+      },
+      {
+        "line": 82017,
+        "priority": 40,
+        "raw_syllables": [
+          "luo2",
+          "cha4"
+        ],
+        "simplified": "罗刹",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "羅剎",
+        "traditional": "羅剎"
+      },
+      {
+        "line": 75468,
+        "priority": 30,
+        "raw_syllables": [
+          "luo2",
+          "cha4"
+        ],
+        "simplified": "罗刹",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "羅剎",
+        "traditional": "羅剎"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "luo",
+      "cha"
+    ],
+    "word": "羅剎"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "美",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 0,
+        "syllable": "mai"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 75897,
+        "priority": 100,
+        "raw_syllables": [
+          "mǎi",
+          "nài",
+          "mǐn"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "美耐皿"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "mai",
+      "nai",
+      "min"
+    ],
+    "word": "美耐皿"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "椎",
+        "known_readings": [
+          "chui",
+          "zhui"
+        ],
+        "position": 1,
+        "syllable": "zhu"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 78070,
+        "priority": 100,
+        "raw_syllables": [
+          "jǐ",
+          "zhù",
+          "cè",
+          "wān"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "脊椎侧弯"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "ji",
+      "zhu",
+      "ce",
+      "wan"
+    ],
+    "word": "脊椎侧弯"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "殻",
+        "known_readings": [
+          "qiao"
+        ],
+        "position": 1,
+        "syllable": "ke"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 78207,
+        "priority": 30,
+        "raw_syllables": [
+          "nao3",
+          "ke2"
+        ],
+        "simplified": "脑壳",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "腦殻",
+        "traditional": "腦殻"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "nao",
+      "ke"
+    ],
+    "word": "腦殻"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "腼",
+        "known_readings": [
+          "mian"
+        ],
+        "position": 0,
+        "syllable": "tian"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 100972,
+        "priority": 100,
+        "raw_syllables": [
+          "tiǎn",
+          "liǎn"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "腼脸"
+      },
+      {
+        "line": 110348,
+        "priority": 40,
+        "raw_syllables": [
+          "tian3",
+          "lian3"
+        ],
+        "simplified": "腼脸",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "腼脸",
+        "traditional": "靦臉"
+      },
+      {
+        "line": 101661,
+        "priority": 30,
+        "raw_syllables": [
+          "tian3",
+          "lian3"
+        ],
+        "simplified": "腼脸",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "腼脸",
+        "traditional": "靦臉"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "tian",
+      "lian"
+    ],
+    "word": "腼脸"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "想",
+        "known_readings": [
+          "xiang"
+        ],
+        "position": 1,
+        "syllable": "xian"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 78689,
+        "priority": 100,
+        "raw_syllables": [
+          "yì",
+          "xiǎn",
+          "kuáng"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "臆想狂"
+      },
+      {
+        "line": 85457,
+        "priority": 40,
+        "raw_syllables": [
+          "yi4",
+          "xian3",
+          "kuang2"
+        ],
+        "simplified": "臆想狂",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "臆想狂",
+        "traditional": "臆想狂"
+      },
+      {
+        "line": 78590,
+        "priority": 30,
+        "raw_syllables": [
+          "yi4",
+          "xian3",
+          "kuang2"
+        ],
+        "simplified": "臆想狂",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "臆想狂",
+        "traditional": "臆想狂"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "yi",
+      "xian",
+      "kuang"
+    ],
+    "word": "臆想狂"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "舺",
+        "known_readings": [
+          "xia"
+        ],
+        "position": 1,
+        "syllable": "jia"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 79945,
+        "priority": 100,
+        "raw_syllables": [
+          "měng",
+          "jiǎ"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "艋舺"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "meng",
+      "jia"
+    ],
+    "word": "艋舺"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "藭",
+        "known_readings": [
+          "qiong"
+        ],
+        "position": 1,
+        "syllable": "xiong"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 80052,
+        "priority": 30,
+        "raw_syllables": [
+          "qiong2",
+          "xiong1"
+        ],
+        "simplified": "芎藭",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "芎藭",
+        "traditional": "芎藭"
+      }
+    ],
+    "selected": false,
+    "syllables": [
+      "qiong",
+      "xiong"
+    ],
+    "word": "芎藭"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "彿",
+        "known_readings": [
+          "fu"
+        ],
+        "position": 2,
+        "syllable": "fo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 89490,
+        "priority": 40,
+        "raw_syllables": [
+          "cai4",
+          "li3",
+          "fo2"
+        ],
+        "simplified": "蔡李佛",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "蔡李彿",
+        "traditional": "蔡李彿"
+      },
+      {
+        "line": 82322,
+        "priority": 30,
+        "raw_syllables": [
+          "cai4",
+          "li3",
+          "fo2"
+        ],
+        "simplified": "蔡李佛",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "蔡李彿",
+        "traditional": "蔡李彿"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "cai",
+      "li",
+      "fo"
+    ],
+    "word": "蔡李彿"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "蚵",
+        "known_readings": [
+          "he",
+          "ke"
+        ],
+        "position": 0,
+        "syllable": "e"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 83269,
+        "priority": 100,
+        "raw_syllables": [
+          "é",
+          "zi"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "蚵仔"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "e",
+      "zi"
+    ],
+    "word": "蚵仔"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "蚵",
+        "known_readings": [
+          "he",
+          "ke"
+        ],
+        "position": 0,
+        "syllable": "e"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 83270,
+        "priority": 100,
+        "raw_syllables": [
+          "é",
+          "zǐ",
+          "jiān"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "蚵仔煎"
+      },
+      {
+        "line": 97117,
+        "priority": 50,
+        "raw_syllables": [
+          "e2",
+          "zi3",
+          "jian1"
+        ],
+        "simplified": "蚵仔煎",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "蚵仔煎",
+        "traditional": "蚵仔煎"
+      },
+      {
+        "line": 90722,
+        "priority": 40,
+        "raw_syllables": [
+          "e2",
+          "zi3",
+          "jian1"
+        ],
+        "simplified": "蚵仔煎",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "蚵仔煎",
+        "traditional": "蚵仔煎"
+      },
+      {
+        "line": 83453,
+        "priority": 30,
+        "raw_syllables": [
+          "e2",
+          "zi3",
+          "jian1"
+        ],
+        "simplified": "蚵仔煎",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "蚵仔煎",
+        "traditional": "蚵仔煎"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "e",
+      "zi",
+      "jian"
+    ],
+    "word": "蚵仔煎"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "沒",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 1,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 84822,
+        "priority": 30,
+        "raw_syllables": [
+          "bei4",
+          "mo4",
+          "shou1"
+        ],
+        "simplified": "被没收",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "被沒收",
+        "traditional": "被沒收"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "bei",
+      "mo",
+      "shou"
+    ],
+    "word": "被沒收"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "幀",
+        "known_readings": [
+          "zheng"
+        ],
+        "position": 1,
+        "syllable": "zhen"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 98952,
+        "priority": 50,
+        "raw_syllables": [
+          "zhuang1",
+          "zhen1"
+        ],
+        "simplified": "装帧",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "裝幀",
+        "traditional": "裝幀"
+      },
+      {
+        "line": 92403,
+        "priority": 40,
+        "raw_syllables": [
+          "zhuang1",
+          "zhen1"
+        ],
+        "simplified": "装帧",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "裝幀",
+        "traditional": "裝幀"
+      },
+      {
+        "line": 85025,
+        "priority": 30,
+        "raw_syllables": [
+          "zhuang1",
+          "zhen1"
+        ],
+        "simplified": "装帧",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "裝幀",
+        "traditional": "裝幀"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "zhuang",
+      "zhen"
+    ],
+    "word": "裝幀"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "沒",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 1,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 99767,
+        "priority": 50,
+        "raw_syllables": [
+          "fu4",
+          "mo4"
+        ],
+        "simplified": "覆没",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "覆沒",
+        "traditional": "覆沒"
+      },
+      {
+        "line": 93160,
+        "priority": 40,
+        "raw_syllables": [
+          "fu4",
+          "mo4"
+        ],
+        "simplified": "覆没",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "覆沒",
+        "traditional": "覆沒"
+      },
+      {
+        "line": 85694,
+        "priority": 30,
+        "raw_syllables": [
+          "fu4",
+          "mo4"
+        ],
+        "simplified": "覆没",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "覆沒",
+        "traditional": "覆沒"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "fu",
+      "mo"
+    ],
+    "word": "覆沒"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "說",
+        "known_readings": [
+          "shuo"
+        ],
+        "position": 0,
+        "syllable": "shui"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 101480,
+        "priority": 50,
+        "raw_syllables": [
+          "shui4",
+          "ke4"
+        ],
+        "simplified": "说客",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "說客",
+        "traditional": "說客"
+      },
+      {
+        "line": 94808,
+        "priority": 40,
+        "raw_syllables": [
+          "shui4",
+          "ke4"
+        ],
+        "simplified": "说客",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "說客",
+        "traditional": "說客"
+      },
+      {
+        "line": 87220,
+        "priority": 30,
+        "raw_syllables": [
+          "shui4",
+          "ke4"
+        ],
+        "simplified": "说客",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "說客",
+        "traditional": "說客"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "shui",
+      "ke"
+    ],
+    "word": "說客"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "謎",
+        "known_readings": [
+          "mi"
+        ],
+        "position": 0,
+        "syllable": "mei"
+      }
+    ],
+    "provenance": [
+      {
+        "alignment_policy": "cedict-erhua-r5-to-er-compatibility",
+        "line": 102016,
+        "priority": 50,
+        "raw_syllables": [
+          "mei4",
+          "r5"
+        ],
+        "simplified": "谜儿",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "謎兒",
+        "traditional": "謎兒"
+      },
+      {
+        "alignment_policy": "cedict-erhua-r5-to-er-compatibility",
+        "line": 95300,
+        "priority": 40,
+        "raw_syllables": [
+          "mei4",
+          "r5"
+        ],
+        "simplified": "谜儿",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "謎兒",
+        "traditional": "謎兒"
+      },
+      {
+        "alignment_policy": "cedict-erhua-r5-to-er-compatibility",
+        "line": 87675,
+        "priority": 30,
+        "raw_syllables": [
+          "mei4",
+          "r5"
+        ],
+        "simplified": "谜儿",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "謎兒",
+        "traditional": "謎兒"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "mei",
+      "er"
+    ],
+    "word": "謎兒"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "麿",
+        "known_readings": [
+          "mi"
+        ],
+        "position": 3,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 91482,
+        "priority": 100,
+        "raw_syllables": [
+          "jìn",
+          "wèi",
+          "wén",
+          "mǒ"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "近卫文麿"
+      },
+      {
+        "line": 107146,
+        "priority": 50,
+        "raw_syllables": [
+          "Jin4",
+          "wei4",
+          "Wen2",
+          "mo3"
+        ],
+        "simplified": "近卫文麿",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "近卫文麿",
+        "traditional": "近衛文麿"
+      },
+      {
+        "line": 99996,
+        "priority": 40,
+        "raw_syllables": [
+          "Jin4",
+          "wei4",
+          "Wen2",
+          "mo3"
+        ],
+        "simplified": "近卫文麿",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "近卫文麿",
+        "traditional": "近衛文麿"
+      },
+      {
+        "line": 92021,
+        "priority": 30,
+        "raw_syllables": [
+          "Jin4",
+          "wei4",
+          "Wen2",
+          "mo3"
+        ],
+        "simplified": "近卫文麿",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "近卫文麿",
+        "traditional": "近衛文麿"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "jin",
+      "wei",
+      "wen",
+      "mo"
+    ],
+    "word": "近卫文麿"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "麿",
+        "known_readings": [
+          "mi"
+        ],
+        "position": 3,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 107146,
+        "priority": 50,
+        "raw_syllables": [
+          "Jin4",
+          "wei4",
+          "Wen2",
+          "mo3"
+        ],
+        "simplified": "近卫文麿",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "近衛文麿",
+        "traditional": "近衛文麿"
+      },
+      {
+        "line": 99996,
+        "priority": 40,
+        "raw_syllables": [
+          "Jin4",
+          "wei4",
+          "Wen2",
+          "mo3"
+        ],
+        "simplified": "近卫文麿",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "近衛文麿",
+        "traditional": "近衛文麿"
+      },
+      {
+        "line": 92021,
+        "priority": 30,
+        "raw_syllables": [
+          "Jin4",
+          "wei4",
+          "Wen2",
+          "mo3"
+        ],
+        "simplified": "近卫文麿",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "近衛文麿",
+        "traditional": "近衛文麿"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "jin",
+      "wei",
+      "wen",
+      "mo"
+    ],
+    "word": "近衛文麿"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "說",
+        "known_readings": [
+          "shuo"
+        ],
+        "position": 1,
+        "syllable": "shui"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 108502,
+        "priority": 50,
+        "raw_syllables": [
+          "you2",
+          "shui4"
+        ],
+        "simplified": "游说",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "遊說",
+        "traditional": "遊說"
+      },
+      {
+        "line": 101249,
+        "priority": 40,
+        "raw_syllables": [
+          "you2",
+          "shui4"
+        ],
+        "simplified": "游说",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "遊說",
+        "traditional": "遊說"
+      },
+      {
+        "line": 93207,
+        "priority": 30,
+        "raw_syllables": [
+          "you2",
+          "shui4"
+        ],
+        "simplified": "游说",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "遊說",
+        "traditional": "遊說"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "you",
+      "shui"
+    ],
+    "word": "遊說"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "說",
+        "known_readings": [
+          "shuo"
+        ],
+        "position": 1,
+        "syllable": "shui"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 108503,
+        "priority": 50,
+        "raw_syllables": [
+          "you2",
+          "shui4",
+          "ji2",
+          "tuan2"
+        ],
+        "simplified": "游说集团",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "遊說集團",
+        "traditional": "遊說集團"
+      },
+      {
+        "line": 101250,
+        "priority": 40,
+        "raw_syllables": [
+          "you2",
+          "shui4",
+          "ji2",
+          "tuan2"
+        ],
+        "simplified": "游说集团",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "遊說集團",
+        "traditional": "遊說集團"
+      },
+      {
+        "line": 93208,
+        "priority": 30,
+        "raw_syllables": [
+          "you2",
+          "shui4",
+          "ji2",
+          "tuan2"
+        ],
+        "simplified": "游说集团",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "遊說集團",
+        "traditional": "遊說集團"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "you",
+      "shui",
+      "ji",
+      "tuan"
+    ],
+    "word": "遊說集團"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "麼",
+        "known_readings": [
+          "me"
+        ],
+        "position": 1,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "alignment_policy": "cedict-erhua-r5-to-er-compatibility",
+        "line": 109759,
+        "priority": 50,
+        "raw_syllables": [
+          "wa3",
+          "mo2",
+          "r5"
+        ],
+        "simplified": "邷么儿",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "邷麼兒",
+        "traditional": "邷麼兒"
+      },
+      {
+        "alignment_policy": "cedict-erhua-r5-to-er-compatibility",
+        "line": 102440,
+        "priority": 40,
+        "raw_syllables": [
+          "wa3",
+          "mo2",
+          "r5"
+        ],
+        "simplified": "邷么儿",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "邷麼兒",
+        "traditional": "邷麼兒"
+      },
+      {
+        "alignment_policy": "cedict-erhua-r5-to-er-compatibility",
+        "line": 94320,
+        "priority": 30,
+        "raw_syllables": [
+          "wa3",
+          "mo2",
+          "r5"
+        ],
+        "simplified": "邷么儿",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "邷麼兒",
+        "traditional": "邷麼兒"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "wa",
+      "mo",
+      "er"
+    ],
+    "word": "邷麼兒"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "釜",
+        "known_readings": [
+          "fu"
+        ],
+        "position": 0,
+        "syllable": "jin"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 95864,
+        "priority": 30,
+        "raw_syllables": [
+          "jin3",
+          "di3",
+          "you2",
+          "yu2"
+        ],
+        "simplified": "釜底游鱼",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "釜底游魚",
+        "traditional": "釜底游魚"
+      }
+    ],
+    "selected": false,
+    "syllables": [
+      "jin",
+      "di",
+      "you",
+      "yu"
+    ],
+    "word": "釜底游魚"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "釜",
+        "known_readings": [
+          "fu"
+        ],
+        "position": 0,
+        "syllable": "jin"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 95864,
+        "priority": 30,
+        "raw_syllables": [
+          "jin3",
+          "di3",
+          "you2",
+          "yu2"
+        ],
+        "simplified": "釜底游鱼",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "釜底游鱼",
+        "traditional": "釜底游魚"
+      }
+    ],
+    "selected": false,
+    "syllables": [
+      "jin",
+      "di",
+      "you",
+      "yu"
+    ],
+    "word": "釜底游鱼"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "桡",
+        "known_readings": [
+          "rao"
+        ],
+        "position": 1,
+        "syllable": "nao"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 114447,
+        "priority": 50,
+        "raw_syllables": [
+          "zu3",
+          "nao2"
+        ],
+        "simplified": "阻桡",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "阻桡",
+        "traditional": "阻橈"
+      }
+    ],
+    "selected": false,
+    "syllables": [
+      "zu",
+      "nao"
+    ],
+    "word": "阻桡"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "沒",
+        "known_readings": [
+          "mei"
+        ],
+        "position": 1,
+        "syllable": "mo"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 115738,
+        "priority": 50,
+        "raw_syllables": [
+          "yin3",
+          "mo4"
+        ],
+        "simplified": "隐没",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "隱沒",
+        "traditional": "隱沒"
+      },
+      {
+        "line": 108076,
+        "priority": 40,
+        "raw_syllables": [
+          "yin3",
+          "mo4"
+        ],
+        "simplified": "隐没",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "隱沒",
+        "traditional": "隱沒"
+      },
+      {
+        "line": 99528,
+        "priority": 30,
+        "raw_syllables": [
+          "yin3",
+          "mo4"
+        ],
+        "simplified": "隐没",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "隱沒",
+        "traditional": "隱沒"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "yin",
+      "mo"
+    ],
+    "word": "隱沒"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "价",
+        "known_readings": [
+          "jia",
+          "jie"
+        ],
+        "position": 2,
+        "syllable": "ga"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 100197,
+        "priority": 100,
+        "raw_syllables": [
+          "zhèn",
+          "tiān",
+          "ga",
+          "xiǎng"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "震天价响"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "zhen",
+      "tian",
+      "ga",
+      "xiang"
+    ],
+    "word": "震天价响"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "殻",
+        "known_readings": [
+          "qiao"
+        ],
+        "position": 3,
+        "syllable": "ke"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 105325,
+        "priority": 30,
+        "raw_syllables": [
+          "gui3",
+          "mo1",
+          "nao3",
+          "ke2"
+        ],
+        "simplified": "鬼摸脑壳",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "鬼摸腦殻",
+        "traditional": "鬼摸腦殻"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "gui",
+      "mo",
+      "nao",
+      "ke"
+    ],
+    "word": "鬼摸腦殻"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "綠",
+        "known_readings": [
+          "lv"
+        ],
+        "position": 1,
+        "syllable": "lu"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 123156,
+        "priority": 50,
+        "raw_syllables": [
+          "Ya1",
+          "lu4",
+          "Jiang1"
+        ],
+        "simplified": "鸭绿江",
+        "source_id": "cc-cedict-official-2026",
+        "source_key": "鴨綠江",
+        "traditional": "鴨綠江"
+      },
+      {
+        "line": 114962,
+        "priority": 40,
+        "raw_syllables": [
+          "Ya1",
+          "lu4",
+          "Jiang1"
+        ],
+        "simplified": "鸭绿江",
+        "source_id": "cc-cedict-historical-2019",
+        "source_key": "鴨綠江",
+        "traditional": "鴨綠江"
+      },
+      {
+        "line": 105958,
+        "priority": 30,
+        "raw_syllables": [
+          "Ya1",
+          "lu4",
+          "Jiang1"
+        ],
+        "simplified": "鸭绿江",
+        "source_id": "cc-cedict-historical-2013",
+        "source_key": "鴨綠江",
+        "traditional": "鴨綠江"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "ya",
+      "lu",
+      "jiang"
+    ],
+    "word": "鴨綠江"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "鳽",
+        "known_readings": [
+          "jian",
+          "qian",
+          "zhan"
+        ],
+        "position": 2,
+        "syllable": "yan"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 105631,
+        "priority": 100,
+        "raw_syllables": [
+          "huáng",
+          "wěi",
+          "yán"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "黄苇鳽"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "huang",
+      "wei",
+      "yan"
+    ],
+    "word": "黄苇鳽"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "鳽",
+        "known_readings": [
+          "jian",
+          "qian",
+          "zhan"
+        ],
+        "position": 2,
+        "syllable": "yan"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 105779,
+        "priority": 100,
+        "raw_syllables": [
+          "hēi",
+          "guān",
+          "yán"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "黑冠鳽"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "hei",
+      "guan",
+      "yan"
+    ],
+    "word": "黑冠鳽"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "鳽",
+        "known_readings": [
+          "jian",
+          "qian",
+          "zhan"
+        ],
+        "position": 1,
+        "syllable": "yan"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 106018,
+        "priority": 100,
+        "raw_syllables": [
+          "hēi",
+          "yán"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "黑鳽"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "hei",
+      "yan"
+    ],
+    "word": "黑鳽"
+  },
+  {
+    "mismatches": [
+      {
+        "character": "𥆧",
+        "known_readings": [
+          "run"
+        ],
+        "position": 0,
+        "syllable": "shun"
+      }
+    ],
+    "provenance": [
+      {
+        "line": 68287,
+        "priority": 100,
+        "raw_syllables": [
+          "shùn",
+          "xī"
+        ],
+        "source_id": "cc-cedict",
+        "source_key": "𥆧息"
+      }
+    ],
+    "selected": true,
+    "syllables": [
+      "shun",
+      "xi"
+    ],
+    "word": "𥆧息"
+  }
+]

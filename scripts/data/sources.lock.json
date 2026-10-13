@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "coverage_baseline": {
+    "id": "released-v0.0.8-coverage-only",
+    "path": "scripts/data/baselines/v0.0.8-pinyin_words.csv",
+    "sha256": "c296b883c47b61ab8e6cfa051ba8e4f9456704f9408d383d0462e4294e66decf",
+    "repository": "https://github.com/aiyou178/pg_pinyin",
+    "revision": "7398408499cab61c6bcbc047804d72f00fd71f6f",
+    "ref": "v0.0.8",
+    "purpose": "Key coverage and old-reading comparison only; never a pronunciation source",
+    "ancestor_repository": "https://github.com/tsroten/dragonmapper",
+    "ancestor_revision": "bf0034e0f09b1bbe46a6c8dcf32a35dcd92b9f86",
+    "ancestor_path": "src/dragonmapper/data/hanzi_pinyin_words.tsv",
+    "ancestor_sha256": "c19b4acf191f3508fce0369ed37098e70e7ae6031a0f4eb652862b93cba83e10"
+  },
+  "initial_p0": {
+    "id": "initial-p0-2026-10-13",
+    "words_sha256": "d7253c31fd39688f75e369b63a06974a430a3ba11b238609a61f41ca2151698d",
+    "source_ids": ["phrase-overwrite", "phrase-pinyin", "cc-cedict"]
+  },
+  "character_source": {
+    "id": "pinyin-data",
+    "path": "third_party/pinyin-data/pinyin.txt",
+    "sha256": "621f8ca9eff8519f47e2b17b564fd318161e13bca07eea8c8e04993cd5d3b52e",
+    "repository": "https://github.com/mozillazg/pinyin-data",
+    "revision": "923b108dc5d45dee061324c011b478fb649f8b73",
+    "license": "MIT; upstream data notices apply",
+    "license_url": "https://github.com/mozillazg/pinyin-data/blob/923b108dc5d45dee061324c011b478fb649f8b73/LICENSE"
+  },
+  "phrase_sources": [
+    {
+      "id": "phrase-overwrite",
+      "path": "third_party/phrase-pinyin-data/overwrite.txt",
+      "sha256": "b0edd770620bc63ba0002df624902fa87aa6d1c200798992a78695ca85f06605",
+      "repository": "https://github.com/mozillazg/phrase-pinyin-data",
+      "revision": "cee0ed6e6e4898580cafd2bd5e3723e20b214aa0",
+      "license": "MIT; upstream data notices apply",
+      "priority": 300,
+      "format": "phrase"
+    },
+    {
+      "id": "phrase-pinyin",
+      "path": "third_party/phrase-pinyin-data/pinyin.txt",
+      "sha256": "dcc769607c220b312fea3e71cb63421298b4b891b1f7356a95ab58f2c96fff81",
+      "repository": "https://github.com/mozillazg/phrase-pinyin-data",
+      "revision": "cee0ed6e6e4898580cafd2bd5e3723e20b214aa0",
+      "license": "MIT; upstream data notices apply",
+      "priority": 200,
+      "format": "phrase"
+    },
+    {
+      "id": "cc-cedict",
+      "path": "third_party/phrase-pinyin-data/cc_cedict.txt",
+      "sha256": "c3ddc86bb514e9ef5203d003960faf6965c185e03af9453fdb9cbd025a5814bd",
+      "repository": "https://github.com/mozillazg/phrase-pinyin-data",
+      "revision": "cee0ed6e6e4898580cafd2bd5e3723e20b214aa0",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "CC-CEDICT contributors; published by MDBG; boundary-preserving extract by phrase-pinyin-data",
+      "upstream_url": "https://www.mdbg.net/chinese/dictionary?page=cc-cedict",
+      "priority": 100,
+      "format": "phrase"
+    },
+    {
+      "id": "cc-cedict-official-2026",
+      "path": "third_party/cc-cedict/cedict-2026-10-12.u8.gz",
+      "sha256": "a04c03deb9aab384df952d99194099a17d628ff57d11c8b132fe0519e691a247",
+      "compression": "gzip",
+      "decoded_sha256": "33d888c3c3284833772e853194ac81844ddb754e3f5a26637e769f8b7060d532",
+      "repository": "https://www.mdbg.net/chinese/dictionary?page=cc-cedict",
+      "revision": "2026-10-12T08:13:53Z",
+      "download_url": "https://www.mdbg.net/chinese/export/cedict/cedict_1_0_ts_utf-8_mdbg.txt.gz",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "CC-CEDICT contributors; published by MDBG",
+      "priority": 50,
+      "format": "cedict",
+      "restore_baseline_only": true,
+      "headword_aliases": [{
+        "word": "遵时養晦",
+        "source_key": "遵时养晦",
+        "line": 109235,
+        "reason": "Preserve the released mixed-script key using the explicitly paired traditional/simplified source record"
+      }]
+    },
+    {
+      "id": "cc-cedict-historical-2019",
+      "path": "third_party/cc-cedict/cedict-2019-05-27.u8.gz",
+      "sha256": "4dd5ae2c10b00dde188e3d9cf5e89f1799a31e741532675663585262d39b21a0",
+      "compression": "gzip",
+      "decoded_sha256": "781c936c17134353a97bbb093ede6784124ac58ec50724d35fd21af3ebe7fee9",
+      "repository": "https://github.com/yishn/chinese-tokenizer",
+      "revision": "1deb020ba7629a3be5d4e6aa61e73affad60f504",
+      "snapshot_date": "2019-05-27T20:06:35Z",
+      "download_url": "https://raw.githubusercontent.com/yishn/chinese-tokenizer/1deb020ba7629a3be5d4e6aa61e73affad60f504/tests/cedict_ts.u8",
+      "upstream_url": "https://www.mdbg.net/chinese/dictionary?page=cc-cedict",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "CC-CEDICT contributors; published by MDBG; historical raw mirror by yishn/chinese-tokenizer",
+      "priority": 40,
+      "format": "cedict",
+      "restore_baseline_only": true
+    },
+    {
+      "id": "cc-cedict-historical-2013",
+      "path": "third_party/cc-cedict/cedict-2013-08-28.u8.gz",
+      "sha256": "15838c0880fc7b3f520d95c57fc2b3e0277dd8d7fe3e620c68f64cd93e5a0cd2",
+      "compression": "gzip",
+      "decoded_sha256": "8b77bf4833807411e7f221c007b97e7982955c790e9655dd4afda36b56283147",
+      "repository": "https://github.com/regisb/CC-CEDICT",
+      "revision": "a8e7ebcc6b7d19f6a615f9f1e8b1e3df6fad1e38",
+      "snapshot_date": "2013-08-28T08:05:53Z",
+      "download_url": "https://raw.githubusercontent.com/regisb/CC-CEDICT/a8e7ebcc6b7d19f6a615f9f1e8b1e3df6fad1e38/cedict_ts.u8",
+      "upstream_url": "https://www.mdbg.net/chinese/dictionary?page=cc-cedict",
+      "license": "CC-BY-SA-3.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+      "attribution": "CC-CEDICT contributors; published by MDBG; historical raw mirror by regisb/CC-CEDICT",
+      "priority": 30,
+      "format": "cedict",
+      "restore_baseline_only": true
+    }
+  ]
+}
