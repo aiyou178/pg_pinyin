@@ -1,0 +1,199 @@
+{
+  "counts": {
+    "accepted_phrase_rows": 618507,
+    "character_reading_mismatch_sequences": 160,
+    "characters": 44435,
+    "conflicting_words": 576,
+    "coverage": {
+      "baseline_initial_common_words": 93611,
+      "baseline_words": 157702,
+      "candidate_words": 196188,
+      "initial_p0_words": 132097,
+      "initial_p0_words_missing_from_candidate": 0,
+      "missing_from_candidate_words": 0,
+      "missing_from_initial_p0_words": 64091,
+      "new_words": 38486,
+      "restoration_primary_sources": {
+        "cc-cedict-historical-2013": 1617,
+        "cc-cedict-historical-2019": 3518,
+        "cc-cedict-official-2026": 58956
+      },
+      "restored_corrected_words": 2223,
+      "restored_old_syllable_count_mismatches": 1152,
+      "restored_unchanged_words": 61868,
+      "restored_written_forms": {
+        "mixed_alias": 1,
+        "simplified": 823,
+        "simplified+traditional": 229,
+        "traditional": 63038
+      },
+      "retained_changed_words": 2998,
+      "unresolved_words": 0
+    },
+    "distinct_phrase_readings": 196766,
+    "rejected_rows": 0,
+    "rejections_by_reason": {},
+    "token_rows": 447,
+    "words": 196188
+  },
+  "coverage_baseline": {
+    "ancestor_path": "src/dragonmapper/data/hanzi_pinyin_words.tsv",
+    "ancestor_repository": "https://github.com/tsroten/dragonmapper",
+    "ancestor_revision": "bf0034e0f09b1bbe46a6c8dcf32a35dcd92b9f86",
+    "ancestor_sha256": "c19b4acf191f3508fce0369ed37098e70e7ae6031a0f4eb652862b93cba83e10",
+    "id": "released-v0.0.8-coverage-only",
+    "path": "scripts/data/baselines/v0.0.8-pinyin_words.csv",
+    "purpose": "Key coverage and old-reading comparison only; never a pronunciation source",
+    "ref": "v0.0.8",
+    "repository": "https://github.com/aiyou178/pg_pinyin",
+    "revision": "7398408499cab61c6bcbc047804d72f00fd71f6f",
+    "sha256": "c296b883c47b61ab8e6cfa051ba8e4f9456704f9408d383d0462e4294e66decf"
+  },
+  "generator_sha256": "4a18eb47921b204a92f88298d2717b781aa85a9c519d6f04f57a7bb26114dddb",
+  "implementation_sha256": {
+    "coverage_audit.py": "8e4bc8fcf6f401a415463dab53365796b3afb0606916e20f1e2c5b55fa2b260d",
+    "generate_extension_data.py": "4a18eb47921b204a92f88298d2717b781aa85a9c519d6f04f57a7bb26114dddb"
+  },
+  "normalization": "nfd-toneless-v1-preserve-umlaut",
+  "outputs": {
+    "pinyin_mapping.csv": {
+      "bytes": 499973,
+      "sha256": "dda0962b573496b5bf9ba41acd0835de3dcbf8598cb236ac705c2474c085a0b5"
+    },
+    "pinyin_token.csv": {
+      "bytes": 2736,
+      "sha256": "9a891b4a1f348ba9cfe24074d61152dcc8e8e87e01df58b4770966bb237a9dfb"
+    },
+    "pinyin_words.csv": {
+      "bytes": 4255057,
+      "sha256": "b8fc4f84b0480c7ee46ce9a8367db49a13b849568d949822ef4fd6777d3810d7"
+    },
+    "reports/char_reading_mismatches.json": {
+      "bytes": 160242,
+      "sha256": "c1cdd8bda3b1f345af54a4ab729a5d6cbe5ccd0feba7e0bb697732863e95e89d"
+    },
+    "reports/conflicts.json": {
+      "bytes": 1033596,
+      "sha256": "774abe7c7cc4456bcaad8b55655e0128f4591b3a8360492b0612c9d582993d0a"
+    },
+    "reports/coverage_audit.json": {
+      "bytes": 48056885,
+      "sha256": "52f1a1af4820d8df8e77b2d2d257049e763dc05d4b506a65d43ee5b3eb837541"
+    },
+    "reports/coverage_audit.md": {
+      "bytes": 2381,
+      "sha256": "3bfab6923d7af8af7e65cc421a045c1f900b0391ebb7cd1b2210df17ec82cc32"
+    },
+    "reports/rejected.json": {
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    }
+  },
+  "phrase_selection": "priority-desc-source-id-asc-line-asc",
+  "schema_version": 1,
+  "sources": [
+    {
+      "attribution": "CC-CEDICT contributors; published by MDBG; boundary-preserving extract by phrase-pinyin-data",
+      "format": "phrase",
+      "id": "cc-cedict",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "path": "third_party/phrase-pinyin-data/cc_cedict.txt",
+      "priority": 100,
+      "repository": "https://github.com/mozillazg/phrase-pinyin-data",
+      "revision": "cee0ed6e6e4898580cafd2bd5e3723e20b214aa0",
+      "sha256": "c3ddc86bb514e9ef5203d003960faf6965c185e03af9453fdb9cbd025a5814bd",
+      "upstream_url": "https://www.mdbg.net/chinese/dictionary?page=cc-cedict"
+    },
+    {
+      "attribution": "CC-CEDICT contributors; published by MDBG; historical raw mirror by regisb/CC-CEDICT",
+      "compression": "gzip",
+      "decoded_sha256": "8b77bf4833807411e7f221c007b97e7982955c790e9655dd4afda36b56283147",
+      "download_url": "https://raw.githubusercontent.com/regisb/CC-CEDICT/a8e7ebcc6b7d19f6a615f9f1e8b1e3df6fad1e38/cedict_ts.u8",
+      "format": "cedict",
+      "id": "cc-cedict-historical-2013",
+      "license": "CC-BY-SA-3.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+      "path": "third_party/cc-cedict/cedict-2013-08-28.u8.gz",
+      "priority": 30,
+      "repository": "https://github.com/regisb/CC-CEDICT",
+      "restore_baseline_only": true,
+      "revision": "a8e7ebcc6b7d19f6a615f9f1e8b1e3df6fad1e38",
+      "sha256": "15838c0880fc7b3f520d95c57fc2b3e0277dd8d7fe3e620c68f64cd93e5a0cd2",
+      "snapshot_date": "2013-08-28T08:05:53Z",
+      "upstream_url": "https://www.mdbg.net/chinese/dictionary?page=cc-cedict"
+    },
+    {
+      "attribution": "CC-CEDICT contributors; published by MDBG; historical raw mirror by yishn/chinese-tokenizer",
+      "compression": "gzip",
+      "decoded_sha256": "781c936c17134353a97bbb093ede6784124ac58ec50724d35fd21af3ebe7fee9",
+      "download_url": "https://raw.githubusercontent.com/yishn/chinese-tokenizer/1deb020ba7629a3be5d4e6aa61e73affad60f504/tests/cedict_ts.u8",
+      "format": "cedict",
+      "id": "cc-cedict-historical-2019",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "path": "third_party/cc-cedict/cedict-2019-05-27.u8.gz",
+      "priority": 40,
+      "repository": "https://github.com/yishn/chinese-tokenizer",
+      "restore_baseline_only": true,
+      "revision": "1deb020ba7629a3be5d4e6aa61e73affad60f504",
+      "sha256": "4dd5ae2c10b00dde188e3d9cf5e89f1799a31e741532675663585262d39b21a0",
+      "snapshot_date": "2019-05-27T20:06:35Z",
+      "upstream_url": "https://www.mdbg.net/chinese/dictionary?page=cc-cedict"
+    },
+    {
+      "attribution": "CC-CEDICT contributors; published by MDBG",
+      "compression": "gzip",
+      "decoded_sha256": "33d888c3c3284833772e853194ac81844ddb754e3f5a26637e769f8b7060d532",
+      "download_url": "https://www.mdbg.net/chinese/export/cedict/cedict_1_0_ts_utf-8_mdbg.txt.gz",
+      "format": "cedict",
+      "headword_aliases": [
+        {
+          "line": 109235,
+          "reason": "Preserve the released mixed-script key using the explicitly paired traditional/simplified source record",
+          "source_key": "遵时养晦",
+          "word": "遵时養晦"
+        }
+      ],
+      "id": "cc-cedict-official-2026",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "path": "third_party/cc-cedict/cedict-2026-10-12.u8.gz",
+      "priority": 50,
+      "repository": "https://www.mdbg.net/chinese/dictionary?page=cc-cedict",
+      "restore_baseline_only": true,
+      "revision": "2026-10-12T08:13:53Z",
+      "sha256": "a04c03deb9aab384df952d99194099a17d628ff57d11c8b132fe0519e691a247"
+    },
+    {
+      "format": "phrase",
+      "id": "phrase-overwrite",
+      "license": "MIT; upstream data notices apply",
+      "path": "third_party/phrase-pinyin-data/overwrite.txt",
+      "priority": 300,
+      "repository": "https://github.com/mozillazg/phrase-pinyin-data",
+      "revision": "cee0ed6e6e4898580cafd2bd5e3723e20b214aa0",
+      "sha256": "b0edd770620bc63ba0002df624902fa87aa6d1c200798992a78695ca85f06605"
+    },
+    {
+      "format": "phrase",
+      "id": "phrase-pinyin",
+      "license": "MIT; upstream data notices apply",
+      "path": "third_party/phrase-pinyin-data/pinyin.txt",
+      "priority": 200,
+      "repository": "https://github.com/mozillazg/phrase-pinyin-data",
+      "revision": "cee0ed6e6e4898580cafd2bd5e3723e20b214aa0",
+      "sha256": "dcc769607c220b312fea3e71cb63421298b4b891b1f7356a95ab58f2c96fff81"
+    },
+    {
+      "id": "pinyin-data",
+      "license": "MIT; upstream data notices apply",
+      "license_url": "https://github.com/mozillazg/pinyin-data/blob/923b108dc5d45dee061324c011b478fb649f8b73/LICENSE",
+      "path": "third_party/pinyin-data/pinyin.txt",
+      "repository": "https://github.com/mozillazg/pinyin-data",
+      "revision": "923b108dc5d45dee061324c011b478fb649f8b73",
+      "sha256": "621f8ca9eff8519f47e2b17b564fd318161e13bca07eea8c8e04993cd5d3b52e"
+    }
+  ],
+  "sources_lock_sha256": "32832065d58484a7f223a3d3a879f99ce4bd3761e90902b16587113494693837"
+}

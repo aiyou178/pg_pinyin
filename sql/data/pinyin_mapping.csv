@@ -74,7 +74,7 @@
 㑹,|hui|
 㑺,|jun|
 㑻,|ma|
-㑼,|lue|
+㑼,|lve|
 㑽,|tang|
 㑾,|yao|
 㑿,|zhao|
@@ -179,7 +179,7 @@
 㓼,|chi|
 㓽,|chong|
 㓾,|xi|chi|
-㔀,|lue|
+㔀,|lve|
 㔁,|deng|
 㔂,|lin|
 㔃,|jue|xue|
@@ -211,7 +211,7 @@
 㔤,|xin|
 㔥,|bai|pi|
 㔦,|yang|
-㔧,|lu|
+㔧,|lv|
 㔨,|bei|
 㔩,|e|
 㔪,|lu|
@@ -340,7 +340,7 @@
 㗆,|ge|
 㗇,|xia|ya|
 㗈,|man|
-㗉,|lue|e|
+㗉,|lve|e|
 㗊,|ji|lei|
 㗋,|hou|
 㗌,|zhi|
@@ -554,7 +554,7 @@
 㛆,|duo|
 㛊,|duo|
 㛍,|qie|xian|xia|
-㛎,|lu|
+㛎,|lv|
 㛏,|qiu|
 㛐,|sou|
 㛑,|can|
@@ -862,7 +862,7 @@
 㠡,|niao|
 㠢,|huai|
 㠣,|li|
-㠥,|lu|lei|
+㠥,|lv|lei|
 㠦,|feng|
 㠧,|mi|
 㠨,|yu|
@@ -910,7 +910,7 @@
 㡛,|mang|
 㡜,|xie|xue|
 㡝,|feng|
-㡞,|lou|lu|
+㡞,|lou|lv|
 㡟,|zao|
 㡠,|zheng|
 㡡,|chu|
@@ -1332,7 +1332,7 @@
 㨹,|hui|xue|
 㨺,|mian|men|
 㨻,|can|shan|zan|chan|
-㨼,|lue|
+㨼,|lve|
 㨽,|pi|
 㨾,|yang|
 㨿,|ju|
@@ -1563,7 +1563,7 @@
 㭕,|qu|
 㭘,|ge|he|
 㭙,|zhe|
-㭚,|lu|
+㭚,|lv|
 㭛,|pai|ba|
 㭜,|rong|
 㭝,|qiu|ou|
@@ -1864,7 +1864,7 @@
 㲲,|die|
 㲳,|die|zhi|
 㲴,|zhong|
-㲶,|lu|
+㲶,|lv|
 㲷,|dan|
 㲸,|xi|
 㲹,|gui|
@@ -1992,7 +1992,7 @@
 㵓,|shi|
 㵔,|che|
 㵕,|shen|
-㵖,|nu|
+㵖,|nv|
 㵗,|ping|
 㵘,|man|
 㵝,|yi|
@@ -2326,7 +2326,7 @@
 㻯,|tu|
 㻰,|mian|
 㻱,|jin|
-㻲,|lu|
+㻲,|lv|
 㻵,|zhan|
 㻶,|bi|
 㻷,|ji|
@@ -2467,7 +2467,7 @@
 㾑,|da|he|
 㾒,|ru|
 㾓,|yuan|
-㾔,|lu|
+㾔,|lv|
 㾕,|shen|
 㾖,|li|
 㾗,|liang|
@@ -2731,7 +2731,7 @@
 䂫,|hang|hong|
 䂬,|gong|
 䂭,|qiao|
-䂮,|lue|
+䂮,|lve|
 䂯,|guai|
 䂰,|la|
 䂱,|rui|
@@ -3280,7 +3280,7 @@
 䌋,|da|
 䌌,|qi|
 䌍,|jin|
-䌎,|lue|
+䌎,|lve|
 䌏,|mi|
 䌐,|mi|
 䌑,|jian|
@@ -3467,7 +3467,7 @@
 䏑,|di|
 䏒,|pian|pan|
 䏓,|guan|
-䏔,|niu|zhou|rou|nu|
+䏔,|niu|zhou|rou|nv|
 䏕,|ren|
 䏖,|zhen|yin|
 䏗,|gai|
@@ -3770,7 +3770,7 @@
 䔛,|qing|
 䔜,|nan|
 䔝,|zhai|
-䔞,|lu|
+䔞,|lv|
 䔟,|yi|
 䔠,|shao|shuo|
 䔡,|yu|
@@ -3826,7 +3826,7 @@
 䕞,|lang|
 䕟,|xing|
 䕠,|fei|
-䕡,|lu|
+䕡,|lv|
 䕢,|zha|
 䕣,|he|
 䕤,|ji|
@@ -3863,9 +3863,9 @@
 䖅,|ling|
 䖆,|niang|
 䖇,|yu|
-䖈,|nue|
+䖈,|nve|
 䖊,|yi|
-䖋,|nue|
+䖋,|nve|
 䖌,|yi|
 䖍,|qian|
 䖎,|xia|
@@ -3887,7 +3887,7 @@
 䖞,|zhou|
 䖟,|mang|
 䖠,|yuan|
-䖡,|nu|
+䖡,|nv|
 䖢,|miao|
 䖣,|zao|
 䖤,|wan|
@@ -3991,7 +3991,7 @@
 䘍,|chai|
 䘎,|wan|
 䘏,|xu|
-䘐,|nu|
+䘐,|nv|
 䘑,|mai|
 䘒,|zui|
 䘓,|kan|
@@ -4139,7 +4139,7 @@
 䚹,|pi|
 䚺,|yao|
 䚻,|yao|you|
-䚼,|nu|
+䚼,|nv|
 䚽,|hao|
 䚾,|ren|nin|
 䚿,|yin|xi|
@@ -4169,7 +4169,7 @@
 䛗,|zhi|
 䛘,|ren|nin|
 䛙,|xu|
-䛚,|lue|
+䛚,|lve|
 䛛,|hui|
 䛜,|xun|
 䛝,|nao|
@@ -4579,7 +4579,7 @@
 䢓,|yu|
 䢔,|he|
 䢕,|xu|
-䢖,|yu|lu|
+䢖,|yu|lv|
 䢗,|qu|
 䢙,|bai|
 䢚,|geng|hang|
@@ -4704,7 +4704,7 @@
 䤟,|chen|
 䤠,|zhi|
 䤡,|ran|
-䤣,|lue|
+䤣,|lve|
 䤤,|kai|
 䤥,|gui|wei|
 䤦,|yue|
@@ -4769,7 +4769,7 @@
 䥤,|bao|
 䥥,|lian|
 䥧,|huan|
-䥨,|lu|
+䥨,|lv|lu|
 䥩,|wei|
 䥪,|xian|
 䥫,|tie|
@@ -4905,7 +4905,7 @@
 䨆,|bi|
 䨈,|bin|
 䨊,|yuan|
-䨋,|nue|
+䨋,|nve|
 䨌,|bao|
 䨍,|ying|
 䨎,|hong|
@@ -5291,7 +5291,7 @@
 䮨,|zai|
 䮩,|gu|
 䮪,|cheng|
-䮫,|lou|lu|
+䮫,|lou|lv|
 䮬,|mo|
 䮭,|mi|
 䮮,|mai|
@@ -5742,7 +5742,7 @@
 䶇,|zhou|
 䶈,|bo|
 䶉,|liu|
-䶊,|nu|
+䶊,|nv|
 䶋,|xi|
 䶌,|pao|
 䶍,|di|
@@ -6205,7 +6205,7 @@
 侠,|xia|
 価,|si|
 侢,|dai|
-侣,|lu|
+侣,|lv|
 侤,|ta|
 侥,|jiao|yao|
 侦,|zhen|
@@ -6224,7 +6224,7 @@
 侳,|zuo|
 侴,|chou|
 侵,|qin|
-侶,|lu|
+侶,|lv|
 侷,|ju|
 侸,|shu|dou|
 侹,|ting|
@@ -6421,7 +6421,7 @@
 偸,|tou|
 偹,|bei|
 偺,|za|zan|
-偻,|lou|lu|
+偻,|lou|lv|
 偼,|jie|
 偽,|wei|e|gui|
 偾,|fen|
@@ -6492,7 +6492,7 @@
 傿,|yan|yin|
 僀,|di|
 僁,|xie|su|
-僂,|lou|liu|lu|
+僂,|lou|liu|lv|
 僃,|bei|
 僄,|piao|biao|
 僅,|jin|
@@ -6588,7 +6588,7 @@
 償,|chang|
 儠,|lie|la|
 儡,|lei|
-儢,|lu|
+儢,|lv|
 儣,|kuang|
 儤,|bao|
 儥,|yu|di|du|
@@ -6904,7 +6904,7 @@
 剝,|bo|
 剞,|ji|
 剟,|duo|chi|
-剠,|qing|lue|
+剠,|qing|lve|
 剡,|shan|yan|
 剢,|du|zhuo|
 剣,|jian|
@@ -7052,7 +7052,7 @@
 勱,|mai|
 勲,|xun|
 勳,|xun|
-勴,|lu|
+勴,|lv|
 勵,|li|
 勶,|che|
 勷,|rang|xiang|
@@ -7341,7 +7341,7 @@
 吒,|zha|
 吓,|xia|he|ha|
 吔,|ye|
-吕,|lu|
+吕,|lv|
 吖,|ya|a|
 吗,|ma|
 吘,|ou|
@@ -7386,7 +7386,7 @@
 吿,|gao|
 呀,|ya|xia|
 呁,|jun|
-呂,|lu|
+呂,|lv|
 呃,|e|ai|
 呄,|ge|
 呅,|mei|wen|
@@ -7567,7 +7567,7 @@
 哴,|liang|lang|
 哵,|ba|
 哶,|mie|
-哷,|lie|lu|
+哷,|lie|lv|
 哸,|sui|
 哹,|fu|
 哺,|bu|fu|
@@ -8112,7 +8112,7 @@
 圖,|tu|
 圗,|tu|
 團,|tuan|chuan|
-圙,|lue|
+圙,|lve|
 圚,|hui|
 圛,|yi|
 圜,|huan|yuan|
@@ -8230,7 +8230,7 @@
 垌,|dong|tong|
 垍,|ji|
 垎,|he|
-垏,|lu|
+垏,|lv|
 垐,|ci|
 垑,|chi|
 垒,|lei|
@@ -8559,7 +8559,7 @@
 壕,|hao|
 壖,|ruan|
 壗,|jin|
-壘,|lei|lu|
+壘,|lei|lv|
 壙,|kuang|
 壚,|lu|
 壛,|yan|
@@ -8714,7 +8714,7 @@
 奰,|bi|
 奱,|luan|
 奲,|duo|che|
-女,|nu|ru|
+女,|nv|ru|
 奴,|nu|
 奵,|ding|tian|
 奶,|nai|
@@ -8920,7 +8920,7 @@
 娾,|ai|e|
 娿,|e|
 婀,|e|
-婁,|lou|lu|lei|
+婁,|lou|lv|lei|
 婂,|mian|
 婃,|cong|
 婄,|pou|pei|bu|
@@ -8960,7 +8960,7 @@
 婦,|fu|
 婧,|jing|
 婨,|lun|
-婩,|an|nue|
+婩,|an|nve|
 婪,|lan|
 婫,|kun|hun|
 婬,|yin|
@@ -9335,7 +9335,7 @@
 寝,|qin|
 寞,|mo|
 察,|cha|cui|
-寠,|ju|lu|lou|
+寠,|ju|lv|lou|
 寡,|gua|
 寢,|qin|
 寣,|hu|
@@ -9364,7 +9364,7 @@
 寺,|si|shi|
 寻,|xun|xin|
 导,|dao|
-寽,|lu|lue|
+寽,|lv|lve|
 対,|dui|
 寿,|shou|
 尀,|po|
@@ -9464,11 +9464,11 @@
 属,|shu|zhu|
 屟,|xie|ti|
 屠,|tu|
-屡,|lu|
-屢,|lu|
+屡,|lv|
+屢,|lv|
 屣,|xi|
 層,|ceng|
-履,|lu|
+履,|lv|
 屦,|ju|
 屧,|xie|
 屨,|ju|
@@ -9689,7 +9689,7 @@
 崿,|e|
 嵀,|zhu|
 嵁,|kan|zhan|
-嵂,|lu|
+嵂,|lv|
 嵃,|yan|
 嵄,|mei|
 嵅,|han|
@@ -10115,7 +10115,7 @@
 廩,|lin|lan|
 廪,|lin|
 廫,|liao|
-廬,|lu|
+廬,|lu|lv|
 廭,|ji|
 廮,|ying|
 廯,|xian|
@@ -10274,7 +10274,7 @@
 很,|hen|
 徉,|yang|
 徊,|huai|hui|
-律,|lu|
+律,|lv|
 後,|hou|
 徍,|wang|wa|
 徎,|cheng|zheng|
@@ -10494,7 +10494,7 @@
 恤,|xu|
 恥,|chi|
 恦,|shang|
-恧,|nu|
+恧,|nv|
 恨,|hen|
 恩,|en|
 恪,|ke|
@@ -10757,7 +10757,7 @@
 慫,|song|
 慬,|qin|jin|
 慭,|yin|
-慮,|lu|
+慮,|lv|
 慯,|shang|
 慰,|wei|
 慱,|tuan|
@@ -10769,7 +10769,7 @@
 慷,|kang|
 慸,|di|chi|
 慹,|zhi|zhe|
-慺,|lou|lu|
+慺,|lou|lv|
 慻,|juan|
 慼,|qi|
 慽,|qi|
@@ -11179,7 +11179,7 @@
 挑,|tiao|tao|diao|
 挒,|lie|
 挓,|zha|
-挔,|lu|
+挔,|lv|
 挕,|die|she|
 挖,|wa|
 挗,|jue|
@@ -11234,7 +11234,7 @@
 捈,|tu|shu|cha|
 捉,|zhuo|
 捊,|pou|fu|
-捋,|lu|luo|
+捋,|lv|luo|
 捌,|ba|bie|
 捍,|han|xian|gan|
 捎,|shao|xiao|qiao|
@@ -11250,7 +11250,7 @@
 捘,|zun|
 捙,|ye|
 捚,|zhai|
-捛,|lu|
+捛,|lv|
 捜,|sou|
 捝,|tuo|shui|yan|
 捞,|lao|
@@ -11319,7 +11319,7 @@
 掝,|huo|xu|
 掞,|shan|yan|
 掟,|zheng|ding|
-掠,|lue|
+掠,|lve|
 採,|cai|
 探,|tan|xian|
 掣,|che|
@@ -11668,7 +11668,7 @@
 擺,|bai|
 擻,|sou|
 擼,|lu|
-擽,|lue|li|yue|
+擽,|lve|li|yue|
 擾,|rao|
 擿,|ti|zhi|zhai|
 攀,|pan|
@@ -11868,7 +11868,7 @@
 旂,|qi|
 旃,|zhan|
 旄,|mao|wu|
-旅,|lu|
+旅,|lv|
 旆,|pei|
 旇,|pi|bi|
 旈,|liu|
@@ -12201,7 +12201,7 @@
 朏,|fei|ku|
 朐,|qu|xu|chun|
 朑,|ti|
-朒,|nu|
+朒,|nv|
 朓,|tiao|you|
 朔,|shuo|
 朕,|zhen|
@@ -12598,7 +12598,7 @@
 條,|tiao|
 梞,|ji|
 梟,|xiao|
-梠,|lu|
+梠,|lv|
 梡,|hun|kuan|
 梢,|shao|xiao|sao|
 梣,|cen|chen|qin|
@@ -12830,7 +12830,7 @@
 榅,|wen|yun|
 榆,|yu|
 榇,|chen|
-榈,|lu|
+榈,|lv|
 榉,|ju|
 榊,|shen|
 榋,|chu|
@@ -12969,7 +12969,7 @@
 樐,|lu|
 樑,|liang|
 樒,|mi|
-樓,|lou|lu|
+樓,|lou|lv|
 樔,|chao|jiao|
 樕,|su|
 樖,|ke|
@@ -13164,11 +13164,11 @@
 櫓,|lu|
 櫔,|li|
 櫕,|cuan|
-櫖,|lu|chu|
+櫖,|lv|chu|
 櫗,|mie|mei|
 櫘,|hui|
 櫙,|ou|
-櫚,|lu|
+櫚,|lv|
 櫛,|zhi|
 櫜,|gao|
 櫝,|du|
@@ -13182,7 +13182,7 @@
 櫥,|chu|
 櫦,|qing|
 櫧,|zhu|
-櫨,|lu|
+櫨,|lu|lv|
 櫩,|yan|
 櫪,|li|
 櫫,|zhu|
@@ -13462,7 +13462,7 @@
 毽,|jian|
 毾,|ta|
 毿,|san|
-氀,|lu|shu|yu|dou|
+氀,|lv|shu|yu|dou|
 氁,|mu|
 氂,|mao|li|
 氃,|tong|
@@ -13509,7 +13509,7 @@
 氬,|ya|
 氭,|dong|
 氮,|dan|
-氯,|lu|
+氯,|lv|
 氰,|qing|
 氱,|yang|
 氲,|yun|
@@ -13607,7 +13607,7 @@
 沎,|huo|
 沏,|qi|qie|
 沐,|mu|
-沑,|nu|niu|
+沑,|nv|niu|
 沒,|mei|
 沓,|da|ta|
 沔,|mian|
@@ -14202,7 +14202,7 @@
 满,|man|
 滢,|ying|
 滣,|chun|
-滤,|lu|
+滤,|lv|
 滥,|lan|
 滦,|luan|
 滧,|yao|xiao|
@@ -14240,7 +14240,7 @@
 漇,|xi|
 漈,|ji|
 漉,|lu|
-漊,|lou|lu|
+漊,|lou|lv|
 漋,|long|
 漌,|jin|
 漍,|guo|
@@ -14484,7 +14484,7 @@
 濻,|wei|
 濼,|luo|po|li|
 濽,|zan|
-濾,|lu|
+濾,|lv|
 濿,|li|
 瀀,|you|
 瀁,|yang|
@@ -14759,7 +14759,7 @@
 焏,|ji|qi|
 焐,|wu|
 焑,|yan|
-焒,|lu|
+焒,|lv|
 焓,|han|
 焔,|yan|
 焕,|huan|
@@ -15005,7 +15005,7 @@
 爅,|mo|
 爆,|bao|bo|
 爇,|ruo|
-爈,|lu|
+爈,|lv|
 爉,|la|lie|
 爊,|ao|
 爋,|xun|
@@ -15192,7 +15192,7 @@
 狀,|zhuang|
 狁,|yun|
 狂,|kuang|jue|
-狃,|niu|nu|
+狃,|niu|nv|
 狄,|di|ti|
 狅,|kuang|
 狆,|zhong|
@@ -15388,7 +15388,7 @@
 玄,|xuan|
 玅,|miao|yao|
 玆,|zi|xuan|
-率,|lu|shuai|lue|
+率,|lv|shuai|lve|
 玈,|lu|
 玉,|yu|
 玊,|su|
@@ -15861,9 +15861,9 @@
 畢,|bi|
 畣,|da|
 畤,|zhi|chou|shi|
-略,|lue|
+略,|lve|
 畦,|qi|
-畧,|lue|
+畧,|lve|
 畨,|pan|fan|
 畩,|yi|
 番,|fan|pan|bo|po|pi|
@@ -15919,7 +15919,7 @@
 疜,|xia|
 疝,|shan|
 疞,|xu|
-疟,|nue|yao|
+疟,|nve|yao|
 疠,|li|
 疡,|yang|
 疢,|chen|
@@ -16055,7 +16055,7 @@
 瘤,|liu|
 瘥,|chai|cuo|
 瘦,|shou|
-瘧,|nue|yao|
+瘧,|nve|yao|
 瘨,|dian|chen|
 瘩,|da|
 瘪,|bie|
@@ -16075,7 +16075,7 @@
 瘸,|que|
 瘹,|diao|
 瘺,|lou|
-瘻,|lou|lu|
+瘻,|lou|lv|
 瘼,|mo|
 瘽,|qin|
 瘾,|yin|
@@ -16247,7 +16247,7 @@
 盤,|pan|xuan|
 盥,|guan|
 盦,|an|
-盧,|lu|lei|
+盧,|lu|lv|lei|
 盨,|xu|
 盩,|zhou|chou|
 盪,|dang|
@@ -16428,7 +16428,7 @@
 瞙,|mo|
 瞚,|shun|
 瞛,|cong|
-瞜,|lou|lu|
+瞜,|lou|lv|
 瞝,|chi|
 瞞,|man|men|
 瞟,|piao|
@@ -16648,7 +16648,7 @@
 硵,|lu|
 硶,|chen|cen|
 硷,|jian|
-硸,|nue|
+硸,|nve|
 硹,|song|
 硺,|zhuo|
 硻,|keng|
@@ -16883,7 +16883,7 @@
 祠,|ci|si|
 祡,|chai|
 祢,|mi|ni|
-祣,|lu|
+祣,|lv|
 祤,|yu|
 祥,|xiang|
 祦,|wu|
@@ -17046,7 +17046,7 @@
 稃,|fu|
 稄,|xun|ze|
 稅,|shui|
-稆,|lu|
+稆,|lv|
 稇,|kun|
 稈,|gan|
 稉,|jing|
@@ -17076,7 +17076,7 @@
 稡,|zui|zu|su|
 稢,|yu|
 稣,|su|
-稤,|lue|
+稤,|lve|
 稥,|xiang|
 稦,|yi|
 稧,|xi|qie|
@@ -17134,7 +17134,7 @@
 穛,|zhuo|bo|
 穜,|zhong|tong|
 穝,|zui|
-穞,|lu|
+穞,|lv|
 穟,|sui|
 穠,|nong|
 穡,|se|
@@ -17149,7 +17149,7 @@
 穪,|cheng|bie|
 穫,|huo|hu|
 穬,|kuang|
-穭,|lu|
+穭,|lv|
 穮,|biao|pao|
 穯,|se|
 穰,|rang|reng|
@@ -17483,7 +17483,7 @@
 箸,|zhu|zhuo|
 箹,|yue|yao|chuo|
 箺,|chun|
-箻,|lu|
+箻,|lv|
 箼,|wu|
 箽,|dong|
 箾,|shuo|xiao|qiao|
@@ -17565,7 +17565,7 @@
 簊,|ji|
 簋,|gui|
 簌,|su|
-簍,|lou|lu|ju|
+簍,|lou|lv|ju|
 簎,|ce|ji|
 簏,|lu|
 簐,|nian|
@@ -17673,7 +17673,7 @@
 籶,|shen|
 籷,|zhe|
 籸,|shen|
-籹,|nu|
+籹,|nv|
 籺,|he|
 类,|lei|
 籼,|xian|
@@ -17855,7 +17855,7 @@
 紬,|chou|zhou|
 紭,|hong|
 紮,|za|zha|
-累,|lei|lu|lie|
+累,|lei|lv|lie|
 細,|xi|
 紱,|fu|
 紲,|xie|yi|
@@ -17918,7 +17918,7 @@
 絫,|lei|
 絬,|xie|
 絭,|juan|
-絮,|xu|chu|nu|na|
+絮,|xu|chu|nv|na|
 絯,|gai|hai|
 絰,|die|
 統,|tong|
@@ -17933,7 +17933,7 @@
 絺,|chi|zhi|
 絻,|mian|wen|man|wan|
 絼,|zhen|
-絽,|lu|
+絽,|lv|
 絾,|cheng|
 絿,|qiu|
 綀,|shu|
@@ -17968,7 +17968,7 @@
 綝,|chen|shen|
 綞,|duo|
 綟,|li|lie|
-綠,|lu|
+綠,|lv|
 綡,|liang|
 綢,|chou|tao|diao|
 綣,|quan|
@@ -18017,7 +18017,7 @@
 緎,|yu|
 総,|zong|cong|
 緐,|fan|
-緑,|lu|
+緑,|lv|lu|
 緒,|xu|
 緓,|ying|
 緔,|shang|
@@ -18119,7 +18119,7 @@
 縴,|qian|
 縵,|man|
 縶,|zhi|
-縷,|lu|
+縷,|lv|
 縸,|mu|mo|
 縹,|piao|
 縺,|lian|
@@ -18130,7 +18130,7 @@
 縿,|shan|xian|xiao|sao|can|
 繀,|sui|cui|
 繁,|fan|po|pan|
-繂,|lu|
+繂,|lv|
 繃,|beng|
 繄,|yi|
 繅,|sao|zao|
@@ -18319,7 +18319,7 @@
 综,|zong|zeng|
 绽,|zhan|
 绾,|wan|
-绿,|lu|
+绿,|lv|lu|
 缀,|zhui|
 缁,|zi|
 缂,|ke|
@@ -18341,7 +18341,7 @@
 缒,|zhui|
 缓,|huan|
 缔,|di|
-缕,|lu|
+缕,|lv|
 编,|bian|
 缗,|min|
 缘,|yuan|
@@ -18655,7 +18655,7 @@
 职,|zhi|
 聍,|ning|
 聎,|tiao|
-聏,|er|nu|
+聏,|er|nv|
 聐,|ya|
 聑,|tie|zhe|
 聒,|gua|guo|
@@ -18812,7 +18812,7 @@
 胩,|ka|
 胪,|lu|
 胫,|jing|
-胬,|nu|
+胬,|nu|nv|
 胭,|yan|
 胮,|pang|
 胯,|kua|
@@ -18962,7 +18962,7 @@
 腿,|tui|
 膀,|bang|pang|
 膁,|qian|xian|yan|
-膂,|lu|
+膂,|lv|
 膃,|wa|
 膄,|shou|
 膅,|tang|
@@ -18976,7 +18976,7 @@
 膍,|pi|
 膎,|xie|
 膏,|gao|
-膐,|lu|
+膐,|lv|
 膑,|bin|
 膒,|ou|
 膓,|chang|
@@ -18991,10 +18991,10 @@
 膜,|mo|
 膝,|xi|
 膞,|zhuan|chuan|chun|
-膟,|lu|
+膟,|lv|
 膠,|jiao|hao|nao|
 膡,|ying|
-膢,|lu|
+膢,|lv|
 膣,|zhi|
 膤,|xue|
 膥,|cun|
@@ -19050,7 +19050,7 @@
 臗,|kuan|
 臘,|la|lie|
 臙,|yan|
-臚,|lu|
+臚,|lu|lv|
 臛,|huo|
 臜,|za|
 臝,|luo|
@@ -19545,7 +19545,7 @@
 菆,|zou|cuan|chu|cong|
 菇,|gu|
 菈,|la|
-菉,|lu|
+菉,|lu|lv|
 菊,|ju|
 菋,|wei|
 菌,|jun|
@@ -19678,7 +19678,7 @@
 葋,|qu|
 葌,|jian|
 葍,|fu|
-葎,|lu|
+葎,|lv|
 葏,|jing|
 葐,|pen|fen|
 葑,|feng|
@@ -19886,7 +19886,7 @@
 蔛,|hu|
 蔜,|ao|
 蔝,|mi|
-蔞,|lou|lu|ju|liu|
+蔞,|lou|lv|ju|liu|
 蔟,|cu|cou|chuo|
 蔠,|zhong|
 蔡,|cai|sa|ca|
@@ -20072,7 +20072,7 @@
 藕,|ou|
 藖,|xian|qian|
 藗,|su|
-藘,|lu|
+藘,|lv|
 藙,|yi|
 藚,|xu|
 藛,|xie|
@@ -20085,7 +20085,7 @@
 藢,|zhi|
 藣,|bei|
 藤,|teng|
-藥,|yao|shuo|lue|
+藥,|yao|shuo|lve|
 藦,|mo|
 藧,|huan|
 藨,|biao|pao|
@@ -20192,8 +20192,8 @@
 虍,|hu|
 虎,|hu|
 虏,|lu|
-虐,|nue|
-虑,|lu|bi|
+虐,|nve|
+虑,|lv|bi|
 虒,|si|xi|ti|zhi|
 虓,|xiao|
 虔,|qian|
@@ -20690,9 +20690,9 @@
 蠿,|zhuo|
 血,|xue|xie|
 衁,|huang|
-衂,|nu|
+衂,|nv|
 衃,|pei|fou|
-衄,|nu|
+衄,|nv|
 衅,|xin|
 衆,|zhong|
 衇,|mai|
@@ -20907,7 +20907,7 @@
 褘,|hui|yi|
 褙,|bei|
 褚,|chu|zhe|zhu|
-褛,|lu|
+褛,|lv|
 褜,|pao|
 褝,|dan|
 褞,|yun|wen|
@@ -20936,7 +20936,7 @@
 褵,|li|
 褶,|zhe|die|xi|
 褷,|shi|
-褸,|lu|
+褸,|lv|
 褹,|yi|nie|
 褺,|die|
 褻,|xie|
@@ -21259,7 +21259,7 @@
 詸,|mi|
 詹,|zhan|dan|
 詺,|ming|
-詻,|e|lue|luo|
+詻,|e|lve|luo|
 詼,|hui|
 詽,|yan|
 詾,|xiong|
@@ -21441,7 +21441,7 @@
 謮,|ze|
 謯,|jie|zha|zu|
 謰,|lian|
-謱,|lou|lu|
+謱,|lou|lv|
 謲,|can|zao|san|chen|
 謳,|ou|xu|
 謴,|gun|
@@ -22353,7 +22353,7 @@
 躾,|mei|
 躿,|kang|
 軀,|qu|
-軁,|lou|lu|
+軁,|lou|lv|
 軂,|lao|
 軃,|duo|tuo|
 軄,|zhi|
@@ -22888,7 +22888,7 @@
 郕,|cheng|
 郖,|dou|
 郗,|xi|chi|
-郘,|lu|
+郘,|lv|
 郙,|fu|
 郚,|wu|yu|
 郛,|fu|
@@ -23177,7 +23177,7 @@
 釶,|shi|yi|ye|
 釷,|tu|
 釸,|xi|
-釹,|nu|
+釹,|nv|
 釺,|qian|
 釻,|qiu|
 釼,|jian|
@@ -23377,7 +23377,7 @@
 銾,|hong|gong|
 銿,|zhong|yong|
 鋀,|tou|dou|tu|
-鋁,|lu|
+鋁,|lv|
 鋂,|mei|meng|
 鋃,|lang|
 鋄,|wan|
@@ -23405,12 +23405,12 @@
 鋚,|tiao|
 鋛,|kuang|
 鋜,|zhuo|chuo|
-鋝,|lue|
+鋝,|lve|
 鋞,|xing|jing|
 鋟,|qin|qian|jin|
 鋠,|shen|
 鋡,|han|
-鋢,|lue|
+鋢,|lve|
 鋣,|ye|
 鋤,|chu|ju|
 鋥,|zeng|
@@ -23490,7 +23490,7 @@
 錯,|cuo|cu|xi|
 錰,|shu|
 錱,|zhen|
-録,|lu|
+録,|lu|lv|
 錳,|meng|
 錴,|lu|
 錵,|hua|
@@ -23668,7 +23668,7 @@
 鏡,|jing|
 鏢,|biao|
 鏣,|shu|
-鏤,|lou|lu|
+鏤,|lou|lv|
 鏥,|xiu|
 鏦,|cong|
 鏧,|long|
@@ -23794,7 +23794,7 @@
 鑟,|du|
 鑠,|shuo|yue|li|
 鑡,|chuo|
-鑢,|lu|
+鑢,|lv|
 鑣,|biao|
 鑤,|bao|
 鑥,|lu|
@@ -23845,7 +23845,7 @@
 钒,|fan|
 钓,|diao|
 钔,|men|
-钕,|nu|
+钕,|nv|
 钖,|yang|
 钗,|chai|
 钘,|xing|
@@ -23917,7 +23917,7 @@
 铚,|zhi|
 铛,|dang|cheng|
 铜,|tong|
-铝,|lu|
+铝,|lv|
 铞,|diao|
 铟,|yin|
 铠,|kai|
@@ -23962,7 +23962,7 @@
 锇,|e|
 锈,|xiu|
 锉,|cuo|
-锊,|lue|
+锊,|lve|
 锋,|feng|
 锌,|xin|
 锍,|liu|
@@ -24125,7 +24125,7 @@
 閪,|se|
 閫,|kun|
 閬,|lang|liang|
-閭,|lu|
+閭,|lv|
 閮,|ting|
 閯,|sha|
 閰,|ju|
@@ -24206,7 +24206,7 @@
 闻,|wen|
 闼,|ta|
 闽,|min|
-闾,|lu|
+闾,|lv|
 闿,|kai|
 阀,|fa|
 阁,|ge|
@@ -25167,7 +25167,7 @@
 馼,|wen|
 馽,|zhi|
 馾,|dan|
-馿,|lu|
+馿,|lv|
 駀,|you|
 駁,|bo|
 駂,|bao|
@@ -25330,7 +25330,7 @@
 驟,|zhou|
 驠,|yan|
 驡,|long|zang|
-驢,|lu|
+驢,|lv|
 驣,|teng|
 驤,|xiang|
 驥,|ji|
@@ -25348,7 +25348,7 @@
 驱,|qu|
 驲,|ri|
 驳,|bo|
-驴,|lu|
+驴,|lv|
 驵,|zang|
 驶,|shi|
 驷,|si|
@@ -25599,7 +25599,7 @@
 魬,|ban|
 魭,|yuan|wan|
 魮,|pi|bi|
-魯,|lu|
+魯,|lu|lv|
 魰,|wen|
 魱,|hu|
 魲,|lu|
@@ -26220,7 +26220,7 @@
 鷙,|zhi|zhe|
 鷚,|liu|
 鷛,|yong|
-鷜,|lu|
+鷜,|lv|
 鷝,|bi|
 鷞,|shuang|
 鷟,|zhuo|
@@ -26383,7 +26383,7 @@
 鹼,|jian|
 鹽,|yan|
 鹾,|cuo|
-鹿,|lu|
+鹿,|lu|lv|
 麀,|you|
 麁,|cu|
 麂,|ji|
@@ -26734,7 +26734,7 @@
 ,|jian|
 ,|en|
 ,|xiao|
-,|lou|lu|
+,|lou|lv|
 ,|can|shan|cen|
 ,|zhu|
 ,|chou|
@@ -27227,7 +27227,7 @@
 𠜃,|jiu|
 𠜄,|xu|
 𠜅,|jiao|
-𠜈,|lu|
+𠜈,|lv|
 𠜉,|jiu|
 𠜋,|chou|
 𠜎,|xian|
@@ -27356,7 +27356,7 @@
 𠢃,|tang|
 𠢆,|xia|
 𠢇,|han|
-𠢌,|lue|
+𠢌,|lve|
 𠢍,|qian|
 𠢓,|mo|
 𠢔,|ou|
@@ -27381,7 +27381,7 @@
 𠣄,|chan|
 𠣇,|nian|
 𠣉,|wan|
-𠣊,|lu|
+𠣊,|lv|
 𠣐,|yun|
 𠣑,|yao|
 𠣒,|bao|
@@ -27777,7 +27777,7 @@
 𠷄,|ke|
 𠷅,|zhu|
 𠷇,|shi|
-𠷈,|lu|lie|
+𠷈,|lv|lie|
 𠷉,|jia|
 𠷊,|pian|
 𠷋,|hou|
@@ -27854,7 +27854,7 @@
 𠻗,|li|
 𠻙,|he|
 𠻚,|mo|
-𠻜,|shui|lu|su|
+𠻜,|shui|lv|su|
 𠻝,|shen|
 𠻞,|kang|
 𠻟,|chi|
@@ -27875,7 +27875,7 @@
 𠼘,|wu|
 𠼝,|li|
 𠼞,|a|
-𠼟,|lue|
+𠼟,|lve|
 𠼠,|zhi|
 𠼡,|chou|
 𠼢,|jiang|qiang|
@@ -27955,7 +27955,7 @@
 𡀺,|xie|
 𡀽,|ye|he|
 𡀾,|e|
-𡀿,|lu|
+𡀿,|lv|
 𡁀,|han|
 𡁁,|ye|kai|
 𡁆,|luo|
@@ -28520,7 +28520,7 @@
 𡡈,|beng|
 𡡉,|mo|
 𡡊,|chao|
-𡡎,|lu|lou|
+𡡎,|lv|lou|
 𡡏,|shao|
 𡡐,|bu|
 𡡑,|zeng|
@@ -29051,7 +29051,7 @@
 𡽻,|zhan|
 𡽼,|qi|
 𡾂,|nao|
-𡾅,|lu|
+𡾅,|lv|
 𡾇,|kuang|
 𡾉,|mo|
 𡾋,|lei|
@@ -29241,7 +29241,7 @@
 𢅚,|biao|
 𢅜,|ci|
 𢅝,|dian|
-𢅞,|lu|
+𢅞,|lv|
 𢅟,|ni|
 𢅠,|yan|
 𢅡,|lan|
@@ -29311,7 +29311,7 @@
 𢈓,|you|
 𢈕,|bai|
 𢈙,|xia|
-𢈚,|lu|
+𢈚,|lv|
 𢈛,|kun|
 𢈜,|zang|
 𢈝,|qiu|
@@ -29680,7 +29680,7 @@
 𢙓,|wei|
 𢙮,|kan|
 𢙱,|long|
-𢙲,|lu|
+𢙲,|lv|
 𢙳,|zhuang|
 𢙺,|zhi|
 𢙼,|xing|
@@ -29799,7 +29799,7 @@
 𢟯,|zhe|shi|
 𢟰,|ai|
 𢟱,|teng|
-𢟳,|lu|
+𢟳,|lv|
 𢟴,|tui|
 𢟵,|bi|
 𢟼,|meng|
@@ -29865,7 +29865,7 @@
 𢣠,|liu|
 𢣳,|rui|
 𢣵,|chu|
-𢣻,|lu|
+𢣻,|lv|
 𢣼,|cha|
 𢣿,|chu|
 𢤁,|sao|
@@ -30077,7 +30077,7 @@
 𢯫,|duan|wan|
 𢯭,|deng|
 𢯮,|yu|
-𢯰,|lu|
+𢯰,|lv|
 𢯲,|wan|
 𢯳,|xue|
 𢯴,|jiao|
@@ -30378,7 +30378,7 @@
 𣀔,|chuan|chuo|
 𣀜,|lei|
 𣀝,|shuo|
-𣀞,|lu|
+𣀞,|lv|
 𣀣,|fu|
 𣀥,|li|
 𣀧,|san|
@@ -31050,7 +31050,7 @@
 𣥇,|xin|
 𣥊,|wang|
 𣥋,|fu|
-𣥐,|lu|
+𣥐,|lu|lv|
 𣥞,|jian|
 𣥡,|yan|
 𣥣,|bi|
@@ -31257,7 +31257,7 @@
 𣬽,|wu|
 𣬿,|ze|
 𣭀,|bao|
-𣭇,|lu|
+𣭇,|lv|
 𣭖,|hao|
 𣭗,|dou|
 𣭘,|fu|
@@ -31596,7 +31596,7 @@
 𤁰,|di|
 𤁱,|cai|
 𤁳,|zha|
-𤁵,|lu|
+𤁵,|lv|
 𤁹,|huo|
 𤁼,|li|
 𤁽,|ying|
@@ -31891,7 +31891,7 @@
 𤗨,|die|
 𤗪,|shu|
 𤗫,|li|
-𤗬,|lu|
+𤗬,|lv|
 𤗭,|xia|
 𤗯,|cui|
 𤗳,|bo|
@@ -32084,7 +32084,7 @@
 𤝸,|bi|
 𤝹,|zhu|
 𤝻,|yi|
-𤝽,|lu|
+𤝽,|lv|
 𤝿,|kuang|
 𤞂,|zhi|
 𤞃,|hui|
@@ -32600,7 +32600,7 @@
 𤷘,|dao|
 𤷙,|de|
 𤷟,|la|
-𤷡,|xi|nue|
+𤷡,|xi|nve|
 𤷢,|ju|
 𤷤,|xiao|
 𤷦,|jing|
@@ -32772,7 +32772,7 @@
 𤾭,|long|
 𤾲,|lian|
 𤾵,|bie|
-𤾺,|lu|
+𤾺,|lv|
 𤾿,|se|
 𤿀,|zuo|
 𤿄,|cun|
@@ -32905,7 +32905,7 @@
 𥄇,|chi|hun|
 𥄈,|mu|
 𥄉,|jiao|
-𥄋,|nu|
+𥄋,|nv|
 𥄍,|guo|
 𥄎,|xue|
 𥄑,|fu|
@@ -33156,7 +33156,7 @@
 𥍔,|lei|
 𥍚,|bian|
 𥍝,|shu|
-𥍞,|nu|
+𥍞,|nv|
 𥍟,|xu|yi|
 𥍣,|hao|
 𥍨,|gui|
@@ -33388,7 +33388,7 @@
 𥖵,|yin|
 𥖶,|pin|
 𥖻,|sou|
-𥖼,|lu|
+𥖼,|lv|
 𥖾,|di|
 𥖿,|du|
 𥗀,|liao|
@@ -33585,7 +33585,7 @@
 𥡝,|jian|qian|
 𥡟,|chuang|
 𥡠,|shuang|
-𥡢,|lu|
+𥡢,|lv|
 𥡣,|jun|
 𥡤,|jiao|
 𥡦,|ti|di|
@@ -33837,7 +33837,7 @@
 𥬼,|wen|
 𥭋,|ji|
 𥭌,|ji|
-𥭐,|lu|
+𥭐,|lv|
 𥭑,|qiu|
 𥭒,|dun|
 𥭓,|bao|
@@ -33909,7 +33909,7 @@
 𥰝,|xi|
 𥰞,|chou|sou|
 𥰟,|yuan|
-𥰠,|lu|
+𥰠,|lv|
 𥰡,|ce|
 𥰢,|shan|
 𥰣,|liu|
@@ -34058,10 +34058,10 @@
 𥵯,|sa|
 𥵶,|tian|
 𥶅,|liu|
-𥶆,|lu|
+𥶆,|lv|
 𥶇,|lu|
 𥶈,|zou|
-𥶌,|lu|
+𥶌,|lv|
 𥶍,|huan|
 𥶏,|tiao|
 𥶐,|tui|
@@ -34403,7 +34403,7 @@
 𦆦,|ni|
 𦆸,|yao|
 𦆻,|la|
-𦆾,|lu|
+𦆾,|lv|
 𦇀,|sui|
 𦇁,|fu|
 𦇄,|lei|
@@ -34494,9 +34494,9 @@
 𦊫,|gong|
 𦊬,|gu|
 𦊱,|gua|
-𦊹,|lue|
+𦊹,|lve|
 𦊻,|fan|
-𦊼,|lu|
+𦊼,|lv|
 𦊽,|meng|
 𦊾,|fu|
 𦊿,|liu|
@@ -34701,8 +34701,8 @@
 𦓐,|jue|
 𦓓,|er|lie|
 𦓔,|er|xu|
-𦓕,|nu|
-𦓖,|nu|
+𦓕,|nv|
+𦓖,|nv|
 𦓝,|zhuan|
 𦓢,|nuo|
 𦓤,|lie|
@@ -34882,7 +34882,7 @@
 𦛔,|xuan|
 𦛕,|qu|
 𦛖,|che|
-𦛗,|lu|
+𦛗,|lv|
 𦛘,|he|
 𦛙,|sheng|
 𦛚,|nan|
@@ -34948,7 +34948,7 @@
 𦝳,|xu|
 𦝴,|yin|
 𦝷,|beng|
-𦝼,|lu|lou|
+𦝼,|lv|lou|
 𦞁,|zai|
 𦞂,|da|
 𦞆,|nie|
@@ -35324,7 +35324,7 @@
 𦭥,|yi|
 𦭭,|qiong|
 𦭮,|zhi|
-𦭯,|lu|lou|
+𦭯,|lv|lou|
 𦭰,|ru|
 𦭲,|qi|
 𦭳,|yu|
@@ -35450,7 +35450,7 @@
 𦳩,|you|
 𦳫,|shan|
 𦳬,|he|
-𦳭,|lu|
+𦳭,|lv|
 𦳮,|zhi|
 𦳲,|jing|
 𦳳,|zhen|
@@ -35768,7 +35768,7 @@
 𧃏,|chu|
 𧃐,|zhi|
 𧃑,|qian|
-𧃒,|lu|
+𧃒,|lv|
 𧃔,|zhuo|
 𧃘,|zuo|
 𧃙,|han|
@@ -35875,7 +35875,7 @@
 𧈌,|ge|
 𧈍,|xi|
 𧈑,|ge|
-𧈔,|lu|
+𧈔,|lv|
 𧈖,|ge|
 𧈗,|ke|
 𧈙,|shou|
@@ -36034,7 +36034,7 @@
 𧍲,|pian|
 𧍴,|lian|
 𧍵,|hu|
-𧍶,|lu|
+𧍶,|lv|
 𧍿,|dian|
 𧎃,|cui|
 𧎄,|mou|wu|
@@ -36064,7 +36064,7 @@
 𧎹,|zui|
 𧎺,|ge|
 𧎻,|wu|mou|
-𧎾,|lue|
+𧎾,|lve|
 𧎿,|ji|
 𧏂,|xie|
 𧏃,|xie|
@@ -36091,7 +36091,7 @@
 𧐈,|zu|
 𧐉,|zhi|
 𧐊,|zhang|
-𧐋,|lue|
+𧐋,|lve|
 𧐌,|wei|
 𧐍,|chong|
 𧐎,|mi|
@@ -36105,13 +36105,13 @@
 𧐙,|wu|
 𧐟,|mao|
 𧐬,|hong|
-𧐯,|lue|
+𧐯,|lve|
 𧐰,|du|
 𧐱,|cong|
 𧐲,|chan|
 𧐳,|lu|
 𧐴,|su|
-𧑀,|lue|
+𧑀,|lve|
 𧑆,|zhong|
 𧑇,|li|
 𧑈,|fei|
@@ -36182,7 +36182,7 @@
 𧓴,|ting|
 𧓸,|zhi|
 𧓺,|xie|
-𧓻,|lu|
+𧓻,|lv|
 𧓽,|li|chai|
 𧓿,|mao|
 𧔂,|xia|
@@ -36213,7 +36213,7 @@
 𧕇,|xian|
 𧕉,|qi|
 𧕋,|yue|
-𧕌,|lue|
+𧕌,|lve|
 𧕍,|ying|
 𧕎,|qu|
 𧕒,|fei|
@@ -36256,7 +36256,7 @@
 𧖬,|huang|
 𧖮,|an|
 𧖵,|man|
-𧖷,|ni|nu|
+𧖷,|ni|nv|
 𧖻,|guo|
 𧖼,|ou|
 𧖿,|xiang|
@@ -36370,7 +36370,7 @@
 𧜃,|shou|
 𧜅,|jie|
 𧜉,|gao|
-𧜊,|lu|
+𧜊,|lv|
 𧜔,|xie|
 𧜚,|zhi|
 𧜞,|man|
@@ -36770,7 +36770,7 @@
 𧭔,|teng|
 𧭕,|guo|
 𧭚,|qiang|
-𧭜,|lu|
+𧭜,|lv|
 𧭝,|sa|
 𧭞,|lie|
 𧭟,|chi|
@@ -37361,7 +37361,7 @@
 𨂝,|pan|
 𨂞,|tan|
 𨂟,|kang|
-𨂠,|xu|lu|
+𨂠,|xu|lv|
 𨂡,|zou|
 𨂢,|ji|
 𨂣,|wu|
@@ -38506,7 +38506,7 @@
 𨵧,|kua|
 𨵩,|pi|
 𨵪,|xie|
-𨵫,|nue|
+𨵫,|nve|
 𨵬,|xian|
 𨵭,|jian|
 𨵮,|xu|
@@ -38864,7 +38864,7 @@
 𩄺,|long|
 𩄻,|mo|
 𩄼,|fei|
-𩄽,|lu|
+𩄽,|lv|
 𩄾,|ze|
 𩄿,|bo|
 𩅀,|dian|zhi|
@@ -38969,7 +38969,7 @@
 𩈜,|dui|
 𩈞,|dao|
 𩈡,|xing|
-𩈢,|ni|nu|
+𩈢,|ni|nv|
 𩈣,|han|
 𩈤,|chu|
 𩈥,|shua|
@@ -39886,7 +39886,7 @@
 𩥂,|qi|
 𩥄,|dian|
 𩥅,|tao|
-𩥆,|lu|
+𩥆,|lv|
 𩥇,|zhan|
 𩥈,|wen|
 𩥉,|ji|
@@ -40284,7 +40284,7 @@
 𩲢,|bi|mei|
 𩲣,|jia|
 𩲤,|tiao|
-𩲦,|lu|
+𩲦,|lv|
 𩲧,|kong|
 𩲨,|zui|
 𩲩,|ling|
@@ -40312,7 +40312,7 @@
 𩳔,|yao|
 𩳕,|tui|ti|
 𩳝,|gui|
-𩳡,|lu|
+𩳡,|lv|
 𩳢,|yan|
 𩳣,|qi|
 𩳤,|lang|chang|
@@ -40333,7 +40333,7 @@
 𩴉,|yun|
 𩴌,|gan|
 𩴍,|shou|
-𩴐,|lu|
+𩴐,|lv|
 𩴑,|you|
 𩴒,|jiang|
 𩴓,|nuo|
@@ -40768,7 +40768,7 @@
 𪅂,|zhang|
 𪅃,|piao|
 𪅄,|su|
-𪅅,|lue|
+𪅅,|lve|
 𪅆,|li|
 𪅇,|meng|
 𪅈,|chong|
@@ -40846,7 +40846,7 @@
 𪈋,|tuan|
 𪈑,|hui|
 𪈘,|hong|
-𪈜,|lu|
+𪈜,|lv|
 𪈟,|jia|
 𪈥,|gui|
 𪈨,|yi|
@@ -41564,7 +41564,7 @@
 𫄱,|se|
 𫄲,|mu|
 𫄳,|xi|
-𫄴,|lu|
+𫄴,|lv|
 𫄵,|beng|
 𫄶,|qiang|
 𫄷,|yi|
@@ -42040,7 +42040,7 @@
 𫪽,|jin|
 𫫇,|e|
 𫫦,|dan|
-𫫵,|lu|
+𫫵,|lv|
 𫫾,|pin|
 𫬐,|sai|
 𫬙,|gun|
@@ -42277,7 +42277,7 @@
 𬘠,|gai|
 𬘡,|yin|
 𬘢,|kuang|
-𬘤,|lu|
+𬘤,|lv|
 𬘥,|quan|
 𬘦,|pai|
 𬘧,|ji|
@@ -42795,7 +42795,7 @@
 𬸛,|huang|
 𬸜,|pian|
 𬸝,|an|
-𬸞,|lu|
+𬸞,|lv|
 𬸠,|ge|
 𬸡,|lan|
 𬸢,|gao|
@@ -42938,7 +42938,7 @@
 𮣳,|hong|
 𮣴,|chan|
 𮣵,|zhui|
-𮣶,|lu|
+𮣶,|lv|
 𮣷,|ju|
 𮤫,|men|
 𮤬,|chu|
@@ -43090,7 +43090,7 @@
 𰂏,|yu|
 𰂗,|di|
 𰂜,|tui|
-𰂦,|lu|
+𰂦,|lv|
 𰂭,|si|
 𰃆,|zan|
 𰃮,|xue|
@@ -43099,7 +43099,7 @@
 𰃿,|du|
 𰄁,|shen|
 𰄞,|tuan|
-𰅔,|lu|
+𰅔,|lv|
 𰅥,|du|
 𰅦,|dan|
 𰅻,|xia|
@@ -43246,7 +43246,7 @@
 𰙑,|xiao|
 𰙕,|lou|
 𰚔,|ning|
-𰚦,|lu|
+𰚦,|lv|
 𰚪,|ran|
 𰚱,|ye|
 𰛊,|ma|
@@ -43475,8 +43475,8 @@
 𰱝,|xiang|
 𰱟,|fen|
 𰱦,|fu|
-𰱩,|lu|
-𰱮,|lu|
+𰱩,|lv|
+𰱮,|lv|
 𰱯,|bei|
 𰱱,|ci|
 𰱲,|zhi|

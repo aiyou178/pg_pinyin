@@ -164,6 +164,15 @@ SELECT format(
 ) AS ddl
 \\gexec
 
+\\echo '[setup] refreshing dictionary planner statistics'
+ANALYZE pinyin.pinyin_mapping;
+ANALYZE pinyin.pinyin_token;
+ANALYZE pinyin.pinyin_words;
+SELECT format('ANALYZE pinyin.%I', :'mapping_table_name') AS ddl
+\\gexec
+SELECT format('ANALYZE pinyin.%I', :'words_table_name') AS ddl
+\\gexec
+
 \\echo '[setup] generating benchmark dataset'
 DROP TABLE IF EXISTS public.bench_names;
 CREATE TABLE public.bench_names (

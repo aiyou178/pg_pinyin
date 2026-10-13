@@ -148,11 +148,12 @@ Rust 扩展在编译时内置以下数据：
 子模块路径：
 
 - `third_party/pinyin-data`
+- `third_party/phrase-pinyin-data`
 
 初始化：
 
 ```bash
-git submodule update --init third_party/pinyin-data
+git submodule update --init third_party/pinyin-data third_party/phrase-pinyin-data
 ```
 
 一键生成扩展所需数据：
@@ -166,6 +167,33 @@ git submodule update --init third_party/pinyin-data
 - `sql/data/pinyin_mapping.csv`
 - `sql/data/pinyin_token.csv`
 - `sql/data/pinyin_words.csv`
+- `sql/data/manifest.json` 和 `sql/data/reports/*.json`
+
+来源提交、SHA-256 和合并优先级固定在 `scripts/data/sources.lock.json`。
+`ü`（含声调和分解形式）保留为 ASCII `v`；直接保留上游音节边界，例如
+`西安 -> xi an`、`善感 -> shan gan`。手工修正优先于基础词典，再合并
+CC-CEDICT；冲突读音和拒绝记录均生成报告，不再先连接再贪心切分。
+缺失或哈希不符的来源会在写入前失败，不会生成空词典，也不读取本机旁边的仓库。
+原始 CC-CEDICT 同时保留简繁词形；低优先级补回来源恢复全部已发布词条。
+锁定的旧 CSV 只用来检查 key 覆盖，不作为读音来源；`coverage_audit.json`
+逐条追溯初版 P0 缺失的 64,091 个词条。新增词条数量不能抵消旧 key 丢失。
+
+参见[导入说明](scripts/data/README.md)、[P0/P1/P2 spec](spec/pinyin-data-and-retrieval.md)
+和[数据许可声明](sql/data/NOTICE.md)。代码仍为 MIT；CC-CEDICT 派生词典另有
+CC-BY-SA 署名和相同方式共享要求。
+
+```bash
+python3 -m unittest discover -s scripts/data/tests
+python3 test/test_dictionary_accuracy.py
+```
+
+在数据库可读取同一路径的测试容器中，还可运行 SQL-only 导入/回滚保护：
+`PGURL="$PGURL" PG_LOADER_TESTS=1 python3 -m unittest discover -s test`。
+
+已有数据库不会自动覆盖在线字典。显式重新加载 CSV（或使用新编译二进制调用
+内部 `pinyin__seed_embedded_data()`）前，请备份自定义基础词典。
+还需要刷新已有 stored generated column，例如 `UPDATE voice SET description = description`，
+并重建表达式索引；仅更新字典表不会改写已存储值。后缀自定义词典独立保留。
 
 ## SQL 基线加载
 
@@ -187,7 +215,7 @@ pgTAP：
 ./test/pgtap/run.sh
 ```
 
-该命令还通过 psycopg 运行并行只读回归测试（测试镜像已包含依赖）：在独立的
+该命令包含 pgTAP 并行只读回归测试：在独立的
 只读事务中确认实际启动 parallel worker，并检查拼音转换、分词输入及后缀词典
 查询不会分配事务 ID。扩展内部的只读 SQL 应使用 `Spi::connect` 配合
 `client.select`；`Spi::get_one` / `get_one_with_args` 即使执行 `SELECT`，
@@ -259,6 +287,38 @@ DOCKER_BUILDKIT=1 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/tes
 ```
 
 ## Benchmark
+
+P0 数据修正对比使用相同的 20,000 条词组和编译后端，每个版本独立新建数据库：
+
+```bash
+python3 scripts/benchmark_dictionary_p0.py --pgurl "$PGADMINURL" --baseline-ref v0.0.8 --rows 20000 --runs 3
+```
+
+见 [P0 测量报告](benchmarks/p0_dictionary.md)。定向读音准确率、warm 延迟、
+生成文本字节数和实际 BM25/GIN 大小分开报告；合成查询不代表真实用户流量。
+下面通用 benchmark 的语料不同，不能直接横向比较耗时。
+
+覆盖修复后的 benchmark 按保留、补回和新增词条分层取样，两版使用完全相同
+的输入语料。人工准确率与合成检索一致性分开报告，fixture ID 不再优先占据
+最小值。当前测量见报告；此前仅测共有词条的实验没有验证丢失的 64,091 个
+词条，已被本次实验替代。脚本需要 psycopg 3（测试镜像已包含）和可建数据库的管理连接。
+
+2026-10-13 在 PG19 beta4 / pg_search 0.25.1 上完成覆盖修复测量
+（20,000 条词组、2,000 次查询、三轮交错顺序）：
+
+| 指标 | v0.0.8 数据 | 修正后数据 |
+| --- | ---: | ---: |
+| 词组 key 数 | 157,702 | 196,188；旧 key 零丢失 |
+| 人工定向读音正确数 | 33/55 | 55/55 |
+| 人工查询 Rust Recall@10 / MRR | 0.6000 / 0.4606 | 1.0000 / 0.8273 |
+| Rust 文本拼音化 warm 中位耗时 | 333.270 ms | 292.435 ms（-12.25%） |
+| Rust 完整查询批次中位耗时 | 1,841.729 ms | 1,867.646 ms（+1.41%） |
+| BM25 索引字节数 | 3,309,568 | 3,309,568 |
+
+定向回归不代表通用读音准确率。完整检索耗时基本持平，未观察到索引缩小；
+生成词级字段字节数增加 0.19%。SQL 精确数组拼音化 warm 耗时增加 22.97%。
+旧 SQL 词组／逐字回退路径在该语料上明显加速，与新增词组覆盖避免昂贵逐字回退
+相符，并非解析算法变化。主机存在 swap 压力，轮次波动较大，三轮计时不能证明稳定提速。
 
 衡量分词/拼音化、query builder 和完整检索性能：
 
@@ -404,7 +464,7 @@ PostgreSQL 函数（20,000 行）：
 
 ## Roadmap
 
-1. 梳理数据生成流水线，并持续扩充词级字典覆盖。
+1. 已实现 P0 可复现、保留音节的导入；后续 P1/P2 参见[检索与数据 spec](spec/pinyin-data-and-retrieval.md)。
 2. ~~支持用户自定义词典，并可按指定词典执行拼音化。~~
 3. 提供平滑升级路径（扩展内置词典与用户词典的升级策略）。
 4. 改进英文处理能力（包括 stemming）。
@@ -440,4 +500,6 @@ PostgreSQL 函数（20,000 行）：
 
 ## 致谢
 
-- 汉字词组拼音 TSV 数据来源： [tsroten/dragonmapper `hanzi_pinyin_words.tsv`](https://github.com/tsroten/dragonmapper/blob/main/src/dragonmapper/data/hanzi_pinyin_words.tsv)
+- 字级读音：[mozillazg/pinyin-data](https://github.com/mozillazg/pinyin-data)。
+- 保留音节的词组：[mozillazg/phrase-pinyin-data](https://github.com/mozillazg/phrase-pinyin-data) 和 [CC-CEDICT contributors / MDBG](https://www.mdbg.net/chinese/dictionary?page=cc-cedict)，参见[数据声明](sql/data/NOTICE.md)。
+- P0 前历史连接拼音来自 [tsroten/dragonmapper](https://github.com/tsroten/dragonmapper/blob/main/src/dragonmapper/data/hanzi_pinyin_words.tsv)，现在只作覆盖基线；补回读音来自锁定的原始 CC-CEDICT 音节，不重新猜分段。

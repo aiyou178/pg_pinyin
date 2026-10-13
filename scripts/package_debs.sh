@@ -11,6 +11,12 @@ mkdir -p "$OUT_DIR"
 
 cd "$ROOT_DIR"
 
+data_notices=(NOTICE.md MIT-sources.txt CC-BY-SA-3.0.txt CC-BY-SA-4.0.txt manifest.json)
+for file in "${data_notices[@]}"; do
+  test -s "$ROOT_DIR/sql/data/$file" || { echo "missing data notice: $file" >&2; exit 2; }
+done
+test -s "$ROOT_DIR/scripts/data/sources.lock.json"
+
 for pg in "${PG_VERSIONS[@]}"; do
   pg_config="/usr/lib/postgresql/$pg/bin/pg_config"
   if [[ ! -x "$pg_config" ]]; then
@@ -71,6 +77,14 @@ for pg in "${PG_VERSIONS[@]}"; do
   cp "${sql_files[@]}" "$deb_root/usr/share/postgresql/$pg/extension/"
   cp "$ROOT_DIR"/pg_pinyin--*.sql "$deb_root/usr/share/postgresql/$pg/extension/"
 
+  doc_dir="$deb_root/usr/share/doc/postgresql-${pg}-pg-pinyin"
+  mkdir -p "$doc_dir"
+  cp "$ROOT_DIR/LICENSE" "$doc_dir/LICENSE.code"
+  for file in "${data_notices[@]}"; do
+    cp "$ROOT_DIR/sql/data/$file" "$doc_dir/"
+  done
+  cp "$ROOT_DIR/scripts/data/sources.lock.json" "$doc_dir/"
+
   cat > "$deb_root/DEBIAN/control" <<CONTROL
 Package: postgresql-${pg}-pg-pinyin
 Version: ${EXT_VERSION}
@@ -85,5 +99,8 @@ CONTROL
 
   out_deb="$OUT_DIR/postgresql-${pg}-pg-pinyin_${EXT_VERSION}_trixie_${ARCH}.deb"
   dpkg-deb --build "$deb_root" "$out_deb"
+  for file in "${data_notices[@]}" sources.lock.json LICENSE.code; do
+    dpkg-deb --fsys-tarfile "$out_deb" | tar -tf - "./usr/share/doc/postgresql-${pg}-pg-pinyin/$file" >/dev/null
+  done
   echo "[package] wrote $out_deb"
 done
