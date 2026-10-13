@@ -73,3 +73,20 @@ BEGIN
   END IF;
 END;
 $pinyin_query_modes$;
+
+-- The unreleased 0.0.9 includes independent document batches as well.
+CREATE FUNCTION public.pinyin_word_romanize_batch(origins text[])
+RETURNS text[]
+AS 'MODULE_PATHNAME', 'pinyin_word_romanize_batch_wrapper'
+LANGUAGE c
+STABLE
+STRICT
+PARALLEL SAFE;
+
+CREATE FUNCTION public.pinyin_word_romanize_batch(origins text[], suffix text)
+RETURNS text[]
+AS 'MODULE_PATHNAME', 'pinyin_word_romanize_batch_with_suffix_wrapper'
+LANGUAGE c
+STABLE
+STRICT
+PARALLEL SAFE;

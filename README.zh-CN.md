@@ -17,6 +17,8 @@
 - `pinyin_word_romanize(text, suffix text)`
 - `pinyin_word_romanize(tokenizer_input anyelement)`（重载，支持 `pdb` tokenizer 输入，如 `name::pdb.icu::text[]`）
 - `pinyin_word_romanize(tokenizer_input anyelement, suffix text)`（带用户词典后缀的重载）
+- `pinyin_word_romanize_batch(origins text[])`（多个独立文本文档，返回 `text[]`）
+- `pinyin_word_romanize_batch(origins text[], suffix text)`（带用户词典后缀的文档批次）
 - `pinyin_regex_phrase(text, slope integer DEFAULT NULL, max_expansions integer DEFAULT NULL, generated_pinyin boolean DEFAULT false)`（`pg_search` query helper；当 `pg_search` 已在当前数据库启用时，由 `CREATE EXTENSION pg_pinyin` 安装，返回 `pdb.query`）
 - `pinyin_regex_phrase_mode(text, mode text, slope integer DEFAULT NULL, max_expansions integer DEFAULT NULL, generated_pinyin boolean DEFAULT false)`（显式查询模式，安装条件相同，按需使用）
 
@@ -121,6 +123,48 @@ Rust 普通词级输出不需要这个标志。选择模式不会删减索引内
 `22023`，SQL NULL 仍保留为 NULL。已有数据库安装新二进制和迁移文件后执行
 `ALTER EXTENSION pg_pinyin UPDATE TO '0.0.9'`；不会覆盖在线词典或 stored generated 值。
 替换 Rust 动态库后，应从新数据库连接执行升级，避免旧连接继续持有已加载的旧库。
+
+## Token 数组与文档批次
+
+未发布的开发版本 0.0.9 对真正的 `text[]` tokenizer 输入直接在 Rust 中读取，移除
+原来的 SPI／JSON 中转。旧 `anyelement` 签名、函数 OID 和生成列表达式绑定
+不变，其他可转换输入保留旧 fallback。Token 会去除首尾空白、丢弃空项，
+纯 ASCII 字母数字 token 转小写；NULL token 仍报错。数组维度和下界不改变
+按存储顺序读取 token 的行为。
+
+新 `pinyin_word_romanize_batch` 的每个数组项是一个完整的独立文档，不能当作
+单个文档的 token 来拼接。一次显式批次只检查一次在线词典版本，并复用同一份
+词典快照；普通调用仍然每次检查版本。缓存标识还包含元数据行的 `xmin`，避免
+savepoint 回滚后重用版本号时，误命中先前未提交的词典内容。
+后缀词典延续已有的显式缓存清理和基础
+词典版本失效规则。批量函数由 Rust 直接导出，声明为 `STABLE`、`STRICT`、
+`PARALLEL SAFE`；stored generated 列继续使用原来的 `IMMUTABLE` 标量接口。
+
+```sql
+-- 一个文档的 tokens，已有调用也自动使用快路径。
+SELECT public.pinyin_word_romanize(ARRAY['吕', '梁', 'ABC']);
+-- lv liang abc
+
+-- 三个独立文档，保留 NULL 的位置。
+SELECT public.pinyin_word_romanize_batch(ARRAY['吕梁', NULL, '银行']);
+-- {"lv liang",NULL,"yin hang"}
+
+-- 显式限制每批数量，与源 ID 对齐后导入。
+INSERT INTO imported_voice (id, description, pinyin)
+SELECT ids[i], documents[i], outputs[i]
+FROM (SELECT ARRAY[1, 2]::bigint[] AS ids,
+             ARRAY['吕梁', '银行']::text[] AS documents) AS batch
+CROSS JOIN LATERAL public.pinyin_word_romanize_batch(documents) AS converted(outputs)
+CROSS JOIN LATERAL generate_subscripts(documents, 1) AS item(i);
+```
+
+示例中 `imported_voice.pinyin` 是普通 text 列，不是生成列。应使用有界批次，
+不要把整个导入聚合为一个数组。结果是一维、下界为 1 的数组；多维输入按存储
+顺序展平。SQL NULL 输入返回 NULL，空数组保持为空，NULL 文档项保持原位置；
+空／全 NULL 批次不加载词典。不删减任何词条、拼音输出或索引内容，独立 SQL
+后端不变。安装新动态库和迁移后，从新连接执行
+`ALTER EXTENSION pg_pinyin UPDATE TO '0.0.9'`。目前最新发布版本仍是 0.0.8，
+本次功能合并进现有的 `0.0.8 → 0.0.9` 迁移，不再额外提升版本。
 
 ## 生成列用法示例（Raw SQL）
 
@@ -357,6 +401,50 @@ DOCKER_BUILDKIT=1 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/tes
 ```
 
 ## Benchmark
+
+### Native 数组与文档批次
+
+独立脚本 `scripts/benchmark_array_batch.py` 在相同的 20,000 个词组上，对比
+真正的 P1 优化前提交 `f1094be` 与当前工作代码。两者都是未发布的 0.0.9 开发
+快照，不是两个已发布版本。先重编译 P1 快照，再安装当前库；两者使用
+相同 Rust 工具链和 release profile。请在测试容器内运行，保证 `pg_config`
+和动态库路径对应服务端文件系统：
+
+```bash
+export PG_CONFIG=/usr/lib/postgresql/19/bin/pg_config
+PG_PINYIN_BUILD_RELEASE=1 bash test/prepare_upgrade.sh f1094beeb69c093085403f5b02d616a4de7adabe
+cargo pgrx install --release --features pg19 --no-default-features --pg-config "$PG_CONFIG"
+cp pg_pinyin--*--*.sql "$("$PG_CONFIG" --sharedir)/extension/"
+python3 scripts/benchmark_array_batch.py --pgurl "$PGADMINURL" --rows 20000 --runs 3
+```
+
+分别测转换和全新 heap／主键表的实际 INSERT。Token 数组及批次在计时前准备，
+ICU 分词单独测量。Cold 指新的 backend 缓存，不是 OS 冷缓存。脚本拒绝 debug
+旧库或不匹配的 release 构建产物，并逐条校验与未改动词典的输出一致。
+不包含 BM25 索引维护，也不声称缩小索引。
+
+2026-10-13 的 [报告](benchmarks/p2_array_batch.md) 和
+[原始 JSON](benchmarks/p2_array_batch.json) 使用 PG19 beta 4／pg_search 0.26.1，
+20,000 个词组、3 轮轮换对比。以下为 warm 中位数，单位 ms：
+
+| 路径 | 转换 | 全新表 INSERT |
+| --- | ---: | ---: |
+| P1 快照标量 | 300.489 | 321.993 |
+| 当前标量 | 258.099 | 296.844 |
+| P1 快照 token 数组 | 623.978 | 649.027 |
+| Native token 数组 | 261.685 | 277.513 |
+| 每批 128 个文档 | 25.482 | 41.774 |
+| 每批 512 个文档 | 23.418 | 41.592 |
+
+这次 native 数组转换和 INSERT 分别快约 2.38 倍、2.34 倍；每批 512 个文档
+相对旧标量路径，转换快约 12.8 倍、INSERT 快约 7.74 倍，逐条输出一致。
+128 和 512 的 INSERT 中位数很接近，批次更大也不一定更快。
+共享主机计时前使用 `31946.69M` swap，这些是本次观测，不保证固定收益或通用
+最优批次。不含输入准备、客户端传输、BM25 维护，不能直接视为生产导入吞吐。
+
+本地通过 88 项 Python 测试、875 个 pgTAP 断言和 16 项 Rust 测试，覆盖真实
+发布版 `0.0.8 → 开发版 0.0.9` 升级、在线缓存修改／回滚、TOAST 和实际只读
+parallel worker。词典可复现生成通过，`sql/data` 无变化。
 
 ### P1 查询模式（pg_search 0.26.1）
 
