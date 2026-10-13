@@ -17,6 +17,8 @@
 - `pinyin_word_romanize(text, suffix text)`
 - `pinyin_word_romanize(tokenizer_input anyelement)` (overload; use `pdb` tokenizer input such as `name::pdb.icu::text[]`)
 - `pinyin_word_romanize(tokenizer_input anyelement, suffix text)` (overload with user-table suffix)
+- `pinyin_word_romanize_batch(origins text[])` (independent plain-text documents, returns `text[]`)
+- `pinyin_word_romanize_batch(origins text[], suffix text)` (document batch with user-table suffix)
 - `pinyin_regex_phrase(text, slope integer DEFAULT NULL, max_expansions integer DEFAULT NULL, generated_pinyin boolean DEFAULT false)` (`pg_search` query helper; installed by `CREATE EXTENSION pg_pinyin` when `pg_search` is already enabled in the database, returns `pdb.query`)
 - `pinyin_regex_phrase_mode(text, mode text, slope integer DEFAULT NULL, max_expansions integer DEFAULT NULL, generated_pinyin boolean DEFAULT false)` (opt-in explicit query modes; same installation requirement)
 
@@ -128,6 +130,54 @@ SQL NULL inputs remain NULL. Existing installations use
 migration; live dictionaries and stored generated values are not overwritten.
 Run the upgrade from a new database connection after replacing the Rust library,
 so an existing connection does not retain the previously loaded binary.
+
+## Token Arrays and Document Batches
+
+The unreleased development version 0.0.9 reads real `text[]` tokenizer input directly in Rust,
+without the previous SPI/JSON serialization. Existing `anyelement` signatures,
+function OIDs and generated-column bindings are unchanged; castable non-`text[]`
+inputs retain the legacy fallback. Tokens are trimmed, empty tokens dropped,
+and wholly ASCII-alphanumeric tokens lowercased. NULL token elements still raise
+an error. Array dimensions/lower bounds do not affect row-major token order.
+
+The new `pinyin_word_romanize_batch` API has different semantics: each element
+is a complete, independent plain-text document, not a token to concatenate.
+It reuses one live dictionary-version check and dictionary snapshot per explicit
+batch. Ordinary calls still check the version on every invocation. Cache identity
+also includes the metadata row's `xmin`, preventing reused version counters
+after savepoint rollback from serving an earlier uncommitted dictionary. Suffix
+overrides follow the existing cache-clear and base-version invalidation rules.
+The batch functions are `STABLE`, `STRICT`, `PARALLEL SAFE` Rust functions; use
+the existing scalar `IMMUTABLE` API for stored generated columns.
+
+```sql
+-- Tokens of ONE document; existing calls also receive the fast path.
+SELECT public.pinyin_word_romanize(ARRAY['吕', '梁', 'ABC']);
+-- lv liang abc
+
+-- THREE independent documents; NULL positions are retained.
+SELECT public.pinyin_word_romanize_batch(ARRAY['吕梁', NULL, '银行']);
+-- {"lv liang",NULL,"yin hang"}
+
+-- Pair batch output with source IDs for bounded, explicit INSERT batches.
+INSERT INTO imported_voice (id, description, pinyin)
+SELECT ids[i], documents[i], outputs[i]
+FROM (SELECT ARRAY[1, 2]::bigint[] AS ids,
+             ARRAY['吕梁', '银行']::text[] AS documents) AS batch
+CROSS JOIN LATERAL public.pinyin_word_romanize_batch(documents) AS converted(outputs)
+CROSS JOIN LATERAL generate_subscripts(documents, 1) AS item(i);
+```
+
+Here `imported_voice.pinyin` is an ordinary text column, not a generated column.
+Use bounded batches rather than aggregating an entire import into one array.
+The result is a one-dimensional array with lower bound 1; multidimensional input
+is flattened in storage order. SQL NULL input returns NULL, an empty array stays
+empty, and NULL document elements are preserved. Empty/all-NULL batches do not
+load dictionaries. No dictionary entries, output representation or index content
+are removed by these optimizations. The independent SQL backend is unchanged.
+Install the new library/migration and upgrade from a new connection with
+`ALTER EXTENSION pg_pinyin UPDATE TO '0.0.9'`. Version 0.0.8 remains the latest
+published release; these changes extend the existing 0.0.8-to-0.0.9 migration.
 
 ## Generated Column Example (Raw SQL)
 
@@ -373,6 +423,57 @@ DOCKER_BUILDKIT=1 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/tes
 ```
 
 ## Benchmark
+
+### Native Arrays and Document Batches
+
+The separate `scripts/benchmark_array_batch.py` harness compares the real
+pre-optimization P1 commit `f1094be` and the current working Rust library on the
+same 20,000 phrases. Both are unreleased 0.0.9 development snapshots, not two
+published releases. Rebuild the P1 snapshot before installing the current library,
+using the same Rust toolchain
+and release profile for both. Run inside the test container so `pg_config` and
+library paths refer to the server's filesystem:
+
+```bash
+export PG_CONFIG=/usr/lib/postgresql/19/bin/pg_config
+PG_PINYIN_BUILD_RELEASE=1 bash test/prepare_upgrade.sh f1094beeb69c093085403f5b02d616a4de7adabe
+cargo pgrx install --release --features pg19 --no-default-features --pg-config "$PG_CONFIG"
+cp pg_pinyin--*--*.sql "$("$PG_CONFIG" --sharedir)/extension/"
+python3 scripts/benchmark_array_batch.py --pgurl "$PGADMINURL" --rows 20000 --runs 3
+```
+
+Conversion and fresh heap/primary-key INSERT are separate measurements. Token
+arrays/batches are precomputed outside timing; ICU tokenization is measured
+separately. Cold means a new backend cache, not cold OS buffers. The harness
+rejects debug baselines or mismatched current release artifacts and verifies
+every output against the unchanged dictionary. It does not measure BM25 index
+maintenance or claim index reduction.
+
+The 2026-10-13 [report](benchmarks/p2_array_batch.md) and
+[raw JSON](benchmarks/p2_array_batch.json) use PostgreSQL 19 beta 4 / pg_search
+0.26.1, 20,000 phrases and three rotated repeats. Warm medians in milliseconds:
+
+| Method | Conversion | Fresh INSERT |
+| --- | ---: | ---: |
+| P1 snapshot scalar | 300.489 | 321.993 |
+| Current scalar | 258.099 | 296.844 |
+| P1 snapshot token array | 623.978 | 649.027 |
+| Native token array | 261.685 | 277.513 |
+| Batch 128 documents | 25.482 | 41.774 |
+| Batch 512 documents | 23.418 | 41.592 |
+
+Native arrays observed 2.38x faster conversion and 2.34x faster INSERT than the
+old array path. Batch 512 observed 12.8x faster conversion and 7.74x faster
+INSERT than the old scalar path, with identical verified outputs. Batch 128
+and 512 INSERT medians were close; larger batches were not uniformly faster.
+These are shared-host observations, not universal speedup/optimal-size claims.
+The host used `31946.69M` swap before timing. Input preparation/client transfer,
+BM25 maintenance and production ingestion throughput are outside this result.
+
+Local validation passed 88 Python tests, 875 pgTAP assertions and 16 Rust tests,
+including genuine released 0.0.8-to-development-0.0.9 upgrades, live cache
+mutation/rollback, TOAST and actual read-only parallel workers. Dictionary
+regeneration was deterministic and `sql/data` remained unchanged.
 
 ### P1 Query Modes (pg_search 0.26.1)
 

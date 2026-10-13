@@ -246,7 +246,8 @@ class QueryModesUpgradeTests(unittest.TestCase):
             self.assertEqual(self.version(connection), NEW_VERSION)
             new_oids = self.owned_function_oids(connection)
             self.assertEqual({name: new_oids.get(name) for name in old_oids}, old_oids)
-            self.assertEqual(len(new_oids), len(old_oids) + len(NEW_SIGNATURES))
+            # The unreleased 0.0.9 also adds the two document-batch functions.
+            self.assertEqual(len(new_oids), len(old_oids) + len(NEW_SIGNATURES) + 2)
             self.assertEqual(connection.execute(
                 "SELECT public.pinyin_regex_phrase('lunlun', NULL, 4)::text, "
                 "public.pinyin_regex_phrase(NULL, NULL, 4) IS NULL, "

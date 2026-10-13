@@ -1,6 +1,6 @@
 # Pinyin Data Integrity and Retrieval Optimization
 
-Status: P0 implemented; opt-in P1 query modes implemented in development version 0.0.9; remaining P1/P2 proposed. Date: 2026-10-13.
+Status: P0, opt-in P1 query modes and native arrays/document batches implemented and locally validated in unreleased development version 0.0.9; remaining P1/P2 proposed. Date: 2026-10-13.
 
 ## Scope
 
@@ -232,15 +232,92 @@ Remaining proposals require independent labeled evaluation before defaults chang
 2. Normalize query `ü`/tone marks/tone numbers/apostrophe boundaries consistently
    and use a bounded candidate lattice for ambiguous joined input, not a single
    greedy segmentation or unbounded Cartesian expansion.
-3. Provide typed `text[]`/batch ingestion to avoid array-to-JSON-to-text round
-   trips, and amortize dictionary-version SPI checks at an explicit snapshot
-   boundary without weakening cache invalidation or parallel safety.
+3. Validate the native `text[]`/document-batch increment below, preserving cache
+   invalidation and parallel safety before accepting performance claims.
 4. Optional conservative function-word filtering: tokenize/POS/entity-protect
    before romanization, keep original Chinese and full-pinyin fallback. Protect
    names, titles, fixed phrases, quoted text, negation, scope and direction.
    Never delete homophonic `de`/`he` after conversion or union public stoplists.
    Query/index policies must match; preserve positions where phrase semantics
    require them. Compare full, filtered and entity/keyword fields separately.
+
+## Native Arrays and Explicit Document Batches
+
+The next increment extends unreleased development version 0.0.9 and its existing
+0.0.8 upgrade. The latest published release remains 0.0.8; no extra version bump
+or separate migration is introduced.
+It does not change query modes, dictionaries or the independent SQL backend.
+
+- Existing `pinyin_word_romanize(anyelement[, suffix])` recognizes exactly the
+  PostgreSQL `text[]` OID and decodes it directly with pgrx `Array<&str>`.
+  Other castable types retain their SPI/JSON fallback. No extra legacy overload
+  is introduced: old function OIDs, untyped calls and generated-column bindings
+  remain intact. Trim/drop-empty/ASCII-case behavior is preserved; NULL tokens
+  remain errors rather than silently disappearing.
+- `public.pinyin_word_romanize_batch(text[][, suffix]) RETURNS text[]` treats
+  elements as independent plain-text documents. NULL/empty positions are kept;
+  multidimensional/non-1-based arrays flatten in row-major order to a 1-based
+  one-dimensional result. Empty/all-NULL batches need no dictionary lookup.
+- One explicit batch uses one version check/live dictionary snapshot. Regular
+  calls still check every invocation. Cache keys include the version counter
+  and metadata-row xmin: a rollback followed by another mutation can reuse the
+  counter without an intervening read, but must never reuse the stale snapshot.
+  Suffix clear-cache and base invalidation remain intact. New functions are directly exported
+  Rust `STABLE STRICT PARALLEL SAFE`, not SQL wrappers or global transaction
+  snapshots. Existing scalar volatility is outside this increment's scope.
+- The migration adds only the new APIs; it never reseeds live dictionaries or
+  rewrites stored generated values. Applications must use ordinary output
+  columns for batch INSERT, not the STABLE batch function in generated columns.
+
+Acceptance requires native/fallback parity, independent pronunciation gold,
+NULL/TOAST/dimension tests, suffix/base mutation and rollback checks, genuine
+0.0.8-to-0.0.9 upgrade preserving old OIDs/generated expressions, and actual launched
+parallel workers below Gather in a read-only transaction without assigned XIDs.
+
+`scripts/benchmark_array_batch.py` compares an independently rebuilt real P1
+pre-optimization commit `f1094be` DLL with the working DLL in a fresh UUID
+database. Both are unreleased 0.0.9 development snapshots. The old DLL has a
+separate filename and C aliases, guarded by pinned commit and library/SQL
+SHA-256 manifests; a simulated JSON wrapper is not an acceptable baseline.
+Require both DLLs to be release builds with matching compiler versions and
+verify the installed current DLL against its Cargo release build artifact.
+Select 20,000 normalized Han-only phrases by deterministic hash, verify every
+output against source readings, and keep independent restored/umlaut/mixed/NULL
+gold outside the timing corpus. Time old/new scalar and precomputed character
+token paths, bounded document batches of 1/32/128/512/2048, and fresh unindexed
+INSERTs separately. ICU-only timing is not charged to precomputed arrays.
+Use at least three rotated repeats, JIT off/parallel off, new-backend cold and
+warm phases, forced count/bytes/ordered-ID-output hashes and full untimed parity.
+Report raw samples, medians, source/runtime/settings/host metadata and cleanup.
+This measures conversion/heap+PK INSERT, not BM25 index maintenance or index
+compression: output bytes must remain identical. Results belong in a separate
+`benchmarks/p2_array_batch.md` / `.json`, not historical P0/P1 reports.
+
+Local validation on 2026-10-13 used PostgreSQL 19 beta 4 / pg_search 0.26.1:
+88 Python tests, 875 pgTAP assertions and 16 Rust unit tests passed. Genuine
+0.0.8-to-0.0.9 upgrades retain all old function OIDs, stored generated expressions
+and values, live dictionaries and token rows. Fresh/upgrade catalogs agree
+with and without pg_search. Forced parallel probes launch workers and execute
+native/batch/suffix calls below Gather without assigning an XID in read-only
+transactions. Real external TOAST arrays and all eight base/suffix/char/native/
+batch cache paths pass the reused-counter, distinct-xmin rollback regression.
+Dictionary regeneration is deterministic and sql/data is unchanged.
+
+The [completed report](../benchmarks/p2_array_batch.md) and
+[raw JSON](../benchmarks/p2_array_batch.json) verify all 20,000 source/ID/output
+rows for every method and INSERT phase, plus 12 separate handwritten document
+gold cases. Both release-profile DLLs use rustc 1.98.1; current installed DLL
+matches its build artifact, and old/current artifacts are distinct despite
+sharing the unreleased 0.0.9 version. Generation warm medians are 623.978 ms
+for the P1 token-array snapshot and 261.685 ms for native arrays (observed 2.38x).
+INSERT medians are 649.027 and 277.513 ms respectively (2.34x). Batch 512 gives
+23.418 ms conversion / 41.592 ms INSERT versus old scalar 300.489 / 321.993 ms
+(12.8x / 7.74x). Batch 128 INSERT is close at 41.774 ms; 2048 is slower at
+61.087 ms, so no universal optimal batch size is established. The independent
+ICU-only warm median is 48.015 ms and is not charged to precomputed arrays.
+The shared host used 31946.69M swap before timing; these are exploratory
+server-side conversion/unindexed INSERT observations, not client upload or
+BM25-index-maintenance throughput and not an index-size optimization.
 
 ## P2: Sources and Evaluation
 

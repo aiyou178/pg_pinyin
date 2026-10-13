@@ -24,16 +24,22 @@ mod extension {
     const EMBEDDED_TOKEN_CSV: &str = include_str!("../sql/data/pinyin_token.csv");
     const EMBEDDED_WORDS_CSV: &str = include_str!("../sql/data/pinyin_words.csv");
 
+    #[derive(Clone, Copy, Default, PartialEq, Eq)]
+    struct DictionaryVersion {
+        counter: i64,
+        metadata_xmin: i64,
+    }
+
     #[derive(Default)]
     struct CharDictionaryCache {
-        version: i64,
+        version: DictionaryVersion,
         loaded: bool,
         char_map: HashMap<String, String>,
     }
 
     #[derive(Default)]
     struct DictionaryCache {
-        version: i64,
+        version: DictionaryVersion,
         loaded: bool,
         char_map: HashMap<String, String>,
         word_map: HashMap<String, String>,
@@ -42,7 +48,7 @@ mod extension {
 
     #[derive(Default)]
     struct SuffixDictionaryCacheEntry {
-        base_version: i64,
+        base_version: DictionaryVersion,
         char_map: HashMap<String, String>,
         words_loaded: bool,
         word_map: HashMap<String, String>,
@@ -318,21 +324,29 @@ mod extension {
         }
     }
 
-    fn fetch_dictionary_version() -> i64 {
+    fn fetch_dictionary_version() -> DictionaryVersion {
         let sql = format!(
-            "SELECT COALESCE((SELECT version FROM {s}.pinyin_dictionary_meta WHERE singleton), 0)",
+            "SELECT version, xmin::text::bigint FROM {s}.pinyin_dictionary_meta WHERE singleton",
             s = DICTIONARY_SCHEMA
         );
         // Spi::get_one uses a mutable SPI call even for SELECT and assigns an
         // XID, which is forbidden in parallel workers. Keep these reads read-only.
-        match Spi::connect(|client| client.select(&sql, Some(1), &[])?.first().get_one::<i64>()) {
-            Ok(Some(version)) => version,
-            Ok(None) => 0,
-            Err(_) => 0,
+        // A rolled-back subtransaction can reuse its counter, but not its row xmin.
+        match Spi::connect(|client| {
+            client
+                .select(&sql, Some(1), &[])?
+                .first()
+                .get_two::<i64, i64>()
+        }) {
+            Ok((Some(counter), Some(metadata_xmin))) => DictionaryVersion {
+                counter,
+                metadata_xmin,
+            },
+            _ => DictionaryVersion::default(),
         }
     }
 
-    fn load_char_dictionary_snapshot(version: i64) -> CharDictionaryCache {
+    fn load_char_dictionary_snapshot(version: DictionaryVersion) -> CharDictionaryCache {
         let char_map = fetch_string_map_from_table("pinyin_mapping", "character", "pinyin");
         CharDictionaryCache {
             version,
@@ -367,7 +381,7 @@ mod extension {
         }
     }
 
-    fn load_dictionary_snapshot(version: i64) -> DictionaryCache {
+    fn load_dictionary_snapshot(version: DictionaryVersion) -> DictionaryCache {
         let char_map = fetch_string_map_from_table("pinyin_mapping", "character", "pinyin");
         let word_map = fetch_string_map_from_table("pinyin_words", "word", "pinyin");
 
@@ -766,25 +780,44 @@ mod extension {
         )
     }
 
+    fn normalize_token(token: &str) -> Option<String> {
+        let token = token.trim();
+        if token.is_empty() {
+            None
+        } else if token.chars().all(|ch| ch.is_ascii_alphanumeric()) {
+            Some(token.to_ascii_lowercase())
+        } else {
+            Some(token.to_string())
+        }
+    }
+
     fn romanize_token_list(json_text: String) -> Vec<String> {
         match serde_json::from_str::<Vec<String>>(&json_text) {
             Ok(tokens) => tokens
                 .into_iter()
-                .map(|token| token.trim().to_string())
-                .filter(|token| !token.is_empty())
-                .map(|token| {
-                    if token.chars().all(|ch| ch.is_ascii_alphanumeric()) {
-                        token.to_ascii_lowercase()
-                    } else {
-                        token
-                    }
-                })
+                .filter_map(|token| normalize_token(&token))
                 .collect(),
             Err(err) => error!("failed to parse tokenizer result as JSON array: {err}"),
         }
     }
 
     fn fetch_tokenizer_input_tokens(tokenizer_input: AnyElement) -> Option<Vec<String>> {
+        if tokenizer_input.oid() == pg_sys::TEXTARRAYOID {
+            // Keep old anyelement OIDs/generated expressions, but bypass the SPI/JSON cast.
+            let tokens = unsafe { AnyElement::into::<Array<&str>>(&tokenizer_input) }
+                .expect("non-NULL text[] datum");
+            return Some(
+                tokens
+                    .iter()
+                    .filter_map(|token| {
+                        normalize_token(token.unwrap_or_else(|| {
+                            error!("tokenizer text[] input must not contain NULL elements")
+                        }))
+                    })
+                    .collect(),
+            );
+        }
+
         let args =
             [unsafe { pgrx::datum::DatumWithOid::new(tokenizer_input, tokenizer_input.oid()) }];
         let json_text = match Spi::connect(|client| {
@@ -990,6 +1023,74 @@ mod extension {
             None => with_dictionary_cache(|cache| {
                 pinyin_word_romanize_with_maps(
                     origin,
+                    &cache.char_map,
+                    &cache.word_map,
+                    cache.max_word_len,
+                )
+            }),
+        }
+    }
+
+    fn romanize_document_batch_with_maps(
+        origins: &Array<&str>,
+        char_map: &HashMap<String, String>,
+        word_map: &HashMap<String, String>,
+        max_word_len: usize,
+    ) -> Vec<Option<String>> {
+        origins
+            .iter()
+            .map(|origin| {
+                origin.map(|origin| {
+                    pinyin_word_romanize_with_maps(origin, char_map, word_map, max_word_len)
+                })
+            })
+            .collect()
+    }
+
+    fn empty_document_batch(origins: &Array<&str>) -> Option<Vec<Option<String>>> {
+        if origins.iter().all(|origin| origin.is_none()) {
+            Some(vec![None; origins.len()])
+        } else {
+            None
+        }
+    }
+
+    #[pg_extern(stable, strict, parallel_safe)]
+    fn pinyin_word_romanize_batch(origins: Array<&str>) -> Vec<Option<String>> {
+        if let Some(empty) = empty_document_batch(&origins) {
+            return empty;
+        }
+        // One version check/cache snapshot per explicit batch, never per transaction.
+        with_dictionary_cache(|cache| {
+            romanize_document_batch_with_maps(
+                &origins,
+                &cache.char_map,
+                &cache.word_map,
+                cache.max_word_len,
+            )
+        })
+    }
+
+    #[pg_extern(stable, strict, parallel_safe, name = "pinyin_word_romanize_batch")]
+    fn pinyin_word_romanize_batch_with_suffix(
+        origins: Array<&str>,
+        suffix: &str,
+    ) -> Vec<Option<String>> {
+        if let Some(empty) = empty_document_batch(&origins) {
+            return empty;
+        }
+        match canonicalize_table_suffix(suffix) {
+            Some(canonical_suffix) => with_suffix_word_cache(&canonical_suffix, |entry| {
+                romanize_document_batch_with_maps(
+                    &origins,
+                    &entry.char_map,
+                    &entry.word_map,
+                    entry.max_word_len,
+                )
+            }),
+            None => with_dictionary_cache(|cache| {
+                romanize_document_batch_with_maps(
+                    &origins,
                     &cache.char_map,
                     &cache.word_map,
                     cache.max_word_len,
