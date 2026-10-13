@@ -64,6 +64,149 @@ class SqlLoaderTests(unittest.TestCase):
             ).fetchone()[0]
             self.assertTrue(analyzed)
 
+    def test_sql_matching_mode_patterns_and_legacy_null_resolution(self):
+        cases = [
+            ("xian", "full", False, ["xian"]),
+            ("xi'an", "full", False, ["xi", "an"]),
+            ("xi’an", "full", False, ["xi", "an"]),
+            ("xi an", "autocomplete", False, ["xi", "an.*"]),
+            ("xi ang", "full", False, ["xi", "ang"]),
+            ("xi zh", "autocomplete", False, ["xi", "zh.*"]),
+            ("zh xi", "autocomplete", False, []),
+            ("whh", "initials", False, ["w.*", "h.*", "h.*"]),
+            ("zh ch sh", "initials", False, ["zh.*", "ch.*", "sh.*"]),
+            ("whh", "full", False, []),
+            ("whh", "autocomplete", False, []),
+            ("LǛ LIÁNG", "full", False, ["lv", "liang"]),
+            ("lu:4lu:e0", "full", False, ["lv", "lve"]),
+            ("lu\u0308\u030cliang", "full", False, ["lv", "liang"]),
+            ("ni3hao3", "full", False, ["ni", "hao"]),
+            ("nǐhao3", "full", False, ["ni", "hao"]),
+            ("nǐhao3", "autocomplete", False, ["ni", "hao.*"]),
+            ("nǐ3", "full", False, []),
+            ("zh3", "autocomplete", False, []),
+            ("hǎo3", "initials", False, []),
+            ("hǎó", "full", False, []),
+            ("hǎó", "autocomplete", False, []),
+            ("āí", "full", False, []),
+            ("āí", "initials", False, []),
+            ("nǐhǎo", "full", False, ["ni", "hao"]),
+            ("nǐhǎo", "autocomplete", False, ["ni", "hao.*"]),
+            ("m\u0301", "full", False, ["m"]),
+            ("m\u0301a", "full", False, []),
+            ("n\u0304\u0301i", "full", False, []),
+            ("xi\u00a0an\u2003", "full", False, ["xi", "an"]),
+            ("xi-an", "full", False, []),
+            ("中文", "full", False, []),
+            ("ni33", "full", False, []),
+            ("ni6", "full", False, []),
+            ("u::", "full", False, []),
+            ("ü:", "full", False, []),
+            ("", "full", False, []),
+            ("  ", "full", False, []),
+            ("a" * 257, "full", False, []),
+            (" ".join(["a"] * 64), "full", False, ["a"] * 64),
+            (" ".join(["a"] * 65), "full", False, []),
+            ("xi an", "full", True, [r"(xi|.*\|xi\|.*)", r"(an|.*\|an\|.*)"]),
+            ("xi an", "autocomplete", True, [r"(xi|.*\|xi\|.*)", r"(an.*|.*\|an[^|]*\|.*)"]),
+            ("whh", "initials", True, [r"(w.*|.*\|w[^|]*\|.*)", r"(h.*|.*\|h[^|]*\|.*)", r"(h.*|.*\|h[^|]*\|.*)"]),
+            ("whh", "compat", False, ["w.*", "h.*", "h.*"]),
+            ("lun", "compat", True, [r".*\|lun.*"]),
+        ]
+        with psycopg.connect(self.url, autocommit=True) as connection:
+            for value, mode, generated, expected in cases:
+                with self.subTest(value=value, mode=mode, generated=generated):
+                    patterns = connection.execute(
+                        "SELECT public.sql_pinyin_regex_phrase_patterns_mode(%s, %s, %s)",
+                        (value, mode, generated),
+                    ).fetchone()[0]
+                    self.assertEqual(patterns, expected)
+            self.assertEqual(connection.execute(
+                "SELECT public.sql_pinyin_regex_phrase('lunlun', NULL, 4) IS NOT NULL, "
+                "public.sql_pinyin_regex_phrase_patterns_mode(NULL, 'full') IS NULL, "
+                "public.sql_pinyin_regex_phrase_patterns_mode('xi', NULL) IS NULL, "
+                "public.sql_pinyin_regex_phrase_patterns_mode('xi', 'full', NULL) IS NULL, "
+                "public.sql_pinyin_regex_phrase_mode(NULL, 'full') IS NULL"
+            ).fetchone(), (True, True, True, True, True))
+            self.assertEqual(connection.execute(
+                "SELECT proparallel, provolatile FROM pg_proc WHERE oid = "
+                "'public.sql_pinyin_regex_phrase_patterns_mode(text,text,boolean)'::regprocedure"
+            ).fetchone(), ("s", "s"))
+            with self.assertRaises(psycopg.errors.InvalidParameterValue):
+                connection.execute("SELECT public.sql_pinyin_regex_phrase_patterns_mode('xi', 'unknown')")
+
+    def test_matching_modes_use_live_sql_token_inventory(self):
+        with psycopg.connect(self.url) as connection:
+            self.assertEqual(connection.execute(
+                "SELECT public.sql_pinyin_regex_phrase_patterns_mode('zz', 'full')"
+            ).fetchone()[0], [])
+            connection.execute(
+                "INSERT INTO pinyin.pinyin_token(character, category) "
+                "VALUES ('zz', 1), ('qqaiu', 1), ('', 1), ('bad!', 1), ('ZZ', 1)"
+            )
+            self.assertEqual(connection.execute(
+                "SELECT public.sql_pinyin_regex_phrase_patterns_mode('zz', 'full')"
+            ).fetchone()[0], ["zz"])
+            self.assertEqual(connection.execute(
+                "SELECT public.sql_pinyin_regex_phrase_patterns_mode('b', 'full')"
+            ).fetchone()[0], [])
+            self.assertEqual(connection.execute(
+                "SELECT public.sql_pinyin_regex_phrase_patterns_mode('xx', 'full')"
+            ).fetchone()[0], [])
+            self.assertEqual(connection.execute(
+                "SELECT public.sql_pinyin_regex_phrase_patterns_mode('qqāí', 'autocomplete')"
+            ).fetchone()[0], [])
+            self.assertEqual(connection.execute(
+                "SELECT public.sql_pinyin_regex_phrase_patterns_mode('qqā', 'autocomplete')"
+            ).fetchone()[0], ["qqa.*"])
+            connection.rollback()
+
+    def test_sql_only_matching_modes_on_real_bm25_index(self):
+        with psycopg.connect(self.url, autocommit=True) as connection:
+            connection.execute("CREATE TABLE sql_mode_probe(id integer PRIMARY KEY, pinyin text NOT NULL)")
+            try:
+                connection.execute(
+                    "INSERT INTO sql_mode_probe VALUES "
+                    "(1, 'xi an'), (2, 'xian'), (3, 'xi ang'), "
+                    "(4, '|xi| |an|'), (5, '|xi| |ang|'), "
+                    "(6, 'wu han hu'), (7, 'wu hu han'), (8, 'wu han zhou'), "
+                    "(9, '|xi| |an|anxiety|'), (10, '|xi| |anxiety|')"
+                )
+                connection.execute(
+                    "CREATE INDEX sql_mode_probe_bm25 ON sql_mode_probe "
+                    "USING bm25(id, (pinyin::pdb.whitespace)) WITH (key_field='id')"
+                )
+                self.assertEqual(connection.execute(
+                    "SELECT '|xi| |an|'::pdb.whitespace::text[]"
+                ).fetchone()[0], ["|xi|", "|an|"])
+                cases = [
+                    ("xi an", "full", False, [1]),
+                    ("xi an", "autocomplete", False, [1, 3]),
+                    ("xian", "full", False, [2]),
+                    ("whh", "initials", False, [6, 7]),
+                    ("xi an", "full", True, [1, 4, 9]),
+                    ("xi an", "autocomplete", True, [1, 3, 4, 5, 9, 10]),
+                    ("中文", "full", False, []),
+                ]
+                for value, mode, generated, expected in cases:
+                    with self.subTest(value=value, mode=mode, generated=generated):
+                        # Keep the tokenizer cast in the index, not the pdb.query operator's LHS.
+                        ids = connection.execute(
+                            "SELECT id FROM sql_mode_probe WHERE pinyin @@@ "
+                            "public.sql_pinyin_regex_phrase_mode(%s, %s, NULL, NULL, %s) ORDER BY id",
+                            (value, mode, generated),
+                        ).fetchall()
+                        self.assertEqual([row[0] for row in ids], expected)
+                self.assertEqual(connection.execute(
+                    "SELECT id FROM sql_mode_probe WHERE id = 2 OR pinyin @@@ "
+                    "public.sql_pinyin_regex_phrase_mode('中文', 'full') ORDER BY id"
+                ).fetchall(), [(2,)])
+                self.assertFalse(connection.execute(
+                    "SELECT EXISTS(SELECT 1 FROM pg_extension WHERE extname='pg_pinyin')"
+                ).fetchone()[0])
+            finally:
+                connection.execute("DROP TABLE sql_mode_probe")
+
     def test_failed_copy_rolls_back_all_tables_and_version(self):
         statement = (
             "SELECT (SELECT count(*) FROM pinyin.pinyin_mapping), "

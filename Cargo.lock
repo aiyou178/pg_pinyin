@@ -956,11 +956,12 @@ dependencies = [
 
 [[package]]
 name = "pg_pinyin"
-version = "0.0.8"
+version = "0.0.9"
 dependencies = [
  "pgrx",
  "pgrx-tests",
  "serde_json",
+ "unicode-normalization",
 ]
 
 [[package]]

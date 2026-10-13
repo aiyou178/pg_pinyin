@@ -1,10 +1,12 @@
 #[cfg(feature = "extension")]
 pgrx::pg_module_magic!();
 
+pub mod query_modes;
 pub mod regex_phrase;
 
 #[cfg(feature = "extension")]
 mod extension {
+    use crate::query_modes::{self, PinyinQueryDictionary};
     use crate::regex_phrase::{self, RegexTokenDictionary};
 
     use std::collections::HashMap;
@@ -50,6 +52,7 @@ mod extension {
     static CHAR_DICTIONARY_CACHE: OnceLock<RwLock<CharDictionaryCache>> = OnceLock::new();
     static DICTIONARY_CACHE: OnceLock<RwLock<DictionaryCache>> = OnceLock::new();
     static REGEX_TOKEN_DICTIONARY: OnceLock<RegexTokenDictionary> = OnceLock::new();
+    static QUERY_TOKEN_DICTIONARY: OnceLock<PinyinQueryDictionary> = OnceLock::new();
     static SUFFIX_DICTIONARY_CACHE: OnceLock<RwLock<HashMap<String, SuffixDictionaryCacheEntry>>> =
         OnceLock::new();
 
@@ -67,6 +70,11 @@ mod extension {
                 EMBEDDED_TOKEN_CSV,
             ))
         })
+    }
+
+    fn query_token_dictionary() -> &'static PinyinQueryDictionary {
+        QUERY_TOKEN_DICTIONARY
+            .get_or_init(|| PinyinQueryDictionary::from_token_csv(EMBEDDED_TOKEN_CSV))
     }
 
     fn suffix_dictionary_cache() -> &'static RwLock<HashMap<String, SuffixDictionaryCacheEntry>> {
@@ -1097,6 +1105,38 @@ mod extension {
         pinyin_regex_phrase_patterns_impl(value, generated_pinyin)
     }
 
+    #[pg_extern(
+        stable,
+        strict,
+        parallel_safe,
+        name = "pinyin_regex_phrase_patterns_mode"
+    )]
+    fn pinyin_regex_phrase_patterns_with_mode(
+        value: &str,
+        mode: &str,
+        generated_pinyin: default!(bool, false),
+    ) -> Vec<String> {
+        if mode == "compat" {
+            return pinyin_regex_phrase_patterns_impl(value, generated_pinyin).unwrap_or_default();
+        }
+        let mode = match query_modes::parse_mode(mode) {
+            Ok(mode) => mode,
+            Err(message) => {
+                pgrx::ereport!(
+                    ERROR,
+                    pgrx::PgSqlErrorCode::ERRCODE_INVALID_PARAMETER_VALUE,
+                    message
+                );
+            }
+        };
+        query_modes::pinyin_regex_phrase_patterns(
+            value,
+            mode,
+            generated_pinyin,
+            query_token_dictionary(),
+        )
+    }
+
     #[pg_extern(volatile, parallel_unsafe, name = "pinyin_clear_suffix_cache")]
     fn pinyin_clear_suffix_cache_all() -> i64 {
         clear_all_suffix_cache_impl()
@@ -1259,6 +1299,75 @@ mod extension {
         "#,
         name = "pinyin_regex_phrase_pg_search_helper",
         requires = [pinyin_regex_phrase_patterns_with_generated]
+    );
+
+    extension_sql!(
+        r#"
+        DO $pinyin_query_modes$
+        BEGIN
+          IF to_regtype('pdb.query') IS NOT NULL THEN
+            EXECUTE $create_function$
+              CREATE OR REPLACE FUNCTION public.pinyin_regex_phrase_mode(
+                value text,
+                mode text,
+                slope integer DEFAULT NULL,
+                max_expansions integer DEFAULT NULL,
+                generated_pinyin boolean DEFAULT false
+              )
+              RETURNS pdb.query
+              LANGUAGE plpgsql
+              STABLE
+              PARALLEL SAFE
+              AS $function$
+              DECLARE
+                patterns text[];
+              BEGIN
+                patterns := public.pinyin_regex_phrase_patterns_mode(value, mode, generated_pinyin);
+                IF patterns IS NULL THEN
+                  RETURN NULL;
+                END IF;
+                IF cardinality(patterns) = 0 THEN
+                  RETURN pdb.empty();
+                END IF;
+                IF cardinality(patterns) = 1 THEN
+                  RETURN pdb.regex(patterns[1]);
+                END IF;
+                IF max_expansions IS NOT NULL THEN
+                  RETURN pdb.regex_phrase(patterns, COALESCE(slope, 0), max_expansions);
+                END IF;
+                IF slope IS NOT NULL THEN
+                  RETURN pdb.regex_phrase(patterns, slope);
+                END IF;
+                RETURN pdb.regex_phrase(patterns);
+              END;
+              $function$;
+            $create_function$;
+          ELSE
+            EXECUTE $create_function$
+              CREATE OR REPLACE FUNCTION public.pinyin_regex_phrase_mode(
+                value text,
+                mode text,
+                slope integer DEFAULT NULL,
+                max_expansions integer DEFAULT NULL,
+                generated_pinyin boolean DEFAULT false
+              )
+              RETURNS text
+              LANGUAGE plpgsql
+              STABLE
+              PARALLEL SAFE
+              AS $function$
+              BEGIN
+                RAISE EXCEPTION
+                  'public.pinyin_regex_phrase_mode requires CREATE EXTENSION pg_search before CREATE EXTENSION pg_pinyin';
+              END;
+              $function$;
+            $create_function$;
+          END IF;
+        END;
+        $pinyin_query_modes$;
+        "#,
+        name = "pinyin_regex_phrase_query_modes",
+        requires = [pinyin_regex_phrase_patterns_with_mode]
     );
 
     #[cfg(any(test, feature = "pg_test"))]
