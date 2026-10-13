@@ -81,6 +81,38 @@ FROM voice
 WHERE pinyin @@@ public.sql_pinyin_regex_phrase('zhengshuang');
 ```
 
+### Explicit Syllable Boundaries
+
+The default `pinyin_regex_phrase` helper and `compat` mode now accept straight
+apostrophes (`'`) and smart apostrophes (`‘`, `’`) as hard syllable boundaries,
+just like spaces. The independent `sql_` backend accepts the same inputs.
+The separator is not removed and concatenated: `xi'an` produces `xi.*`, `an.*`,
+while unseparated `xian` keeps the existing single greedy token `xian.*`.
+Likewise `xin'gan` produces `xin.*`, `gan.*`, not `xing.*`, `an.*`.
+Leading, trailing and repeated separators are treated like whitespace; a
+separator-only input produces an empty query. Other unsupported punctuation
+still rejects the entire input, and no alternate segmentations are generated.
+
+```sql
+-- SQL string literals escape an apostrophe by doubling it.
+SELECT public.pinyin_regex_phrase_patterns('xi''an'); -- {xi.*,an.*}
+SELECT * FROM voice
+WHERE pinyin @@@ public.pinyin_regex_phrase('xi''an');
+SELECT * FROM voice
+WHERE pinyin @@@ public.sql_pinyin_regex_phrase('xi''an');
+
+-- For exact syllable terms, rather than the default prefix matching:
+SELECT * FROM voice
+WHERE pinyin @@@ public.pinyin_regex_phrase_mode('xi''an', 'full');
+```
+
+This extends the existing default/compat input grammar without changing its
+prefix matching, initials, generated-pinyin patterns, NULL behavior or function
+signatures. Tone/umlaut normalization remains in the explicit modes below.
+Only the Rust library needs rebuilding for the Rust backend; reload `sql/word.sql`
+for the independent SQL backend. Use a new connection after replacing the library.
+The unreleased 0.0.9 version and existing upgrade migration are unchanged.
+
 ### Explicit Query Modes
 
 Development version 0.0.9 adds separate mode-aware interfaces, not ambiguous
@@ -92,7 +124,7 @@ overloads of legacy functions. Use a mode matching the user's query intent:
 | `initials` | `whh` | `w.*`, `h.*`, `h.*` |
 | `initials` | `zh ch sh` | `zh.*`, `ch.*`, `sh.*` |
 | `autocomplete` | `xi a` | `xi`, `a.*` |
-| `compat` | `xi an` | Original `xi.*`, `an.*` |
+| `compat` | `xi an` or `xi'an` | Original prefix patterns `xi.*`, `an.*` |
 
 ```sql
 SELECT * FROM voice
@@ -105,7 +137,8 @@ WHERE pinyin @@@ public.sql_pinyin_regex_phrase_mode('xi a', 'autocomplete');
 
 New modes normalize `ü`, decomposed umlauts, `u:` and `v` to `v`, remove tone
 marks, and treat numeric tones 0-5/apostrophes as syllable boundaries (`lv4liang2`
-becomes `lv liang`). `compat` preserves the original ASCII-only behavior. Joined
+becomes `lv liang`). `compat` keeps the original ASCII parsing and prefix patterns,
+with the explicit apostrophe boundaries above. Joined
 input still uses longest-first segmentation, not contextual disambiguation;
 use explicit boundaries for `xin gan` versus `xing an`. Compact initials split
 one letter at a time; only a complete explicit `zh`/`ch`/`sh` chunk is a digraph.

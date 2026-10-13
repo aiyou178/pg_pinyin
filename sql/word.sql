@@ -94,9 +94,12 @@ LANGUAGE sql
 STABLE
 PARALLEL SAFE
 AS $$
+  WITH input AS (
+    SELECT translate(value, U&'\0027\2018\2019', '   ') AS normalized
+  )
   SELECT CASE
-    WHEN value IS NULL THEN NULL
-    WHEN value !~ '^[A-Za-z[:space:]]+$' THEN ARRAY[]::text[]
+    WHEN input.normalized IS NULL THEN NULL
+    WHEN input.normalized !~ '^[A-Za-z[:space:]]+$' THEN ARRAY[]::text[]
     ELSE COALESCE((
       SELECT array_agg(
         CASE
@@ -107,10 +110,11 @@ AS $$
       )
       FROM (
         SELECT token, row_number() OVER () AS ord
-        FROM public.pinyin_tokenize(value, true) AS token
+        FROM public.pinyin_tokenize(input.normalized, true) AS token
       ) AS tokenized
     ), ARRAY[]::text[])
     END
+  FROM input
 $$;
 
 CREATE OR REPLACE FUNCTION public.sql_pinyin__regex_phrase_query_from_patterns(

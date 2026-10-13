@@ -16,7 +16,7 @@ CREATE EXTENSION IF NOT EXISTS pg_search CASCADE;
 CREATE EXTENSION pg_pinyin;
 \ir ../../sql/pinyin.sql
 
-SELECT plan(38);
+SELECT no_plan();
 
 SELECT ok(
   to_regprocedure('public.pinyin_regex_phrase(text,integer,integer,boolean)') IS NOT NULL,
@@ -61,11 +61,13 @@ CREATE TABLE public.pinyin_regex_parallel_probe (
 INSERT INTO public.pinyin_regex_parallel_probe (id, query)
 SELECT
   gs,
-  CASE gs % 4
+  CASE gs % 6
     WHEN 0 THEN 'zhengshuang'
     WHEN 1 THEN 'whh'
     WHEN 2 THEN 'lunlun'
-    ELSE 'changsha'
+    WHEN 3 THEN 'changsha'
+    WHEN 4 THEN 'xi''an'
+    ELSE 'xi’an'
   END
 FROM generate_series(1, 20000) AS gs;
 ALTER TABLE public.pinyin_regex_parallel_probe SET (parallel_workers = 4);
@@ -113,6 +115,57 @@ SELECT lives_ok(
 );
 
 \ir ../../sql/word.sql
+
+CREATE TEMP TABLE legacy_apostrophe_pattern_gold (
+  label text PRIMARY KEY, value text, patterns text[]
+);
+INSERT INTO legacy_apostrophe_pattern_gold VALUES
+  ('straight apostrophe is a hard boundary', 'xi''an', ARRAY['xi.*','an.*']),
+  ('right curly apostrophe is a hard boundary', 'xi’an', ARRAY['xi.*','an.*']),
+  ('left curly apostrophe is a hard boundary', 'xi‘an', ARRAY['xi.*','an.*']),
+  ('case folding preserves boundary', 'XI''AN', ARRAY['xi.*','an.*']),
+  ('whitespace around apostrophe', E' xi \t '' an ', ARRAY['xi.*','an.*']),
+  ('leading apostrophe', '''xi''an', ARRAY['xi.*','an.*']),
+  ('trailing apostrophe', 'xi''an''', ARRAY['xi.*','an.*']),
+  ('repeated mixed apostrophes', '''''xi’’‘‘an''''', ARRAY['xi.*','an.*']),
+  ('joined xian remains one greedy token', 'xian', ARRAY['xian.*']),
+  ('compact initials remain per-letter', 'whh', ARRAY['w.*','h.*','h.*']),
+  ('apostrophe initials preserve positions', 'w''h’h', ARRAY['w.*','h.*','h.*']),
+  ('empty input', '', ARRAY[]::text[]),
+  ('only separators', '''‘’ ''', ARRAY[]::text[]),
+  ('only whitespace separators', E' \t ''‘’ \n', ARRAY[]::text[]),
+  ('SQL null', NULL, NULL),
+  ('hyphen is not an accepted separator', 'xi-an', ARRAY[]::text[]),
+  ('mixed punctuation rejects the whole input', 'xi''an!', ARRAY[]::text[]),
+  ('other quote rejects the whole input', 'xi`an', ARRAY[]::text[]),
+  ('double quote rejects the whole input', 'xi"an', ARRAY[]::text[]),
+  ('numeric tone remains unsupported in legacy grammar', 'xi''an3', ARRAY[]::text[]),
+  ('tone mark remains unsupported in legacy grammar', 'xī''an', ARRAY[]::text[]),
+  ('umlaut remains unsupported in legacy grammar', 'lü''an', ARRAY[]::text[]),
+  ('Chinese mixed with apostrophe is rejected', 'xi''安', ARRAY[]::text[]),
+  ('query punctuation is not interpreted as SQL', 'xi''an;SELECT 1', ARRAY[]::text[]);
+
+SELECT is(public.pinyin_regex_phrase_patterns(g.value, generated.value),
+          CASE WHEN generated.value AND g.patterns IS NOT NULL THEN
+            ARRAY(SELECT '.*\|' || p.pattern FROM unnest(g.patterns) WITH ORDINALITY AS p(pattern, position)
+                  ORDER BY p.position)
+          ELSE g.patterns END,
+          format('Rust legacy apostrophe patterns generated=%s: %s', generated.value, g.label))
+FROM legacy_apostrophe_pattern_gold g CROSS JOIN (VALUES (false), (true)) generated(value)
+ORDER BY g.label, generated.value;
+SELECT is(public.sql_pinyin_regex_phrase_patterns(g.value, generated.value),
+          CASE WHEN generated.value AND g.patterns IS NOT NULL THEN
+            ARRAY(SELECT '.*\|' || p.pattern FROM unnest(g.patterns) WITH ORDINALITY AS p(pattern, position)
+                  ORDER BY p.position)
+          ELSE g.patterns END,
+          format('SQL legacy apostrophe patterns generated=%s: %s', generated.value, g.label))
+FROM legacy_apostrophe_pattern_gold g CROSS JOIN (VALUES (false), (true)) generated(value)
+ORDER BY g.label, generated.value;
+SELECT is(public.pinyin_regex_phrase_patterns(g.value, generated.value),
+          public.sql_pinyin_regex_phrase_patterns(g.value, generated.value),
+          format('legacy apostrophe backend parity generated=%s: %s', generated.value, g.label))
+FROM legacy_apostrophe_pattern_gold g CROSS JOIN (VALUES (false), (true)) generated(value)
+ORDER BY g.label, generated.value;
 
 SELECT is(
   public.sql_pinyin_regex_phrase_patterns('lun')::text,

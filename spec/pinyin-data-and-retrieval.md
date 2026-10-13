@@ -11,9 +11,10 @@ pre-existing untracked `doc/` directory is not part of this work.
 
 P0 repairs dictionary normalization and imported syllable boundaries. It does
 **not** promise contextual pronunciation disambiguation or unambiguous parsing
-of a joined Latin query. Applications can pass explicit spaces: `xi an` versus
-`xian`. The existing regex helper continues to accept ASCII letters/whitespace,
-split initials such as `whh`, and prefix-expand each syllable with `.*`.
+of a joined Latin query. Applications can pass explicit spaces or apostrophes:
+`xi an` / `xi'an` versus `xian`. The existing regex helper accepts ASCII letters,
+whitespace and three explicit apostrophe forms, splits initials such as `whh`,
+and prefix-expands each syllable with `.*`.
 
 ## P0 Data Contract
 
@@ -174,7 +175,7 @@ The first increment adds opt-in query semantics, without changing defaults:
   64 output tokens, with no truncated searches.
 - Complete syllables use token categories 1/3 plus syllabic `m`/`n`. Joined
   chunks still use a single longest-first path; explicit spaces/apostrophes are
-  authoritative. Bounded ambiguous-path parsing remains a subsequent task.
+  authoritative. Automatic ambiguous-path expansion is not part of this work.
 - New generated-pinyin mode accepts both plain word-hit terms and pipe-bearing
   alternatives, with closed syllable boundaries. Whitespace index expressions
   retain pipe characters; structured queries use the original field as their
@@ -229,17 +230,61 @@ Remaining proposals require independent labeled evaluation before defaults chang
 1. Evaluate the opt-in modes on independent business query labels before
    changing defaults. Keep compatibility and Chinese/unfiltered fallback
    available; curated adversarial checks are not general retrieval accuracy.
-2. Normalize query `ü`/tone marks/tone numbers/apostrophe boundaries consistently
-   and use a bounded candidate lattice for ambiguous joined input, not a single
-   greedy segmentation or unbounded Cartesian expansion.
+2. Normalize explicit boundaries consistently across the existing interfaces.
+   Keep single-path joined parsing; automatic candidate expansion was rejected
+   on 2026-10-13 in favor of supporting explicitly separated user input.
 3. Validate the native `text[]`/document-batch increment below, preserving cache
    invalidation and parallel safety before accepting performance claims.
+
 4. Optional conservative function-word filtering: tokenize/POS/entity-protect
    before romanization, keep original Chinese and full-pinyin fallback. Protect
    names, titles, fixed phrases, quoted text, negation, scope and direction.
    Never delete homophonic `de`/`he` after conversion or union public stoplists.
    Query/index policies must match; preserve positions where phrase semantics
    require them. Compare full, filtered and entity/keyword fields separately.
+
+## Default/Compat Apostrophe Boundaries
+
+On 2026-10-13 the uncommitted multi-candidate increment was discarded, including
+its APIs, tests, scripts and reports. No candidate functions or Boolean query
+expansion are shipped. Native-array/document-batch work was merged separately
+before this branch was rebased onto main.
+
+Default/compat Rust and independent SQL helpers treat U+0027, U+2018 and U+2019
+as hard whitespace boundaries. Never remove them and concatenate chunks.
+`xi'an` yields `xi.*`, `an.*`; `xian` remains `xian.*`. `xin'gan` yields
+`xin.*`, `gan.*` while `xingan` retains the old longest-first result. Repeated
+and leading/trailing separators behave like whitespace; separators alone yield
+empty arrays / pdb.empty(), while SQL NULL keeps the existing behavior. Other
+punctuation still invalidates the entire input. No default tone/umlaut grammar,
+token limits, prefix patterns, generated patterns or initials are changed.
+Existing full/autocomplete boundary parsing and exact generated patterns remain
+unchanged. Rust uses the same embedded SPI-free dictionary and a common lightweight
+normalizer for patterns/token counts; SQL continues to use its editable token
+table. Standalone Python benchmark helpers accept the added explicit boundaries
+without importing Dispatcher or enumerating alternate paths.
+
+Acceptance includes exact default/compat/generated arrays, old ASCII output
+parity, pattern/count consistency, smart/ASCII quote and malformed-input cases,
+real BM25 plain/pipe positives and one-token-xian negatives, standalone SQL loading,
+parallel-worker execution and genuine fresh/upgrade catalogs. Existing signatures
+and OIDs remain unchanged; no extra version bump or migration functions are needed.
+Use fresh local databases for validation and do not reuse the discarded P3 results.
+
+Before the rebase, local validation of the independent main-based branch on
+2026-10-13 passed 26
+Rust unit tests, 53 Python integration/protocol tests, 22 data-pipeline tests and
+1,079 pgTAP assertions across six files on PostgreSQL 19 beta 4 / pg_search 0.26.1.
+Both no-feature and PG19 library/benchmark-binary checks, `cargo fmt --check` and
+data regeneration passed; generated dictionary files were byte-identical.
+Genuine 0.0.8-to-0.0.9 upgrade and fresh-install checks preserved legacy function
+OIDs/catalog metadata and exercised apostrophe normalization below Gather in
+actual read-only workers. SQL-only loading and BM25 plain/pipe boundary negatives
+passed without the Rust extension. Suite counts exclude the separate array/batch
+PR; the earlier combined checkout had additional tests. The PG19 source-build
+compatibility limitations noted above still apply. Historical P1 benchmark
+reports remain unchanged; no new timing or speedup claim is made for this grammar
+fix. The expanded current fixture is newer than the P1 report.
 
 ## Native Arrays and Explicit Document Batches
 
@@ -318,6 +363,7 @@ ICU-only warm median is 48.015 ms and is not charged to precomputed arrays.
 The shared host used 31946.69M swap before timing; these are exploratory
 server-side conversion/unindexed INSERT observations, not client upload or
 BM25-index-maintenance throughput and not an index-size optimization.
+
 
 ## P2: Sources and Evaluation
 

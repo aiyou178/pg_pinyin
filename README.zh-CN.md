@@ -80,6 +80,33 @@ FROM voice
 WHERE pinyin @@@ public.sql_pinyin_regex_phrase('zhengshuang');
 ```
 
+### 显式音节边界
+
+默认的 `pinyin_regex_phrase` 和 `compat` 现在把 ASCII 撇号 `'` 及弯引号
+`‘`、`’` 当作硬音节边界，行为与空格一致；独立的 `sql_` 后端也支持。
+不会删除分隔符后重新连写：`xi'an -> xi.* / an.*`，无分隔的 `xian` 仍保留
+原有单路径贪心结果 `xian.*`；`xin'gan -> xin.* / gan.*`，不会变成 `xing.* / an.*`。
+首尾、重复分隔符按空白处理，只有分隔符的输入生成空查询；其他不支持的标点
+仍使整个输入无效，不生成自动替代切分。
+
+```sql
+-- SQL 字符串中的撇号需要写成两个单引号。
+SELECT public.pinyin_regex_phrase_patterns('xi''an'); -- {xi.*,an.*}
+SELECT * FROM voice
+WHERE pinyin @@@ public.pinyin_regex_phrase('xi''an');
+SELECT * FROM voice
+WHERE pinyin @@@ public.sql_pinyin_regex_phrase('xi''an');
+
+-- 需要精确音节 term，而不是默认前缀匹配时：
+SELECT * FROM voice
+WHERE pinyin @@@ public.pinyin_regex_phrase_mode('xi''an', 'full');
+```
+
+本项只扩展默认／compat 的输入边界，不改变前缀、首字母、generated-pinyin
+pattern、NULL 行为或函数签名。声调／ü 归一化仍由下述显式模式提供。
+Rust 后端重编译动态库后使用新连接；独立 SQL 后端重新加载 `sql/word.sql`。
+仍属于未发布的 0.0.9，不额外 bump 版本或新增迁移函数。
+
 ### 显式查询模式
 
 开发版本 0.0.9 增加独立的模式接口，不通过可能干扰旧调用的重载实现。
@@ -91,7 +118,7 @@ WHERE pinyin @@@ public.sql_pinyin_regex_phrase('zhengshuang');
 | `initials` | `whh` | `w.*`、`h.*`、`h.*` |
 | `initials` | `zh ch sh` | `zh.*`、`ch.*`、`sh.*` |
 | `autocomplete` | `xi a` | `xi`、`a.*` |
-| `compat` | `xi an` | 旧模式的 `xi.*`、`an.*` |
+| `compat` | `xi an` 或 `xi'an` | 旧前缀 pattern `xi.*`、`an.*` |
 
 ```sql
 SELECT * FROM voice
@@ -104,7 +131,7 @@ WHERE pinyin @@@ public.sql_pinyin_regex_phrase_mode('xi a', 'autocomplete');
 
 新模式把 `ü`、分解形式、`u:` 和 `v` 统一为 `v`，去掉声调符号，
 数字声调 0-5 和撇号保留为音节边界，例如 `lv4liang2 -> lv liang`。
-`compat` 保留旧接口只接受 ASCII 的行为。无分隔输入仍使用最长优先切分，
+`compat` 保留旧 ASCII 切分与前缀行为，并增加上述显式撇号边界。无分隔输入仍使用最长优先切分，
 尚未做语境消歧；`xin gan` 和 `xing an` 应明确给出边界。
 紧凑首字母按单字母拆分，只有完整的独立 `zh`／`ch`／`sh` 块按双字母声母处理。
 自动补全总是扩展最后一个 token，包括输入末尾带空白的情况。

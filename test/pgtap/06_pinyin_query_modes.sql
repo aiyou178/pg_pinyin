@@ -21,13 +21,26 @@ INSERT INTO mode_pattern_gold VALUES
   ('compat prefix', 'An', 'compat', false, ARRAY['an.*']),
   ('compat initials', 'whh', 'compat', false, ARRAY['w.*', 'h.*', 'h.*']),
   ('compat pipe', 'an', 'compat', true, ARRAY['.*\|an.*']),
-  ('compat invalid apostrophe', 'xi''an', 'compat', false, ARRAY[]::text[]),
+  ('compat straight apostrophe', 'xi''an', 'compat', false, ARRAY['xi.*','an.*']),
+  ('compat right curly apostrophe', 'xi’an', 'compat', false, ARRAY['xi.*','an.*']),
+  ('compat left curly apostrophe', 'xi‘an', 'compat', false, ARRAY['xi.*','an.*']),
+  ('compat generated apostrophe', 'xi''an', 'compat', true, ARRAY['.*\|xi.*','.*\|an.*']),
+  ('compat repeated and edge apostrophes', '''xi’’''an‘', 'compat', false, ARRAY['xi.*','an.*']),
+  ('compat joined xian stays greedy', 'xian', 'compat', false, ARRAY['xian.*']),
+  ('compat separator only', '''‘’', 'compat', false, ARRAY[]::text[]),
+  ('compat SQL null', NULL, 'compat', false, NULL),
+  ('compat apostrophe does not accept punctuation', 'xi''an!', 'compat', false, ARRAY[]::text[]),
+  ('compat apostrophe does not normalize umlaut', 'lü''an', 'compat', false, ARRAY[]::text[]),
+  ('compat apostrophe does not normalize tone marks', 'xī''an', 'compat', false, ARRAY[]::text[]),
+  ('compat apostrophe does not normalize numeric tones', 'xi1''an1', 'compat', false, ARRAY[]::text[]),
   ('full an', 'an', 'full', false, ARRAY['an']),
   ('full ang', 'ang', 'full', false, ARRAY['ang']),
   ('full joined xian', 'xian', 'full', false, ARRAY['xian']),
   ('full spaced xi an', 'xi an', 'full', false, ARRAY['xi', 'an']),
   ('full straight apostrophe', 'xi''an', 'full', false, ARRAY['xi', 'an']),
   ('full curly apostrophe', 'xi’an', 'full', false, ARRAY['xi', 'an']),
+  ('full left curly apostrophe', 'xi‘an', 'full', false, ARRAY['xi', 'an']),
+  ('full repeated and edge apostrophes', '''xi’’''an‘', 'full', false, ARRAY['xi','an']),
   ('full umlaut tone', 'LǙ LIÁNG', 'full', false, ARRAY['lv', 'liang']),
   ('full decomposed umlaut', U&'lu\0308\0300 liang', 'full', false, ARRAY['lv', 'liang']),
   ('full numeric tones', 'nu:3 er2', 'full', false, ARRAY['nv', 'er']),
@@ -47,6 +60,8 @@ INSERT INTO mode_pattern_gold VALUES
   ('initials mixed prefixes', 'whh', 'initials', true,
     ARRAY['(w.*|.*\|w[^|]*\|.*)', '(h.*|.*\|h[^|]*\|.*)', '(h.*|.*\|h[^|]*\|.*)']),
   ('autocomplete final prefix', 'zhan a', 'autocomplete', false, ARRAY['zhan', 'a.*']),
+  ('autocomplete apostrophe final prefix', 'xi''an', 'autocomplete', false, ARRAY['xi','an.*']),
+  ('autocomplete left curly boundary', 'xi‘an', 'autocomplete', false, ARRAY['xi','an.*']),
   ('autocomplete incomplete last', 'zheng sh', 'autocomplete', false, ARRAY['zheng', 'sh.*']),
   ('autocomplete invalid earlier', 'w han', 'autocomplete', false, ARRAY[]::text[]),
   ('autocomplete mixed', 'an g', 'autocomplete', true,
@@ -162,7 +177,9 @@ INSERT INTO public.pinyin_mode_gold VALUES
   (127, '倪勇', 'ni yong', 'ni |yong|'),
   (128, '尼龙', 'ni long', '|ni| long'),
   (129, '分裂对照 ni yo n', 'ni yo n', '|ni| |yo| |n|'),
-  (130, '分裂对照 ni lo n', 'ni lo n', '|ni| |lo| |n|');
+  (130, '分裂对照 ni lo n', 'ni lo n', '|ni| |lo| |n|'),
+  (131, '边界对照 xia n', 'xia n', '|xia| |n|'),
+  (132, '边界对照 xi a n', 'xi a n', '|xi| |a| |n|');
 
 -- The pinned pg_search 0.26.1 whitespace tokenizer preserves pipe alternatives.
 -- https://github.com/paradedb/paradedb/blob/529c77e9dffe4bd86b6b7971c019bb26b8eadbfa/docs/reference/tokenizers/available-tokenizers/whitespace.mdx
@@ -176,8 +193,15 @@ INSERT INTO mode_retrieval_gold VALUES
   ('legacy prefix contrast', 'an', 'compat', ARRAY[101,102,105,111,112,117,118], ARRAY[103,104,106]),
   ('an not ang', 'an', 'full', ARRAY[101,105,111,112,117], ARRAY[102,106,118]),
   ('lv not lve', 'lü4', 'full', ARRAY[103,115], ARRAY[104,116]),
-  ('one syllable xian', 'xian', 'full', ARRAY[106], ARRAY[105]),
-  ('explicit xi an', 'xi''an', 'full', ARRAY[105], ARRAY[106]),
+  ('one syllable xian', 'xian', 'full', ARRAY[106], ARRAY[105,131,132]),
+  ('explicit xi an', 'xi''an', 'full', ARRAY[105], ARRAY[106,131,132]),
+  ('explicit right curly xi an', 'xi’an', 'full', ARRAY[105], ARRAY[106,131,132]),
+  ('explicit left curly xi an', 'xi‘an', 'full', ARRAY[105], ARRAY[106,131,132]),
+  ('compat explicit xi an', 'xi''an', 'compat', ARRAY[105], ARRAY[106,131,132]),
+  ('compat right curly xi an', 'xi’an', 'compat', ARRAY[105], ARRAY[106,131,132]),
+  ('compat left curly xi an', 'xi‘an', 'compat', ARRAY[105], ARRAY[106,131,132]),
+  ('compat joined xian', 'xian', 'compat', ARRAY[106], ARRAY[105,131,132]),
+  ('autocomplete explicit xi an', 'xi''an', 'autocomplete', ARRAY[105], ARRAY[106,131,132]),
   ('earlier zhan not zhang', 'zhan an', 'full', ARRAY[111], ARRAY[112]),
   ('autocomplete earlier exact', 'zhan a', 'autocomplete', ARRAY[111], ARRAY[112]),
   ('autocomplete earlier lv exact', 'lv l', 'autocomplete', ARRAY[115], ARRAY[116]),
@@ -222,15 +246,58 @@ SELECT is(public.pinyin_mode_ranked_ids(g.query,g.mode,'rust',s.storage),
           public.pinyin_mode_ranked_ids(g.query,g.mode,'sql',s.storage),
           format('ranked backend parity %s: %s',s.storage,g.label))
 FROM mode_retrieval_gold AS g CROSS JOIN (VALUES ('plain'),('mixed')) AS s(storage);
+
+CREATE FUNCTION public.pinyin_legacy_ranked_ids(value text, backend text, storage text)
+RETURNS bigint[] LANGUAGE plpgsql AS $$
+DECLARE ids bigint[];
+BEGIN
+  EXECUTE format(
+    'SELECT coalesce(array_agg(id ORDER BY score DESC, id), ARRAY[]::bigint[]) FROM '
+    '(SELECT id, pdb.score(id) AS score FROM public.pinyin_mode_gold WHERE %I @@@ public.%I($1,NULL,NULL,$2) '
+    'ORDER BY pdb.score(id) DESC,id LIMIT 100) AS ranked',
+    storage, CASE backend WHEN 'rust' THEN 'pinyin_regex_phrase' ELSE 'sql_pinyin_regex_phrase' END
+  ) INTO ids USING value, storage = 'mixed';
+  RETURN ids;
+END;
+$$;
+SELECT ok(g.positive <@ public.pinyin_legacy_ranked_ids(g.query,b.backend,s.storage),
+          format('default %s/%s retrieves apostrophe positives: %s',b.backend,s.storage,g.label))
+FROM mode_retrieval_gold AS g CROSS JOIN (VALUES ('rust'),('sql')) AS b(backend)
+CROSS JOIN (VALUES ('plain'),('mixed')) AS s(storage)
+WHERE g.label IN ('compat explicit xi an','compat right curly xi an','compat left curly xi an','compat joined xian');
+SELECT ok(NOT g.negative && public.pinyin_legacy_ranked_ids(g.query,b.backend,s.storage),
+          format('default %s/%s excludes wrong apostrophe boundaries: %s',b.backend,s.storage,g.label))
+FROM mode_retrieval_gold AS g CROSS JOIN (VALUES ('rust'),('sql')) AS b(backend)
+CROSS JOIN (VALUES ('plain'),('mixed')) AS s(storage)
+WHERE g.label IN ('compat explicit xi an','compat right curly xi an','compat left curly xi an','compat joined xian');
+SELECT is(public.pinyin_legacy_ranked_ids(g.query,b.backend,s.storage),
+          public.pinyin_mode_ranked_ids(g.query,'compat',b.backend,s.storage),
+          format('default/compat ranked apostrophe parity %s/%s: %s',b.backend,s.storage,g.label))
+FROM mode_retrieval_gold AS g CROSS JOIN (VALUES ('rust'),('sql')) AS b(backend)
+CROSS JOIN (VALUES ('plain'),('mixed')) AS s(storage)
+WHERE g.label IN ('compat explicit xi an','compat right curly xi an','compat left curly xi an','compat joined xian');
+
 SELECT results_eq(
   $$SELECT id FROM public.pinyin_mode_gold WHERE plain @@@ public.pinyin_regex_phrase_mode('invalid!', 'full') OR id = 105$$,
   $$VALUES (105::bigint)$$, 'Rust empty mode query does not affect an OR branch');
 SELECT results_eq(
   $$SELECT id FROM public.pinyin_mode_gold WHERE mixed @@@ public.sql_pinyin_regex_phrase_mode('invalid!', 'full') OR id = 105$$,
   $$VALUES (105::bigint)$$, 'SQL empty mode query does not affect an OR branch');
+SELECT results_eq(
+  $$SELECT id FROM public.pinyin_mode_gold WHERE plain @@@ public.pinyin_regex_phrase('''‘’') OR id = 105$$,
+  $$VALUES (105::bigint)$$, 'Rust separator-only default query is an empty OR branch');
+SELECT results_eq(
+  $$SELECT id FROM public.pinyin_mode_gold WHERE mixed @@@ public.sql_pinyin_regex_phrase('''‘’',NULL,NULL,true) OR id = 105$$,
+  $$VALUES (105::bigint)$$, 'SQL separator-only generated default query is an empty OR branch');
+SELECT results_eq(
+  $$SELECT id FROM public.pinyin_mode_gold WHERE plain @@@ public.pinyin_regex_phrase('xi''an!') AND id = 105$$,
+  $$SELECT 105::bigint WHERE false$$, 'Rust invalid apostrophe input remains a false AND branch');
+SELECT results_eq(
+  $$SELECT id FROM public.pinyin_mode_gold WHERE mixed @@@ public.sql_pinyin_regex_phrase('xi''an!',NULL,NULL,true) AND id = 105$$,
+  $$SELECT 105::bigint WHERE false$$, 'SQL invalid generated apostrophe input remains a false AND branch');
 
 CREATE TABLE public.pinyin_mode_parallel_probe AS
-SELECT i AS id, CASE i % 3 WHEN 0 THEN 'an' WHEN 1 THEN 'lv liang' ELSE 'xi an' END AS value
+SELECT i AS id, CASE i % 4 WHEN 0 THEN 'an' WHEN 1 THEN 'lv liang' WHEN 2 THEN 'xi''an' ELSE 'xi‘an' END AS value
 FROM generate_series(1,20000) AS i;
 ALTER TABLE public.pinyin_mode_parallel_probe SET (parallel_workers = 2);
 ANALYZE public.pinyin_mode_parallel_probe;
