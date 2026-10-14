@@ -153,6 +153,38 @@ Rust 普通词级输出不需要这个标志。选择模式不会删减索引内
 `ALTER EXTENSION pg_pinyin UPDATE TO '0.0.9'`；不会覆盖在线词典或 stored generated 值。
 替换 Rust 动态库后，应从新数据库连接执行升级，避免旧连接继续持有已加载的旧库。
 
+### 独立 SQL Parser
+
+可选的 `sql/word.sql` 使用静态参数化正则聚合处理兼容查询，新模式使用最长
+前缀正则和字符串边界查找，避免逐音节遍历整个词表。仍然每次读取实时
+`pinyin.pinyin_token`，不增加缓存表或 Rust 依赖，也不改变查询范围、边界和
+空查询语义。已有 SQL-only 安装重新加载此文件即可，不需要重建索引：
+
+```bash
+psql "$PGURL" -v ON_ERROR_STOP=1 -f sql/word.sql
+```
+
+共享 tokenizer、Rust API 和版本保持不变。实现约束、回归要求及分开的解析、
+query 构造和端到端 benchmark 见 [SQL parser spec](spec/pinyin-sql-parser-perf.md)。
+
+本机 PG19 beta4 / pg_search 0.26.1 测量使用 2 万文档、每模式 2 千查询、三轮
+预热测试。下表是同模式新旧三轮中位数的耗时降幅，不跨模式比较：
+
+| 模式 | Patterns 耗时降低 | 端到端查询耗时降低 |
+| --- | ---: | ---: |
+| compat | 14.6% | 4.4% |
+| full | 17.3% | 11.3% |
+| initials | 2.0% | -2.1%（更慢） |
+| autocomplete | 14.9% | 18.3% |
+| auto | 22.3% | 10.2% |
+
+首字母端到端并未改善：三轮配对分别慢 2.1%、9.5%、13.1%；其解析的小幅差异
+和 compat 的端到端结果有波动。共享宿主内存压力较高，这些只是本次观测值，
+不保证生产环境收益。新旧 patterns、query、完整命中／分数、Top-K 精确一致，
+六个新建索引均为 3,350,528 bytes。客户端计时含逐次 planning，未测 prepared
+plan 和并发。详见 [报告](benchmarks/sql_parser.md)、[原始数据](benchmarks/sql_parser.json.gz)
+及保留的 [首轮试验](benchmarks/sql_parser_first_pass.md)。
+
 ### 原生精确音节查询
 
 普通音节字段可以按需使用 `pinyin_phrase`。它复用 `full` 输入语法，包括

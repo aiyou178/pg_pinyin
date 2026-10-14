@@ -90,31 +90,40 @@ CREATE OR REPLACE FUNCTION public.sql_pinyin_regex_phrase_patterns(
   generated_pinyin boolean DEFAULT false
 )
 RETURNS text[]
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 PARALLEL SAFE
 AS $$
-  WITH input AS (
-    SELECT translate(value, U&'\0027\2018\2019', '   ') AS normalized
-  )
-  SELECT CASE
-    WHEN input.normalized IS NULL THEN NULL
-    WHEN input.normalized !~ '^[A-Za-z[:space:]]+$' THEN ARRAY[]::text[]
-    ELSE COALESCE((
-      SELECT array_agg(
-        CASE
-          WHEN generated_pinyin THEN '.*\|' || token || '.*'
-          ELSE token || '.*'
-        END
-        ORDER BY ord
-      )
-      FROM (
-        SELECT token, row_number() OVER () AS ord
-        FROM public.pinyin_tokenize(input.normalized, true) AS token
-      ) AS tokenized
+DECLARE
+  normalized text := translate(value, U&'\0027\2018\2019', '   ');
+  pattern text;
+BEGIN
+  IF normalized IS NULL THEN
+    RETURN NULL;
+  END IF;
+  IF normalized !~ '^[A-Za-z[:space:]]+$' THEN
+    RETURN ARRAY[]::text[];
+  END IF;
+
+  SELECT string_agg(character, '|' ORDER BY char_length(character) DESC, character)
+  INTO pattern
+  FROM pinyin.pinyin_token
+  WHERE category = 1;
+  IF pattern IS NULL THEN
+    RETURN ARRAY[]::text[];
+  END IF;
+
+  -- Keep live legacy regex rows and empty-dictionary behavior, without dynamic
+  -- SQL planning or materializing the shared tokenizer's SETOF result first.
+  RETURN (
+    SELECT COALESCE(array_agg(
+      CASE WHEN generated_pinyin THEN '.*\|' || matched[1] || '.*'
+           ELSE matched[1] || '.*' END ORDER BY ord
     ), ARRAY[]::text[])
-    END
-  FROM input
+    FROM regexp_matches(lower(normalized), '(' || pattern || '|zh|ch|sh|[a-z])', 'g')
+      WITH ORDINALITY AS tokenized(matched, ord)
+  );
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION public.sql_pinyin__regex_phrase_query_from_patterns(
@@ -197,7 +206,9 @@ DECLARE
   tone_chunks integer[] := ARRAY[]::integer[];
   tone_positions integer[] := ARRAY[]::integer[];
   inventory text[];
-  compat_inventory text[];
+  inventory_pattern text;
+  inventory_text text;
+  compat_pattern text;
   tokens text[] := ARRAY[]::text[];
   patterns text[] := ARRAY[]::text[];
   remaining text;
@@ -302,6 +313,13 @@ BEGIN
     UNION SELECT 'm'
     UNION SELECT 'n'
   ) AS t;
+  -- The regex engine selects the longest anchored match. Delimited, length-
+  -- sorted entries let prefix tests use C string operations instead of loops.
+  inventory_text := array_to_string(inventory, '|');
+  IF mode <> 'initials' THEN
+    inventory_pattern := '^(?:' || inventory_text || ')';
+  END IF;
+  inventory_text := '|' || inventory_text || '|';
 
   IF mode = 'auto' THEN
     -- Tone-bearing chunks must remain valid complete syllables even when
@@ -313,13 +331,7 @@ BEGIN
       remaining := chunks[chunk_index];
       consumed := 0;
       WHILE remaining <> '' LOOP
-        matched := NULL;
-        FOREACH token IN ARRAY inventory LOOP
-          IF left(remaining, char_length(token)) = token THEN
-            matched := token;
-            EXIT;
-          END IF;
-        END LOOP;
+        matched := substring(remaining FROM inventory_pattern);
         IF matched IS NULL THEN
           RETURN ARRAY[]::text[];
         END IF;
@@ -358,20 +370,12 @@ BEGIN
           -- A final valid prefix stays whole, including yon rather than yo+n.
           IF chunk_index = cardinality(chunks) AND NOT numeric_tones[chunk_index]
              AND tone_count = 0 THEN
-            FOREACH token IN ARRAY inventory LOOP
-              IF left(token, char_length(remaining)) = remaining THEN
-                matched := remaining;
-                EXIT;
-              END IF;
-            END LOOP;
+            IF strpos(inventory_text, '|' || remaining) > 0 THEN
+              matched := remaining;
+            END IF;
           END IF;
           IF matched IS NULL THEN
-            FOREACH token IN ARRAY inventory LOOP
-              IF left(remaining, char_length(token)) = token THEN
-                matched := token;
-                EXIT;
-              END IF;
-            END LOOP;
+            matched := substring(remaining FROM inventory_pattern);
           END IF;
           IF matched IS NULL THEN
             auto_fallback := true;
@@ -402,13 +406,8 @@ BEGIN
              AND NOT numeric_tones[chunk_index] AND tone_count = 0 THEN
             is_prefix := NOT (matched = ANY(inventory));
             IF NOT is_prefix THEN
-              FOREACH token IN ARRAY inventory LOOP
-                IF char_length(token) > char_length(matched)
-                   AND left(token, char_length(matched)) = matched THEN
-                  is_prefix := true;
-                  EXIT;
-                END IF;
-              END LOOP;
+              is_prefix := substr(inventory_text,
+                strpos(inventory_text, '|' || matched) + char_length(matched) + 1, 1) <> '|';
             END IF;
           END IF;
           auto_prefix := is_prefix;
@@ -437,8 +436,8 @@ BEGIN
 
     IF auto_fallback THEN
       tokens := ARRAY[]::text[];
-      SELECT array_agg(t.character ORDER BY char_length(t.character) DESC, t.character COLLATE "C")
-      INTO compat_inventory
+      SELECT '^(?:' || string_agg(t.character, '|' ORDER BY char_length(t.character) DESC, t.character COLLATE "C") || ')'
+      INTO compat_pattern
       FROM (
         SELECT character FROM pinyin.pinyin_token
         WHERE category = 1 AND character ~ '^[a-z]+$'
@@ -448,13 +447,7 @@ BEGIN
       ) AS t;
       FOREACH remaining IN ARRAY chunks LOOP
         WHILE remaining <> '' LOOP
-          matched := NULL;
-          FOREACH token IN ARRAY compat_inventory LOOP
-            IF left(remaining, char_length(token)) = token THEN
-              matched := token;
-              EXIT;
-            END IF;
-          END LOOP;
+          matched := substring(remaining FROM compat_pattern);
           matched := COALESCE(matched, left(remaining, 1));
           tokens := array_append(tokens, matched);
           IF cardinality(tokens) > 64 THEN
@@ -486,20 +479,12 @@ BEGIN
         -- A valid trailing prefix stays in one position: yon must not become yo+n.
         IF mode = 'autocomplete' AND chunk_index = cardinality(chunks)
            AND NOT numeric_tones[chunk_index] THEN
-          FOREACH token IN ARRAY inventory LOOP
-            IF left(token, char_length(remaining)) = remaining THEN
-              matched := remaining;
-              EXIT;
-            END IF;
-          END LOOP;
+          IF strpos(inventory_text, '|' || remaining) > 0 THEN
+            matched := remaining;
+          END IF;
         END IF;
         IF matched IS NULL THEN
-          FOREACH token IN ARRAY inventory LOOP
-            IF left(remaining, char_length(token)) = token THEN
-              matched := token;
-              EXIT;
-            END IF;
-          END LOOP;
+          matched := substring(remaining FROM inventory_pattern);
         END IF;
         IF matched IS NULL THEN
           RETURN ARRAY[]::text[];
@@ -531,13 +516,7 @@ BEGIN
                              ELSE char_length(chunks[chunk_index]) END LOOP
         token := CASE WHEN chunks[chunk_index] IN ('zh', 'ch', 'sh') THEN chunks[chunk_index]
                       ELSE substr(chunks[chunk_index], position, 1) END;
-        prefix_exists := false;
-        FOREACH matched IN ARRAY inventory LOOP
-          IF left(matched, char_length(token)) = token THEN
-            prefix_exists := true;
-            EXIT;
-          END IF;
-        END LOOP;
+        prefix_exists := strpos(inventory_text, '|' || token) > 0;
         IF NOT prefix_exists THEN
           RETURN ARRAY[]::text[];
         END IF;

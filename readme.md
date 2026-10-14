@@ -168,6 +168,44 @@ migration; live dictionaries and stored generated values are not overwritten.
 Run the upgrade from a new database connection after replacing the Rust library,
 so an existing connection does not retain the previously loaded binary.
 
+### Standalone SQL Parser
+
+The optional `sql/word.sql` parser uses static regex aggregation for compatibility
+queries and longest-prefix regex/string matching for explicit modes. It still
+reads the live `pinyin.pinyin_token` table on every call; no parser cache table,
+Rust dependency or query-mode/coverage change is introduced. Reload this file to
+update an existing SQL-only installation, without rebuilding an index:
+
+```bash
+psql "$PGURL" -v ON_ERROR_STOP=1 -f sql/word.sql
+```
+
+The shared tokenizer and Rust APIs are unchanged. Null/empty semantics, generated
+patterns, `xi'an`, tone validation and initials remain covered by regressions.
+The [SQL parser specification](spec/pinyin-sql-parser-perf.md) records the
+implementation and old/new parser, query-construction and BM25 benchmark protocol.
+
+One local PG19 beta4 / pg_search 0.26.1 measurement used 20,000 documents,
+2,000 queries per mode and three warm repeats. Within-mode time reductions
+(ratio of three-round medians, not comparisons between different modes):
+
+| Mode | Pattern Time Reduction | Client Search Time Reduction |
+| --- | ---: | ---: |
+| compat | 14.6% | 4.4% |
+| full | 17.3% | 11.3% |
+| initials | 2.0% | -2.1% (slower) |
+| autocomplete | 14.9% | 18.3% |
+| auto | 22.3% | 10.2% |
+
+Initials search did not improve: its three paired rounds were 2.1%, 9.5% and
+13.1% slower. Its small parser difference and compatibility search were noisy.
+This shared host had high memory pressure; these are observations, not guaranteed
+production gains. Exact patterns, constructed queries, full hit IDs/scores and
+Top-K stayed equal; all six fresh indexes were 3,350,528 bytes. Client time
+includes per-query planning; prepared plans and concurrency were not measured.
+See the [report](benchmarks/sql_parser.md), [raw evidence](benchmarks/sql_parser.json.gz)
+and retained [first-pass trial](benchmarks/sql_parser_first_pass.md).
+
 ### Automatic Query Routing
 
 `auto` is opt-in on the mode-aware APIs. The default `pinyin_regex_phrase` and
