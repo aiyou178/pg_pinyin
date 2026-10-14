@@ -226,17 +226,13 @@ differ, so this is not a parser-only speedup. The dual-field index remained
 shared-host load and roughly 33.3 GB swap rule out stable speedup claims.
 
 Remaining proposals require independent labeled evaluation before defaults change:
+Explicit boundary normalization and the native exact-query measurement have been
+completed in the increments below; they are no longer remaining proposals.
 
 1. Evaluate the opt-in modes on independent business query labels before
    changing defaults. Keep compatibility and Chinese/unfiltered fallback
    available; curated adversarial checks are not general retrieval accuracy.
-2. Normalize explicit boundaries consistently across the existing interfaces.
-   Keep single-path joined parsing; automatic candidate expansion was rejected
-   on 2026-10-13 in favor of supporting explicitly separated user input.
-3. Measure the native exact-query increment below without assuming score parity
-   or changing the existing regex interfaces. Retain the independently validated
-   native `text[]`/document-batch cache and parallel-safety guarantees.
-4. Optional conservative function-word filtering: tokenize/POS/entity-protect
+2. Optional conservative function-word filtering: tokenize/POS/entity-protect
    before romanization, keep original Chinese and full-pinyin fallback. Protect
    names, titles, fixed phrases, quoted text, negation, scope and direction.
    Never delete homophonic `de`/`he` after conversion or union public stoplists.
@@ -376,6 +372,178 @@ native API stubs, standalone SQL loading, query construction below Gather in
 actual read-only workers without an assigned XID, and the custom analyzer
 pretokenization counterexample pass. Generated dictionary files are byte-identical.
 No version metadata, package release or existing historical benchmark is changed.
+
+### Default Regex Tradeoff Follow-Up
+
+Add a separate reproducible benchmark of the unchanged default
+`pinyin_regex_phrase(value, slope, NULL, false)` and native `pinyin_phrase`, with
+the explicit `full` regex path as a control. Run both independent backends on
+the same 20,000 dictionary phrases, 2,000 complete queries and shared plain-field
+index in a fresh UUID database. Rotate six methods over six repeats. Preserve
+the previous full-regex report and record all matching IDs, not only top-k.
+
+Count actual set intersections, default-only and native-only hits; show example
+documents for scope differences. Require Rust/SQL agreement within each strategy
+and full-regex/native hit-set agreement on the complete-query workload. Report
+timings for changed and unchanged hit sets separately where available; never
+attribute all default-to-native speedup to query construction alone.
+
+Use independent exhaustive positive/negative labels for complete syllables,
+initials, final completion and normalized spelling. Do not use native output as
+the relevance oracle. Report micro-aggregated TP/FP/FN/TN per intent, precision,
+recall, false discovery rate and false-positive rate with explicit denominators;
+undefined rates remain null, not zero. Dictionary-derived scope differences
+measure retrieval semantics, not general user relevance or pronunciation
+accuracy. A prefix-only hit may be incorrect for a complete input but relevant
+for completion. Native empty results for unsupported partial inputs must not
+be counted as a faster successful search.
+
+End-to-end warm timing includes helper construction, actual BM25 score Top-K,
+client round trips and returned IDs/scores, excludes setup and full-hitset
+validation, and verifies measured output against each strategy's own preflight.
+Separate fresh-backend constructor costs from warm constructor costs; do not
+describe backend-first-call costs as flushed disk/OS-cache measurements. Record
+the actual pg_search version, library/source/fixture hashes and raw repeats.
+No product behavior, version, migration or index data changes are needed.
+
+The completed [2026-10-14 report](../benchmarks/native_phrase_tradeoff.md) and
+[JSON (gzip)](../benchmarks/native_phrase_tradeoff.json.gz) use the same release-mode
+extension library on PG19 beta4 / pg_search 0.26.1, with all six methods passing
+actual Top-K, complete-set, backend parity and timed-output checks. Of 2,000
+inputs, 355 change hitsets and 1,645 do not. Default has 5,366 query/document
+matches, native 3,477, intersection 3,477, default-only 1,889 and native-only zero.
+This 35.20% reduction measures scope, not relevant recall. Scores differ for all
+2,000 default/native queries; 354 change top-k IDs. Full/native sets, scores and
+rankings agree for every sampled query.
+
+Six-repeat warm full-client medians in ms (default / full control / native):
+Rust 1,292.054 / 380.906 / 286.320; SQL 1,464.892 / 981.670 / 871.142.
+Native elapsed reductions versus default are 77.84% / 40.53% (Rust / SQL), and
+versus unchanged-scope full regex 24.83% / 11.26%. Unchanged-hitset query-latency
+sums also fall (Rust 1,105.739 to 233.678 ms; SQL 1,249.113 to 721.603 ms),
+so fewer returned matches alone do not explain the gain. These are post-strata,
+not a causal allocation of saved time. Constructor warm medians on 20,000
+inputs are Rust 46.682 / 49.651 / 46.309 ms and SQL
+1,820.366 / 5,517.044 / 5,530.232 ms; SQL normalization/parser overhead remains
+substantial even though the overall native query is faster than default here.
+
+Independent gold has 50 documents and 40 exhaustive queries. Complete-syllable
+intent: default TP/FP/FN/TN = 70/20/0/910, native = 70/0/0/930; FDR falls from
+22.22% to zero, FPR from 2.15% to zero, and relevant recall stays 100%.
+Initials recall falls from 100% to zero; final-completion recall from 100% to
+39.02%. Normalized-input recall rises from 35.29% to 100%, a grammar-acceptance
+change rather than a narrowing benefit. Do not automatically replace partial
+queries because a spelling happens to parse as a valid full syllable: the same
+`an` input has different positive labels for full versus completion intent.
+The shared index remains 3,350,528 bytes. The new 20 protocol tests and the 15
+existing phrase benchmark tests pass. No product or version changes were made;
+existing historical reports and the original checkout's untracked files remain
+untouched. Shared-host swap usage (~27.9 GB) limits performance generalization.
+
+### Opt-In Auto Routing
+
+Extend the existing unreleased 0.0.9 mode interfaces with `auto`; do not bump the
+version, change default function bodies/OIDs or overwrite earlier benchmarks.
+Keep Rust embedded/SPI-free tokenization and independent SQL live-table parsing.
+
+The shared parser emits canonical exact literals or terminal `.*` prefixes:
+
+- Parse complete leading syllables with the existing normalization and greedy
+  boundaries. Preserve a valid final suffix whole before greedy splitting.
+- An unmarked terminal token is a prefix when incomplete or a proper prefix of
+  another syllable. Thus `xi a` and `xi an` retain completion, `xi ang` is exact.
+  A numeric tone or a tone mark on the terminal token signals exact completion;
+  tones elsewhere do not signal that the terminal token is complete.
+- Reject malformed normalization and input/token limit violations. Otherwise,
+  failed full-leading/terminal-prefix parsing falls back to normalized compatible
+  tokenization (`whh -> w.* h.* h.*`). Never drop unmatched initial letters.
+- Unmarked leading syllabic `m`/`n` are not confident full tokens: `nh`, `n h`
+  and `m n` fall back to compatible initials. Their own tone or numeric boundary
+  permits exact completion; a numeric boundary only marks its chunk's last token.
+- Multi-token input made entirely of single letters and without any marked or
+  numeric tone is also low-confidence and uses compatible regex. `a h`, `e o`
+  and `o y` must not narrow vowel initials to literal leading vowels. Explicit
+  completion (`a1 h`, a marked leading vowel) still permits native routing.
+- Generated-pinyin auto patterns retain normalized compatible pipe prefixes.
+  Native constructors cannot represent arbitrary pipe alternatives.
+
+With no generated flag or explicit expansion cap, all-literal patterns route to
+native term/phrase_array (including native slop). Several tokens with exactly one
+terminal prefix and zero/NULL slop route to phrase_prefix. Single-prefix,
+multi-prefix, positive-prefix-slop, explicit-cap and unavailable-native-API cases
+use the existing regex constructor. Explicit caps operate on selected auto
+patterns. Preserve NULL, empty and default error behavior.
+
+Use a finite prefix ceiling of 16,384: the pg_search 0.26.1 default of 50 can
+silently lose matches, while its Tantivy scorer preallocates a vector of the
+requested capacity, making an integer-max ceiling unsafe. The bundled syllable
+inventory is much smaller; fields containing arbitrary non-pinyin terms beyond
+the ceiling remain a documented limitation, not a claim of unlimited recall.
+Test more than 50 expansions and fallback after a native API is removed.
+
+This is a lexical heuristic, not probabilistic intent detection. Valid short
+syllables can be initials, and a valid full syllable can be a completion prefix.
+Retain explicit modes for known intent. Require regression coverage of both
+backends, normalized/boundary input, initials, final completion, slop/cap/pipe
+fallbacks, fresh/upgrade parity and actual read-only parallel execution.
+
+Benchmark default regex, auto and native phrase on the same rebuilt plain index
+in a fresh UUID database, without modifying historical evidence. Use at least
+20,000 corpus phrases and 2,000 queries per complete/initials/completion workload.
+Record exhaustive independently labeled fixture metrics by intent, actual full
+hit sets, per-method source-hit fractions and native-route distributions. Do not
+discard ambiguous misses or time native empty partial results as successful
+searches. Separate warm client/BM25/Top-K timing and constructor-first-call costs;
+record the installed library/functions and all inputs. No index-data changes.
+
+The completed 2026-10-14 [Auto report](../benchmarks/pinyin_auto.md) and
+[JSON (gzip)](../benchmarks/pinyin_auto.json.gz) use release-mode PG19 beta 4 / pg_search
+0.26.1, 20,000 rows, 2,000 inputs per workload and six rotated fresh-index rounds.
+The prepared image is an experimental source-compatibility build, not an official
+PG19 upstream binary package. Earlier benchmark artifacts remain untouched.
+
+- Complete-input hit pairs: default 5,366, Auto 4,148, exact phrase 3,477. Auto
+  removes 1,218 default-only pairs (22.70%), changes 234 query hitsets and retains
+  every known source. Removed pairs are not assumed irrelevant without labels.
+- Initials: Auto preserves all 122,290 default hit pairs and 2,000 source hits;
+  every input routes to regex. Exact phrase has no matches. The single-letter
+  guard was required: an initial probe missed 15 sources when legal vowel
+  initials were mistaken for complete leading syllables. That run was discarded;
+  final regressions and the complete fresh run use the corrected policy.
+- Completion: default 10,873 pairs, Auto 7,731; 3,534 pairs disappear and 392 are
+  added, including 219 recovered sources (1,781 to 2,000). Auto uses phrase_prefix
+  throughout. Native exact phrase matches only four known sources, so its
+  partial-input latency is omitted rather than presented as a speed benefit.
+- Independently labeled gold, complete intent: Auto TP/FP/FN = 70/9/0 versus
+  default 70/20/0 and exact phrase 70/0/0. FDR drops 22.22% to 11.39%; terminal
+  prefix ambiguity remains. Initials retain 30/3/0; completion improves 41/4/0
+  to 41/0/0; normalization improves 12/8/22 to 34/2/0. This small contrastive
+  fixture is not a production error-rate or pronunciation-accuracy estimate.
+- Score compatibility is not an acceptance claim. Among queries with unchanged
+  complete ID sets, 128 complete and 334 completion inputs change Top-K ID order
+  under Auto; these all use phrase_prefix in this corpus. Source-hit coverage
+  checks any matching position and must not be interpreted as Top-1 accuracy.
+- Rust warm complete batches: default/Auto/native = 1,238.865/320.533/278.477 ms;
+  completion default/Auto = 1,286.653/467.457 ms. SQL complete =
+  1,393.908/984.145/858.965 ms; completion = 1,483.978/1,040.014 ms.
+  Initials add classification overhead: Rust 1,509.097 to 1,554.047 ms, SQL
+  2,105.065 to 2,710.942 ms. Shared-host outliers are retained in all six rounds;
+  these exploratory median comparisons do not prove a universal speedup or a
+  statistically significant small initials slowdown.
+- Materialized warm construction for 20,000 rows costs Rust default/Auto
+  46.727/81.579 ms and SQL 1,731.520/5,716.056 ms. The gain, where observed,
+  comes from native index queries and narrower scope, not cheaper parsing.
+- The same index has 3,350,528 bytes and 58,349 positions. No new field, token
+  mutation, dictionary change or index-size reduction is introduced.
+
+Validation passes 35 Rust unit tests, 139 Python tests, 22 data-pipeline tests and
+1,585 pgTAP assertions across nine files, plus formatting and library/binary
+checks with no PostgreSQL features and PG19. Actual isolated SQL-only operation,
+genuine v0.0.8 upgrade/fresh-function parity and read-only parallel workers pass.
+The benchmark additionally guards numeric fingerprint equivalence for PostgreSQL
+JSON score `0` and direct-cursor `0.0`, without score tolerances. A failed report
+attempt was fully discarded and rerun in a fresh UUID database after that fix.
+Development version remains 0.0.9; no release version bump or extra migration.
 
 ## Native Arrays and Explicit Document Batches
 
