@@ -804,6 +804,80 @@ above checks any matching position, not whether the source wins Top-1.
 The shared index remains 3,350,528 bytes
 with 58,349 positions; Auto does not reduce stored/indexed content.
 
+### BM25 Bulk Import
+
+The standalone `scripts/benchmark_bm25_import.py` harness measures the complete
+raw-document ingestion pipeline, including client upload, conversion, transaction
+commits and search readiness. It compares row-at-a-time INSERT, generated-column
+COPY, scalar staging and bounded document-batch staging with a real document/ICU
+and pinyin/whitespace BM25 index. Precomputed pinyin COPY is a separate lower-bound
+control with conversion excluded, not a competing end-to-end conversion method.
+
+Run inside the server's Linux test container with psycopg 3 and a freshly rebuilt
+matching release library. The CLI verifies a local server before fingerprinting
+installed files; a remote DSN cannot supply that build evidence. The benchmark
+uses and removes a disposable UUID database, so the DSN
+must be administrative. No previous P1 baseline library is needed. Defaults are
+20,000 documents, three rotated repeats, transaction sizes 512/4,096/20,000 and
+512-document conversion arrays. Each case has fresh backend/table/index state;
+both existing-index ingestion and post-load index creation are measured.
+
+```bash
+export PG_CONFIG=/usr/lib/postgresql/19/bin/pg_config
+cargo pgrx install --release --features pg19 --no-default-features --pg-config "$PG_CONFIG"
+python3 scripts/benchmark_bm25_import.py --dsn "$PGADMINURL" \
+  --rows 20000 --repeats 3 --transaction-rows 512,4096,20000 \
+  --batch-documents 512 --search-probes 64 \
+  --pg-search-version 0.26.1 --postgresql-version-pattern 19beta4 \
+  --current-build-artifact "${CARGO_TARGET_DIR:-target}/release/libpg_pinyin.so" \
+  --json-output benchmarks/bm25_import.json.gz \
+  --markdown-output benchmarks/bm25_import.md
+```
+
+The harness refuses to overwrite existing reports. The protocol and all
+remaining candidates are recorded in [the improvement roadmap](spec/pinyin-improvement-roadmap.md).
+
+The 2026-10-14 [report](benchmarks/bm25_import.md) and
+[lossless raw JSON](benchmarks/bm25_import.json.gz) cover 90 timed samples on
+PG19 beta 4 / pg_search 0.26.1 with durability enabled. The measured source is
+`b29763b`, before PR #5 merged; the report preserves that baseline rather than
+claiming timings for the subsequently rebased publication branch. At 20,000 rows per
+transaction, total-ready medians in milliseconds are:
+
+| Method | Existing BM25 index | Build BM25 after load |
+| --- | ---: | ---: |
+| Pipelined per-document INSERT, generated pinyin | 660.910 | 611.119 |
+| COPY, generated pinyin | 510.890 | 506.850 |
+| COPY staging, scalar conversion | 566.583 | 573.578 |
+| COPY staging, 512-document batch conversion | 307.486 | 308.075 |
+| Precomputed pinyin COPY, conversion excluded | 168.097 | 182.993 |
+
+Batch staging reduced total-ready latency versus generated-column COPY by
+39.81% / 39.22% in this run. With 4,096-row transactions, the same batch path
+took 322.070 / 339.823 ms; 512-row transactions took 383.679 / 350.117 ms.
+Deferred building was not uniformly faster once build and ANALYZE were included.
+All stored rows, NULL/empty/document-boundary gold cases and full positional
+search hit sets were preserved. The 64 source probes (63 distinct token windows)
+also retained identical Top-K IDs and scores across all 90 samples. This is
+pipeline optimization using the existing
+batch API, not a new Rust algorithm, pronunciation improvement or version bump.
+
+At 20,000 rows per transaction, the online generated COPY and batch path both
+used about 3.46 MiB of BM25 relation storage; deferred builds used about 3.44 MiB.
+Sampled backend RSS maxima were 120.8 versus 125.9 MiB online: this is not a
+memory reduction. Small online batch transactions produced about 5.59 MiB of
+index storage at observation time. Segment merging/steady-state storage is not
+measured, so do not treat these bytes as permanent index compression. The shared
+host used `32486.81M` swap before timing; three rounds remain exploratory.
+
+For an existing generated-column table, ordinary COPY preserves automatic
+romanization on later writes. Batch staging requires a plain stored pinyin
+column and explicit maintenance on later INSERT/UPDATE; it must not silently
+replace a generated column. The [reference staging SQL and adoption limits](spec/pinyin-improvement-roadmap.md#reference-staging-sql)
+show that path. Treat 512-document arrays and 4,096-row transactions as starting
+points to retest on production-sized documents, not universally optimal bounds.
+The earlier unindexed INSERT figures above are not BM25 import throughput.
+
 ### P1 Query Modes (pg_search 0.26.1)
 
 The separate [P1 report](benchmarks/p1_query_modes.md) and
