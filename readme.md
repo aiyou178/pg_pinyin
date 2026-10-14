@@ -21,6 +21,7 @@
 - `pinyin_word_romanize_batch(origins text[], suffix text)` (document batch with user-table suffix)
 - `pinyin_regex_phrase(text, slope integer DEFAULT NULL, max_expansions integer DEFAULT NULL, generated_pinyin boolean DEFAULT false)` (`pg_search` query helper; installed by `CREATE EXTENSION pg_pinyin` when `pg_search` is already enabled in the database, returns `pdb.query`)
 - `pinyin_regex_phrase_mode(text, mode text, slope integer DEFAULT NULL, max_expansions integer DEFAULT NULL, generated_pinyin boolean DEFAULT false)` (opt-in explicit query modes; same installation requirement)
+- `pinyin_phrase(text, slope integer DEFAULT NULL)` (opt-in exact native term/phrase query for plain syllable fields; requires the native phrase APIs in `pg_search`)
 
 `pinyin_regex_phrase` is a Rust-backend public API, but its return type is `pdb.query`, so `pg_search` must be enabled in the database before `CREATE EXTENSION pg_pinyin`. PostgreSQL extension scripts cannot reliably enable another extension while they are being installed. If `pg_pinyin` is installed before `pg_search`, the romanization APIs are still installed and `pinyin_regex_phrase` is installed as an error stub with a clear exception.
 
@@ -43,6 +44,7 @@ remain unchanged, including untyped NULL arguments.
 - `sql_pinyin_regex_phrase_patterns(text, generated_pinyin boolean DEFAULT false)` (SQL helper returning regex phrase tokens as `text[]`)
 - `sql_pinyin_regex_phrase_mode(text, mode text, slope integer DEFAULT NULL, max_expansions integer DEFAULT NULL, generated_pinyin boolean DEFAULT false)` (independent SQL mode-aware query builder)
 - `sql_pinyin_regex_phrase_patterns_mode(text, mode text, generated_pinyin boolean DEFAULT false)` (independent SQL mode-aware pattern helper)
+- `sql_pinyin_phrase(text, slope integer DEFAULT NULL)` (independent SQL exact native term/phrase query for plain syllable fields)
 `sql_pinyin_regex_phrase_patterns` follows the same empty-array behavior. `sql_pinyin_regex_phrase` and the Rust-backed `pinyin_regex_phrase` map an empty pattern array to `pdb.empty()` so they are safe to use with `@@@`; callers that want an empty user query to leave other filters unaffected should omit the `@@@` predicate or use `pdb.all()` explicitly.
 
 Recommended usage:
@@ -81,6 +83,38 @@ FROM voice
 WHERE pinyin @@@ public.sql_pinyin_regex_phrase('zhengshuang');
 ```
 
+### Explicit Syllable Boundaries
+
+The default `pinyin_regex_phrase` helper and `compat` mode now accept straight
+apostrophes (`'`) and smart apostrophes (`‘`, `’`) as hard syllable boundaries,
+just like spaces. The independent `sql_` backend accepts the same inputs.
+The separator is not removed and concatenated: `xi'an` produces `xi.*`, `an.*`,
+while unseparated `xian` keeps the existing single greedy token `xian.*`.
+Likewise `xin'gan` produces `xin.*`, `gan.*`, not `xing.*`, `an.*`.
+Leading, trailing and repeated separators are treated like whitespace; a
+separator-only input produces an empty query. Other unsupported punctuation
+still rejects the entire input, and no alternate segmentations are generated.
+
+```sql
+-- SQL string literals escape an apostrophe by doubling it.
+SELECT public.pinyin_regex_phrase_patterns('xi''an'); -- {xi.*,an.*}
+SELECT * FROM voice
+WHERE pinyin @@@ public.pinyin_regex_phrase('xi''an');
+SELECT * FROM voice
+WHERE pinyin @@@ public.sql_pinyin_regex_phrase('xi''an');
+
+-- For exact syllable terms, rather than the default prefix matching:
+SELECT * FROM voice
+WHERE pinyin @@@ public.pinyin_regex_phrase_mode('xi''an', 'full');
+```
+
+This extends the existing default/compat input grammar without changing its
+prefix matching, initials, generated-pinyin patterns, NULL behavior or function
+signatures. Tone/umlaut normalization remains in the explicit modes below.
+Only the Rust library needs rebuilding for the Rust backend; reload `sql/word.sql`
+for the independent SQL backend. Use a new connection after replacing the library.
+The unreleased 0.0.9 version and existing upgrade migration are unchanged.
+
 ### Explicit Query Modes
 
 Development version 0.0.9 adds separate mode-aware interfaces, not ambiguous
@@ -92,7 +126,8 @@ overloads of legacy functions. Use a mode matching the user's query intent:
 | `initials` | `whh` | `w.*`, `h.*`, `h.*` |
 | `initials` | `zh ch sh` | `zh.*`, `ch.*`, `sh.*` |
 | `autocomplete` | `xi a` | `xi`, `a.*` |
-| `compat` | `xi an` | Original `xi.*`, `an.*` |
+| `auto` | `xi a` / `xi ang` / `whh` | `xi`, `a.*` / `xi`, `ang` / `w.*`, `h.*`, `h.*` |
+| `compat` | `xi an` or `xi'an` | Original prefix patterns `xi.*`, `an.*` |
 
 ```sql
 SELECT * FROM voice
@@ -105,7 +140,8 @@ WHERE pinyin @@@ public.sql_pinyin_regex_phrase_mode('xi a', 'autocomplete');
 
 New modes normalize `ü`, decomposed umlauts, `u:` and `v` to `v`, remove tone
 marks, and treat numeric tones 0-5/apostrophes as syllable boundaries (`lv4liang2`
-becomes `lv liang`). `compat` preserves the original ASCII-only behavior. Joined
+becomes `lv liang`). `compat` keeps the original ASCII parsing and prefix patterns,
+with the explicit apostrophe boundaries above. Joined
 input still uses longest-first segmentation, not contextual disambiguation;
 use explicit boundaries for `xin gan` versus `xing an`. Compact initials split
 one letter at a time; only a complete explicit `zh`/`ch`/`sh` chunk is a digraph.
@@ -114,7 +150,8 @@ A valid final syllable prefix stays whole before greedy splitting: `yon` becomes
 `yon.*`, not `yo`, `n.*`; `niyon` becomes `ni`, `yon.*`.
 
 `full` matches exact indexed syllable terms, not the entire document: `an` no
-longer expands to `ang`. New `generated_pinyin=true` patterns accept both plain
+longer expands to `ang`. The `full`/`initials`/`autocomplete`
+`generated_pinyin=true` patterns accept both plain
 word-hit terms and pipe-delimited alternatives, bounding both pipes so `an`
 does not match `|ang|`. Such mixed fields require a whitespace tokenizer that
 preserves pipes, for example an index on `(pinyin::pdb.whitespace)`. Structured
@@ -130,6 +167,108 @@ SQL NULL inputs remain NULL. Existing installations use
 migration; live dictionaries and stored generated values are not overwritten.
 Run the upgrade from a new database connection after replacing the Rust library,
 so an existing connection does not retain the previously loaded binary.
+
+### Automatic Query Routing
+
+`auto` is opt-in on the mode-aware APIs. The default `pinyin_regex_phrase` and
+all existing modes keep their behavior. Both backends implement the same policy;
+the SQL backend still runs independently of the Rust extension.
+
+```sql
+SELECT id FROM voice
+WHERE pinyin @@@ public.pinyin_regex_phrase_mode('xi a', 'auto');
+SELECT id FROM voice
+WHERE pinyin @@@ public.sql_pinyin_regex_phrase_mode('whh', 'auto');
+```
+
+An unambiguous complete token uses `pdb.term`, and several complete tokens use
+pretokenized `pdb.phrase_array`. A final unmarked syllable that is still a proper
+prefix of another syllable stays a prefix, even when itself valid: `xi a` and
+`xi an` use `phrase_prefix`, while `xi ang` is exact. A tone mark or numeric tone
+on the final token indicates completion. Earlier tokens remain exact; only the
+last expands. Apostrophes preserve boundaries, not an assertion that typing has
+finished. Joined spelling still uses longest-first segmentation.
+
+Initials/mixed input that cannot satisfy this grammar falls back to compatibility
+regex patterns, including `whh -> w.* h.* h.*`. Single-token prefixes also stay
+regex. A spelling made only of valid short syllables can nevertheless mean
+initials: `auto` cannot infer that intent. Use `initials`, `autocomplete` or `full`
+when the application knows the intended interpretation.
+Unmarked leading syllabic `m`/`n` are treated as low-confidence initials:
+`nh`, `n h` and `m n` fall back to regex rather than narrowing to literal nasal
+syllables. Explicit tones still permit complete `m`/`n` (`n1 h` keeps exact `n`).
+Multi-token input made entirely of unmarked single letters also falls back:
+`a h` is `a.* h.*`, not exact `a` followed by `h.*`. `a1 h` or a tone-marked
+`a` makes completion explicit. This avoids treating vowel initials as full input.
+
+Auto with `generated_pinyin=true` uses normalized legacy pipe-prefix patterns,
+not the mixed plain/pipe alternatives of the other explicit modes.
+Pipe-generated input, explicit `max_expansions`, unavailable native APIs and
+positive slop with a terminal prefix use regex. Explicit caps apply to the
+selected auto patterns, not a silently uncapped native query. Exact native
+phrases support slop; prefix phrases require adjacency. Native scoring can change
+rankings, so `auto` is not a score-compatible replacement for the default.
+
+Native prefix expansion uses an explicit ceiling of 16,384 instead of the
+[pg_search default of 50](https://github.com/paradedb/paradedb/blob/v0.26.1/docs/reference/full-text/phrase-prefix.mdx).
+This comfortably exceeds the bundled syllable inventory but is not unlimited:
+an arbitrary field with more than 16,384 matching distinct terms can be clipped.
+The upstream scorer preallocates storage from this ceiling, so an integer-max
+ceiling would be unsafe. Keep plain whitespace-tokenized syllable fields for
+native routes. Query selection does not change stored tokens or index size.
+
+### Native Exact Phrase Queries
+
+For a plain syllable field, `pinyin_phrase` is an explicit alternative to the
+`full` regex query. It uses the same full-input grammar, including `xi'an`,
+tone boundaries and umlaut normalization, but constructs an exact `pdb.term`
+for one syllable or a pretokenized `pdb.phrase_array` for several syllables.
+Unlike `pdb.phrase(text[])`, `phrase_array` does not re-tokenize these syllables
+with the field's search analyzer.
+
+```sql
+-- Rust backend, installed by CREATE EXTENSION pg_pinyin.
+SELECT id, pdb.score(id) FROM voice
+WHERE pinyin @@@ public.pinyin_phrase('xi''an')
+ORDER BY pdb.score(id) DESC, id;
+
+-- Allow a gap using native phrase slop; NULL and 0 mean adjacent syllables.
+SELECT id FROM voice
+WHERE pinyin @@@ public.pinyin_phrase('xi an', 1);
+
+-- Independent SQL backend, loaded from sql/word.sql without pg_pinyin.
+SELECT id FROM voice
+WHERE pinyin @@@ public.sql_pinyin_phrase('xi''an');
+```
+
+This is **not a score-compatible replacement**: a native single term uses BM25,
+whereas a single regex has constant scoring. Rankings can change, particularly
+for single-syllable queries combined with other search
+clauses. Existing `pinyin_regex_phrase` and existing explicit modes keep their
+behavior; only the new opt-in `auto` mode routes to native queries. Continue
+using regex modes for initials, autocomplete, pipe-delimited
+multi-readings or explicit `max_expansions`; the native API accepts neither a
+generated-pinyin flag nor a regex expansion cap. It does not change index data.
+
+SQL NULL input returns NULL; empty/invalid input returns `pdb.empty()` rather
+than constructing an empty native phrase. Negative `slope` raises `22023` for
+non-NULL input. A single term ignores nonnegative slop. Both backends are
+`STABLE`, `PARALLEL SAFE`, and preserve the full parser's input/token limits.
+The Rust backend's tokenizer remains embedded and SPI-free.
+Slop follows pg_search phrase semantics: a one-token gap costs 1 and a
+transposition costs 2; positive slop is not a strict ordered-gap-only filter.
+In pg_search 0.26.1, repeated terms with positive slop can reuse one indexed
+position: `an an` with slop 1 can match a document containing just one `an`.
+This also affects the existing full regex query. Use zero slop when adjacent
+repeated syllables must occur separately; positive slop is not a multiplicity
+guarantee.
+
+Enable `pg_search` before installing/upgrading `pg_pinyin`. Without it the
+extension installs an error stub; with a `pg_search` lacking the exact native
+constructors/slop wrappers, it installs an actionable upgrade error stub rather
+than silently changing scoring through regex fallback. This path is tested with
+pg_search 0.26.1. Install the new binary and existing unreleased 0.0.8-to-0.0.9
+migration, then upgrade from a new connection. No additional version bump is made.
 
 ## Token Arrays and Document Batches
 
@@ -327,6 +466,11 @@ pgTAP:
 ./test/pgtap/run.sh
 ```
 
+For pg_search coverage, use a disposable database on a server preloading
+`pg_search`, and run `CREATE EXTENSION pg_search CASCADE` there before the suite.
+The suite's earlier files may install pg_pinyin; installing pg_search afterwards
+does not replace the intentionally installed missing-dependency stubs.
+
 Rust extension tests:
 
 ```bash
@@ -424,6 +568,111 @@ DOCKER_BUILDKIT=1 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/tes
 
 ## Benchmark
 
+### Native Exact Queries
+
+`scripts/benchmark_pinyin_phrase.py` compares opt-in native queries with the
+unchanged `full` regex path for both backends. It creates and removes its own
+fresh UUID database, uses one plain BM25 index, and separates actual query-object
+construction from complete client queries. Run after installing the new binary:
+
+```bash
+python3 scripts/benchmark_pinyin_phrase.py --dsn "$PGADMINURL" \
+  --rows 20000 --queries 2000 --repeats 3 \
+  --json-output benchmarks/native_phrase.json \
+  --markdown-output benchmarks/native_phrase.md
+```
+
+Hit-set equivalence and Rust/SQL backend parity are checked outside timing;
+native-versus-regex score/rank differences are reported, not treated as equivalent
+rankings. These are different execution/scoring paths under the same parser and
+library, not a parser-only speedup or an index-size reduction. Historical reports
+below remain unchanged.
+
+The [2026-10-13 report](benchmarks/native_phrase.md) and
+[raw JSON](benchmarks/native_phrase.json) use PG19 beta 4 / pg_search 0.26.1,
+20,000 phrases, 2,000 queries and three rotated repeats. All four recorded plans
+use BM25 score Top-K; the sort expression is not cast to another type.
+Warm medians in milliseconds:
+
+| Path | Actual query construction, 20,000 inputs | Full indexed queries, 2,000 inputs | Query p95 |
+| --- | ---: | ---: | ---: |
+| Rust full regex | 49.321 | 366.692 | 0.222 |
+| Rust native phrase | 45.005 | 282.677 | 0.181 |
+| SQL full regex | 5,560.614 | 1,037.258 | 0.651 |
+| SQL native phrase | 5,530.890 | 869.343 | 0.523 |
+
+Observed full-query elapsed time fell 22.9% for Rust and 16.2% for SQL. Parsing
+is unchanged; this measures query construction and execution paths together.
+All 2,000 complete hit sets, scores and ranked IDs agree on the timed
+multi-syllable workload. Separate single-syllable and mixed-OR gold demonstrates
+changed BM25 scores/rankings, so the new helper remains opt-in. The shared index
+is 3,350,528 bytes, unchanged between strategies. The shared host had roughly
+28 GB swap in use; three repeats do not establish a universal/statistical gain.
+PG19 validation uses the experimental source-built pg_search compatibility image,
+not an official PG19 package or a new complete Docker build.
+Local validation passed 26 Rust tests, 90 Python integration/protocol tests,
+22 data-pipeline tests and 1,356 pgTAP assertions across eight files, including
+genuine 0.0.8 upgrades, SQL-only loading and real read-only parallel workers.
+Rust formatting/checks passed and regenerated dictionaries were byte-identical.
+
+### Default Regex Versus Native Phrase
+
+`scripts/benchmark_pinyin_phrase_tradeoff.py` compares the original default
+prefix-regex API, explicit `full` regex and native phrase, for both Rust and SQL
+backends. The full-regex control distinguishes query-execution improvements from
+changes in matching scope. It uses a fresh database and one shared plain-field
+index; earlier benchmark reports are not overwritten.
+
+```bash
+python3 scripts/benchmark_pinyin_phrase_tradeoff.py --dsn "$PGADMINURL" \
+  --rows 20000 --queries 2000 --repeats 6
+```
+
+Complete hit sets are compared before timed top-k queries. Independent,
+exhaustively labeled fixtures separate complete-syllable, initials,
+autocomplete and normalized-input intents. The report distinguishes false
+discovery rate (`FP / (TP + FP)`, incorrect returned matches) from false-positive
+rate (`FP / (FP + TN)`, incorrect matches among irrelevant candidates), and
+reports recall (`TP / (TP + FN)`) separately. These adversarial fixture rates are
+not estimates of production traffic accuracy. Complete-query timings must not
+be interpreted as latency for a successful initials/autocomplete search.
+
+The [2026-10-14 tradeoff report](benchmarks/native_phrase_tradeoff.md) and
+[raw JSON (gzip)](benchmarks/native_phrase_tradeoff.json.gz) use PG19 beta 4 / pg_search
+0.26.1, the same release-mode extension library, 20,000 rows, 2,000 complete
+queries and six balanced repeats. Warm end-to-end batch medians in milliseconds:
+
+| Backend | Default prefix regex | Full regex control | Native phrase | Native elapsed reduction vs default |
+| --- | ---: | ---: | ---: | ---: |
+| Rust | 1,292.054 | 380.906 | 286.320 | 77.84% |
+| SQL | 1,464.892 | 981.670 | 871.142 | 40.53% |
+
+Default/native full hit sets differ for 355 of 2,000 queries. Across all queries,
+default matches 5,366 query/document pairs and native matches 3,477, all shared;
+1,889 prefix-only pairs disappear. This 35.20% scope reduction is **not** a
+measured loss of relevant recall. Full regex and native have identical complete
+hit sets, scores and rankings, with native elapsed reductions of 24.83% (Rust)
+and 11.26% (SQL). Even the 1,645 unchanged-hitset queries are faster with native;
+the overall gain is not solely a consequence of returning fewer matches.
+
+On the independent 50-document/40-query contrastive gold, default versus native:
+
+| Intent | Default FDR | Native FDR | Default recall | Native recall |
+| --- | ---: | ---: | ---: | ---: |
+| Complete syllables | 22.22% | 0.00% | 100.00% | 100.00% |
+| Initials | 9.09% | n/a (no matches) | 100.00% | 0.00% |
+| Final completion | 8.89% | 0.00% | 100.00% | 39.02% |
+| Normalized spelling | 40.00% | 0.00% | 35.29% | 100.00% |
+
+For complete syllables, FPR also falls from 2.15% to 0.00% on this fixture.
+These are diagnostic rates, not production accuracy estimates. Use native for
+an explicitly complete-syllable intent; retain regex/mode APIs for partial-input
+intent. The same input `an` can mean a complete syllable or completion including
+`ang`, so successful full parsing alone cannot decide the user's intent.
+Default/native scores change for all timed queries and top-k IDs for 354;
+combined-clause rankings are not a transparent replacement. All methods share
+the unchanged 3,350,528-byte index. Shared-host timing remains exploratory.
+
 ### Native Arrays and Document Batches
 
 The separate `scripts/benchmark_array_batch.py` harness compares the real
@@ -474,6 +723,86 @@ Local validation passed 88 Python tests, 875 pgTAP assertions and 16 Rust tests,
 including genuine released 0.0.8-to-development-0.0.9 upgrades, live cache
 mutation/rollback, TOAST and actual read-only parallel workers. Dictionary
 regeneration was deterministic and `sql/data` remained unchanged.
+
+### Auto Versus Default Regex And Phrase
+
+The standalone `scripts/benchmark_pinyin_auto.py` measures default regex, opt-in
+auto and exact native phrase for both backends. Each run creates a fresh UUID
+database, uses the same 20,000-row plain index and rebuilds it between rounds.
+Complete, initials and completion workloads each contain 2,000 queries. Gold
+metrics use the same independent exhaustive labels as the previous tradeoff
+report, not a native-query oracle. Actual query serialization records auto routes.
+
+```bash
+python3 scripts/benchmark_pinyin_auto.py --dsn "$PGADMINURL" \
+  --rows 20000 --queries 2000 --repeats 6 --top-k 10 \
+  --pg-search-version 0.26.1 --postgresql-version-pattern 19beta4 \
+  --json-output benchmarks/pinyin_auto.json \
+  --markdown-output benchmarks/pinyin_auto.md
+```
+
+All queries are retained, including ambiguous auto misses. Full matching IDs and
+source-hit fractions are checked before warm, ranked client/BM25/Top-K timing.
+Native partial-input results are measured for quality but excluded from latency
+claims: an exact phrase is not a successful initials/completion service.
+Constructor-first-call timing uses a fresh backend, not flushed OS/disk caches.
+Output paths refuse to overwrite prior reports.
+
+The [2026-10-14 Auto report](benchmarks/pinyin_auto.md) and
+[raw JSON (gzip)](benchmarks/pinyin_auto.json.gz) use release-mode code on PG19 beta 4 /
+pg_search 0.26.1. Warm end-to-end batch medians below include query construction,
+BM25 scoring, loopback round trips and Top-K transfer for 2,000 inputs; setup and
+full-hitset verification are outside timing. Times are milliseconds.
+Complete raw reports are committed as lossless gzip archives; the standalone
+scripts still produce ordinary JSON. `gzip -dc benchmarks/pinyin_auto.json.gz`
+returns the full Auto JSON, including every query and hitset.
+
+| Input | Backend | Default regex | Auto | Exact phrase |
+| --- | --- | ---: | ---: | ---: |
+| Complete | Rust | 1,238.865 | 320.533 | 278.477 |
+| Complete | SQL | 1,393.908 | 984.145 | 858.965 |
+| Initials | Rust | 1,509.097 | 1,554.047 | Not timed |
+| Initials | SQL | 2,105.065 | 2,710.942 | Not timed |
+| Completion | Rust | 1,286.653 | 467.457 | Not timed |
+| Completion | SQL | 1,483.978 | 1,040.014 | Not timed |
+
+Auto complete/completion elapsed reductions are 74.13%/63.67% for Rust and
+29.40%/29.92% for SQL in this run. Initials remain regex: Rust is 2.98% slower,
+SQL 28.78% slower. Auto adds classification work, not a universal speedup.
+Materializing 20,000 queries without search is also slower: warm Rust default /
+Auto construction is 46.727 / 81.579 ms, SQL 1,731.520 / 5,716.056 ms.
+The shared VM experienced substantial outliers; for example, SQL default initials
+batch samples range from 1,661.766 to 7,021.467 ms. All six rounds are retained,
+not selected for the best speedup. These are exploratory same-run measurements,
+not a production latency guarantee or proof of a small initials difference.
+
+Actual complete-input hit pairs shrink from 5,366 to 4,148 with Auto (22.70%),
+versus 3,477 with exact phrase. All 2,000 known source rows remain matched, but
+this does not prove every removed match is irrelevant. Initials keep all 122,290
+hit pairs unchanged. Completion changes 10,873 pairs to 7,731: it removes 3,534
+default-only pairs and adds 392 others, restoring 219 missing source rows
+(1,781/2,000 to 2,000/2,000). Exact phrase matches no initials sources and only
+4/2,000 completion sources; its partial-input timing would not be equivalent.
+
+The unchanged 50-document, 40-case independent gold fixture gives the following
+micro-averages. FDR is the fraction of returned matches labeled false, not FPR.
+Auto recall is 100% for each intent in this fixture, not a production recall claim.
+
+| Intent | Default FDR | Auto FDR | Exact phrase FDR | Exact phrase recall |
+| --- | ---: | ---: | ---: | ---: |
+| Complete | 22.22% | 11.39% | 0.00% | 100.00% |
+| Initials | 9.09% | 9.09% | n/a | 0.00% |
+| Completion | 8.89% | 0.00% | 0.00% | 39.02% |
+| Normalization | 40.00% | 5.56% | 0.00% | 100.00% |
+
+The remaining complete-input errors reflect conservative terminal prefixes such
+as `an`/`xi`. Use exact phrase when completion is not wanted. Native scoring and
+rankings can differ from default regex: even among queries with identical full
+hit sets, 128 complete and 334 completion inputs have changed Top-K ID order.
+All of these changes use phrase_prefix in this corpus; known-source coverage
+above checks any matching position, not whether the source wins Top-1.
+The shared index remains 3,350,528 bytes
+with 58,349 positions; Auto does not reduce stored/indexed content.
 
 ### P1 Query Modes (pg_search 0.26.1)
 

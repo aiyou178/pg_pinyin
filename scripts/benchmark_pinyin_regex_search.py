@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Benchmark end-to-end pg_search usage for pinyin_regex_phrase."""
+"""Benchmark end-to-end pg_search usage for pinyin_regex_phrase.
+
+The standalone reference also accepts explicit apostrophe syllable boundaries,
+but keeps the default helper's single greedy path and prefix patterns.
+"""
 
 from __future__ import annotations
 
@@ -74,10 +78,10 @@ def load_python_patterns(token_file: str) -> Callable[[str], list[str] | None]:
 
     tokens = sorted(set(tokens), key=lambda item: (-len(item), item))
     tokenizer = re.compile("(" + "|".join(re.escape(token) for token in tokens) + "|[a-z])")
-    all_english = re.compile(r"[a-zA-Z\s]+$")
+    all_english = re.compile(r"[a-zA-Z\s'\u2018\u2019]+")
 
     def helper(value: str) -> list[str] | None:
-        if not all_english.match(value):
+        if not all_english.fullmatch(value):
             return []
         patterns = [f"{token}.*" for token in tokenizer.findall(value.lower())]
         return patterns

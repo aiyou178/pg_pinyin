@@ -22,6 +22,7 @@ NEW_SIGNATURES = (
 ALL_NEW_SIGNATURES = NEW_SIGNATURES + (
     "public.pinyin_regex_phrase_patterns_mode(text,text,boolean)",
     "public.pinyin_regex_phrase_mode(text,text,integer,integer,boolean)",
+    "public.pinyin_phrase(text,integer)",
 )
 CUSTOM_WORD = "升级批量探针"
 CUSTOM_READING = "sheng ji pi liang tan zhen"

@@ -18,7 +18,13 @@ OLD_VERSION = "0.0.8"
 NEW_VERSION = "0.0.9"
 PATTERNS_SIGNATURE = "public.pinyin_regex_phrase_patterns_mode(text,text,boolean)"
 QUERY_SIGNATURE = "public.pinyin_regex_phrase_mode(text,text,integer,integer,boolean)"
-NEW_SIGNATURES = (PATTERNS_SIGNATURE, QUERY_SIGNATURE)
+PHRASE_SIGNATURE = "public.pinyin_phrase(text,integer)"
+NEW_SIGNATURES = (PATTERNS_SIGNATURE, QUERY_SIGNATURE, PHRASE_SIGNATURE)
+LEGACY_SIGNATURES = (
+    "public.pinyin_regex_phrase_patterns(text)",
+    "public.pinyin_regex_phrase_patterns(text,boolean)",
+    "public.pinyin_regex_phrase(text,integer,integer,boolean)",
+)
 CUSTOM_WORD = "升级探针"
 CUSTOM_READING = "sheng ji tan zhen"
 
@@ -105,28 +111,160 @@ class QueryModesUpgradeTests(unittest.TestCase):
             "AND d.objid = p.oid AND d.deptype = 'e' "
             "AND d.refclassid = 'pg_extension'::regclass "
             "LEFT JOIN pg_extension e ON e.oid = d.refobjid "
-            "WHERE p.oid IN (%s::regprocedure, %s::regprocedure) "
+            "WHERE p.oid IN (%s::regprocedure, %s::regprocedure, %s::regprocedure) "
             "ORDER BY p.oid::regprocedure::text",
             NEW_SIGNATURES,
         ).fetchall()
 
+    @staticmethod
+    def legacy_catalog(connection):
+        return connection.execute(
+            "SELECT p.oid::regprocedure::text, pg_get_function_arguments(p.oid), "
+            "pg_get_function_result(p.oid), p.proparallel, p.provolatile, "
+            "p.proisstrict, p.pronargdefaults, l.lanname "
+            "FROM pg_proc p JOIN pg_language l ON l.oid = p.prolang "
+            "WHERE p.oid IN (%s::regprocedure,%s::regprocedure,%s::regprocedure) "
+            "ORDER BY p.oid::regprocedure::text", LEGACY_SIGNATURES,
+        ).fetchall()
+
     def assert_mode_catalog(self, connection, with_search):
         rows = self.mode_catalog(connection)
-        self.assertEqual(len(rows), 2)
+        self.assertEqual(len(rows), 3)
         by_name = {row[0].split("(")[0].split(".")[-1]: row for row in rows}
         patterns = by_name["pinyin_regex_phrase_patterns_mode"]
         query = by_name["pinyin_regex_phrase_mode"]
+        phrase = by_name["pinyin_phrase"]
         self.assertEqual(patterns[2:], ("text[]", "s", "s", True, 1, "c", "pg_pinyin"))
         self.assertEqual(
             query[2:],
             ("pdb.query" if with_search else "text", "s", "s", False, 3, "plpgsql", "pg_pinyin"),
         )
+        self.assertEqual(
+            phrase[2:],
+            ("pdb.query" if with_search else "text", "s", "s", False, 1, "plpgsql", "pg_pinyin"),
+        )
         return rows
+
+    @staticmethod
+    def phrase_definition(connection):
+        return connection.execute(
+            "SELECT pg_get_functiondef(%s::regprocedure)", (PHRASE_SIGNATURE,),
+        ).fetchone()[0]
+
+    @staticmethod
+    def mode_definition(connection):
+        return connection.execute(
+            "SELECT pg_get_functiondef(%s::regprocedure)", (QUERY_SIGNATURE,),
+        ).fetchone()[0]
+
+    def assert_auto(self, connection):
+        pattern_cases = [
+            ("ang", ["ang"]),
+            ("an", ["an.*"]),
+            ("xi ang", ["xi", "ang"]),
+            ("xi a", ["xi", "a.*"]),
+            ("xi'an", ["xi", "an.*"]),
+            ("xi1 an1", ["xi", "an"]),
+            ("whh", ["w.*", "h.*", "h.*"]),
+            ("nh", ["n.*", "h.*"]),
+            ("n h", ["n.*", "h.*"]),
+            ("m n", ["m.*", "n.*"]),
+            ("n1 h", ["n", "h.*"]),
+            ("a h", ["a.*", "h.*"]),
+            ("e o", ["e.*", "o.*"]),
+            ("o y", ["o.*", "y.*"]),
+            ("a e o", ["a.*", "e.*", "o.*"]),
+            ("a1 h", ["a", "h.*"]),
+            ("ā h", ["a", "h.*"]),
+            ("wu hh", ["wu.*", "h.*", "h.*"]),
+            ("LǛ LIÁNG", ["lv", "liang"]),
+            ("nǐyon", ["ni", "yon.*"]),
+            ("ni3yon", ["ni", "yon.*"]),
+            ("nǐyón", ["ni", "yo", "n.*"]),
+            ("nǐyǒng", ["ni", "yong"]),
+            ("invalid!", []),
+            ("", []),
+            (None, None),
+        ]
+        for value, expected in pattern_cases:
+            with self.subTest(auto_value=value):
+                self.assertEqual(connection.execute(
+                    "SELECT public.pinyin_regex_phrase_patterns_mode(%s,'auto')",
+                    (value,),
+                ).fetchone()[0], expected)
+        self.assertEqual(connection.execute(
+            "SELECT public.pinyin_regex_phrase_mode('ang','auto')::text = pdb.term('ang')::text, "
+            "public.pinyin_regex_phrase_mode('xi ang','auto')::text = pdb.phrase_array(ARRAY['xi','ang'])::text, "
+            "public.pinyin_regex_phrase_mode('xi a','auto')::text = pdb.phrase_prefix(ARRAY['xi','a'],16384)::text, "
+            "public.pinyin_regex_phrase_mode('whh','auto')::text = public.pinyin_regex_phrase('whh')::text, "
+            "public.pinyin_regex_phrase_mode('xi a','auto',1)::text = pdb.regex_phrase(ARRAY['xi','a.*'],1)::text, "
+            "public.pinyin_regex_phrase_mode('xi a','auto',NULL,7)::text = pdb.regex_phrase(ARRAY['xi','a.*'],0,7)::text, "
+            "public.pinyin_regex_phrase_mode(NULL,'auto') IS NULL, "
+            "public.pinyin_regex_phrase_mode('invalid!','auto')::text = pdb.empty()::text"
+        ).fetchone(), (True,) * 8)
+        connection.execute(
+            "CREATE TABLE upgrade_auto_probe(id integer PRIMARY KEY,pinyin text NOT NULL)"
+        )
+        connection.execute(
+            "INSERT INTO upgrade_auto_probe VALUES (1,'xi an'),(2,'xi ang'),(3,'xin an'),"
+            "(4,'xian'),(5,'wu han han'),(6,'wu han hang'),(7,'xi a'),"
+            "(8,'ni hao'),(9,'n hao'),(10,'man ni'),(11,'ming nan'),(12,'m n'),"
+            "(13,'ao hao'),(14,'a hao'),(15,'e ou'),(16,'er ou'),(17,'o yang'),"
+            "(18,'ou yang'),(19,'a e o'),(20,'ao er ou')"
+        )
+        connection.execute(
+            "CREATE INDEX upgrade_auto_bm25 ON upgrade_auto_probe "
+            "USING bm25(id,(pinyin::pdb.whitespace)) WITH (key_field='id')"
+        )
+        for value, expected in [
+            ("xi a", [1, 2, 7]), ("xi an", [1, 2]), ("xi ang", [2]),
+            ("xi1 an1", [1]), ("whh", [5, 6]), ("wu han ha", [5, 6]),
+            ("nh", [8, 9]), ("n h", [8, 9]), ("m n", [10, 11, 12]), ("n1 h", [9]),
+            ("a h", [13, 14]), ("e o", [15, 16, 19, 20]), ("o y", [17, 18]),
+            ("a e o", [19, 20]), ("a1 h", [14]), ("ā h", [14]),
+        ]:
+            with self.subTest(auto_hit_value=value):
+                self.assertEqual(connection.execute(
+                    "SELECT id FROM upgrade_auto_probe WHERE pinyin @@@ "
+                    "public.pinyin_regex_phrase_mode(%s,'auto') ORDER BY id", (value,),
+                ).fetchall(), [(item,) for item in expected])
+
+    def assert_native_phrase(self, connection):
+        self.assertEqual(connection.execute(
+            "SELECT public.pinyin_phrase('an')::text = pdb.term('an')::text, "
+            "public.pinyin_phrase('xi''an')::text = pdb.phrase_array(ARRAY['xi','an'])::text, "
+            "public.pinyin_phrase('xi’an', 0)::text = public.pinyin_phrase('xi‘an', NULL)::text, "
+            "public.pinyin_phrase('xi an', 2)::text = "
+            "paradedb.slop_to_query(paradedb.query_to_slop(pdb.phrase_array(ARRAY['xi','an']),2,true))::text, "
+            "public.pinyin_phrase('an', 2)::text = pdb.term('an')::text, "
+            "public.pinyin_phrase('LǛ LIÁNG')::text = pdb.phrase_array(ARRAY['lv','liang'])::text, "
+            "public.pinyin_phrase('invalid!')::text = pdb.empty()::text, "
+            "public.pinyin_phrase('''‘’')::text = pdb.empty()::text, "
+            "public.pinyin_phrase(NULL) IS NULL, public.pinyin_phrase(NULL,-1) IS NULL"
+        ).fetchone(), (True,) * 10)
+        for value in ("an", "xi an", "invalid!", ""):
+            with self.subTest(negative_native_slope=value), self.assertRaisesRegex(
+                psycopg.errors.InvalidParameterValue, "pinyin phrase slope must be non-negative",
+            ):
+                connection.execute("SELECT public.pinyin_phrase(%s,-1)", (value,))
+        for value, expected in [("xi'an", [1]), ("xian", [3]), ("xi ang", [2])]:
+            with self.subTest(native_value=value):
+                self.assertEqual(connection.execute(
+                    "SELECT id FROM upgrade_search_probe WHERE pinyin @@@ "
+                    "public.pinyin_phrase(%s) ORDER BY id", (value,),
+                ).fetchall(), [(item,) for item in expected])
+        self.assertEqual(connection.execute(
+            "SELECT id FROM upgrade_search_probe WHERE id = 3 OR pinyin @@@ "
+            "public.pinyin_phrase('invalid!') ORDER BY id"
+        ).fetchall(), [(3,)])
 
     def assert_patterns(self, connection):
         cases = [
             ("whh", "initials", ["w.*", "h.*", "h.*"]),
             ("xi'an", "full", ["xi", "an"]),
+            ("xi’an", "full", ["xi", "an"]),
+            ("xi‘an", "autocomplete", ["xi", "an.*"]),
+            ("xi'an", "compat", ["xi.*", "an.*"]),
             ("xi an", "autocomplete", ["xi", "an.*"]),
             ("LǛ LIÁNG", "full", ["lv", "liang"]),
             ("lu:4lu:e0", "full", ["lv", "lve"]),
@@ -140,6 +278,31 @@ class QueryModesUpgradeTests(unittest.TestCase):
                     "SELECT public.pinyin_regex_phrase_patterns_mode(%s, %s)",
                     (value, mode),
                 ).fetchone()[0], expected)
+        for value, expected in [
+            ("xi'an", ["xi.*", "an.*"]), ("xi’an", ["xi.*", "an.*"]),
+            ("xi‘an", ["xi.*", "an.*"]), ("''xi’’‘‘an'''", ["xi.*", "an.*"]),
+            ("xian", ["xian.*"]), ("whh", ["w.*", "h.*", "h.*"]),
+            ("'‘’", []), ("", []), (None, None), ("xi'an!", []),
+            ("xī'an", []), ("xi'an3", []), ("lü'an", []),
+        ]:
+            for generated in (False, True):
+                patterns = expected
+                if generated and expected is not None:
+                    patterns = [r".*\|" + pattern for pattern in expected]
+                with self.subTest(legacy_value=value, generated=generated):
+                    self.assertEqual(connection.execute(
+                        "SELECT public.pinyin_regex_phrase_patterns(%s, %s), "
+                        "public.pinyin_regex_phrase_patterns_mode(%s, 'compat', %s)",
+                        (value, generated, value, generated),
+                    ).fetchone(), (patterns, patterns))
+        for signature in LEGACY_SIGNATURES:
+            self.assertEqual(connection.execute(
+                "SELECT proparallel FROM pg_proc WHERE oid = %s::regprocedure", (signature,)
+            ).fetchone()[0], "s")
+        self.assertEqual(connection.execute(
+            "SELECT count(*) FROM pg_proc WHERE pronamespace = 'public'::regnamespace "
+            "AND proname IN ('pinyin_regex_phrase_candidates','pinyin_regex_phrase_patterns_candidates')"
+        ).fetchone()[0], 0)
         with self.assertRaises(psycopg.errors.InvalidParameterValue):
             connection.execute("SELECT public.pinyin_regex_phrase_patterns_mode('xi', 'unknown')")
 
@@ -147,17 +310,21 @@ class QueryModesUpgradeTests(unittest.TestCase):
         with psycopg.connect(url, autocommit=True) as connection:
             connection.execute(
                 "CREATE TABLE upgrade_parallel_probe AS SELECT "
-                "CASE WHEN n % 2 = 0 THEN 'whh' ELSE 'xi''an' END::text AS value "
+                "CASE n % 4 WHEN 0 THEN 'whh' WHEN 1 THEN 'xi''an' "
+                "WHEN 2 THEN 'xi‘an' ELSE 'xi’an' END::text AS value "
                 "FROM generate_series(1, 100000) AS n"
             )
             connection.execute("ALTER TABLE upgrade_parallel_probe SET (parallel_workers = 2)")
             connection.execute("ANALYZE upgrade_parallel_probe")
         cases = [
-            ("initials", ["w.*", "h.*", "h.*"]),
-            ("full", ["xi", "an"]),
-            ("autocomplete", ["xi", "an.*"]),
+            ("initials", ["w.*", "h.*", "h.*"], 25000),
+            ("full", ["xi", "an"], 75000),
+            ("autocomplete", ["xi", "an.*"], 75000),
+            ("auto", ["xi", "an.*"], 75000),
+            ("compat", ["xi.*", "an.*"], 75000),
+            (None, ["xi.*", "an.*"], 75000),
         ]
-        for mode, expected in cases:
+        for mode, expected, expected_count in cases:
             with self.subTest(parallel_mode=mode), psycopg.connect(url, autocommit=True) as connection:
                 connection.execute("BEGIN READ ONLY")
                 try:
@@ -168,50 +335,123 @@ class QueryModesUpgradeTests(unittest.TestCase):
                     self.assertTrue(connection.execute(
                         "SELECT pg_current_xact_id_if_assigned() IS NULL"
                     ).fetchone()[0])
-                    query = (
-                        "SELECT count(*) FROM upgrade_parallel_probe "
-                        "WHERE public.pinyin_regex_phrase_patterns_mode(value, %s) = %s::text[]"
-                    )
+                    function = "pinyin_regex_phrase_patterns_mode" if mode is not None else "pinyin_regex_phrase_patterns"
+                    query = "SELECT count(*) FROM upgrade_parallel_probe WHERE public." + function
+                    query += "(value, %s) = %s::text[]" if mode is not None else "(value) = %s::text[]"
+                    arguments = (mode, expected) if mode is not None else (expected,)
                     plan = connection.execute(
-                        "EXPLAIN (ANALYZE, FORMAT JSON) " + query, (mode, expected)
+                        "EXPLAIN (ANALYZE, FORMAT JSON) " + query, arguments
                     ).fetchone()[0][0]["Plan"]
                     nodes = list(plan_nodes(plan))
                     self.assertTrue(any(node["Node Type"] in ("Gather", "Gather Merge") for node in nodes))
                     self.assertGreater(sum(node.get("Workers Launched", 0) for node in nodes), 0)
                     self.assertTrue(any(
                         node.get("Parallel Aware")
-                        and "pinyin_regex_phrase_patterns_mode" in node.get("Filter", "")
+                        and function in node.get("Filter", "")
                         for node in nodes
                     ), "pattern construction must execute below Gather in a parallel scan")
-                    self.assertEqual(connection.execute(query, (mode, expected)).fetchone()[0], 50000)
+                    self.assertEqual(connection.execute(query, arguments).fetchone()[0], expected_count)
                     self.assertTrue(connection.execute(
                         "SELECT pg_current_xact_id_if_assigned() IS NULL"
                     ).fetchone()[0])
                 finally:
                     connection.execute("ROLLBACK")
 
+        with psycopg.connect(url, autocommit=True) as connection:
+            connection.execute("BEGIN READ ONLY")
+            try:
+                for setting in (
+                    "max_parallel_workers_per_gather=2", "min_parallel_table_scan_size=0",
+                    "parallel_setup_cost=0", "parallel_tuple_cost=0", "jit=off",
+                ):
+                    connection.execute("SET LOCAL " + setting)
+                self.assertTrue(connection.execute("SELECT pg_current_xact_id_if_assigned() IS NULL").fetchone()[0])
+                query = (
+                    "SELECT count(*) FROM upgrade_parallel_probe WHERE "
+                    "public.pinyin_phrase(value,1)::text <> pdb.empty()::text"
+                )
+                plan = connection.execute("EXPLAIN (ANALYZE, FORMAT JSON) " + query).fetchone()[0][0]["Plan"]
+                nodes = list(plan_nodes(plan))
+                self.assertTrue(any(node["Node Type"] in ("Gather", "Gather Merge") for node in nodes))
+                self.assertGreater(sum(node.get("Workers Launched", 0) for node in nodes), 0)
+                self.assertTrue(any(
+                    node.get("Parallel Aware") and "pinyin_phrase" in node.get("Filter", "")
+                    for node in nodes
+                ), "native phrase construction must execute below Gather")
+                self.assertEqual(connection.execute(query).fetchone()[0], 75000)
+                self.assertTrue(connection.execute("SELECT pg_current_xact_id_if_assigned() IS NULL").fetchone()[0])
+            finally:
+                connection.execute("ROLLBACK")
+
+        with psycopg.connect(url, autocommit=True) as connection:
+            connection.execute("BEGIN READ ONLY")
+            try:
+                for setting in (
+                    "max_parallel_workers_per_gather=2", "min_parallel_table_scan_size=0",
+                    "parallel_setup_cost=0", "parallel_tuple_cost=0", "jit=off",
+                ):
+                    connection.execute("SET LOCAL " + setting)
+                self.assertTrue(connection.execute("SELECT pg_current_xact_id_if_assigned() IS NULL").fetchone()[0])
+                query = (
+                    "SELECT count(*) FROM upgrade_parallel_probe WHERE "
+                    "public.pinyin_regex_phrase_mode(value,'auto')::text <> pdb.empty()::text"
+                )
+                plan = connection.execute("EXPLAIN (ANALYZE, FORMAT JSON) " + query).fetchone()[0][0]["Plan"]
+                nodes = list(plan_nodes(plan))
+                self.assertTrue(any(node["Node Type"] in ("Gather", "Gather Merge") for node in nodes))
+                self.assertGreater(sum(node.get("Workers Launched", 0) for node in nodes), 0)
+                self.assertTrue(any(
+                    node.get("Parallel Aware") and "pinyin_regex_phrase_mode" in node.get("Filter", "")
+                    for node in nodes
+                ), "Auto query construction must execute below Gather")
+                self.assertEqual(connection.execute(query).fetchone()[0], 100000)
+                self.assertTrue(connection.execute("SELECT pg_current_xact_id_if_assigned() IS NULL").fetchone()[0])
+            finally:
+                connection.execute("ROLLBACK")
+
     def assert_bm25_query(self, connection):
         connection.execute("CREATE TABLE upgrade_search_probe(id integer PRIMARY KEY, pinyin text NOT NULL)")
         connection.execute(
             "INSERT INTO upgrade_search_probe VALUES (1, 'xi an'), (2, 'xi ang'), "
-            "(3, 'xian'), (4, '|xi| |an|')"
+            "(3, 'xian'), (4, '|xi| |an|'), (5, 'xia n'), (6, 'xi a n'), "
+            "(7, '|xian|'), (8, '|xia| |n|'), (9, '|xi| |a| |n|')"
         )
         connection.execute(
             "CREATE INDEX upgrade_search_probe_bm25 ON upgrade_search_probe "
             "USING bm25(id, (pinyin::pdb.whitespace)) WITH (key_field='id')"
         )
-        for mode, generated, expected in [("full", False, [1]), ("autocomplete", False, [1, 2]), ("full", True, [1, 4])]:
-            with self.subTest(search_mode=mode, generated=generated):
-                rows = connection.execute(
-                    "SELECT id FROM upgrade_search_probe WHERE pinyin @@@ "
-                    "public.pinyin_regex_phrase_mode('xi an', %s, NULL, NULL, %s) ORDER BY id",
-                    (mode, generated),
-                ).fetchall()
-                self.assertEqual([row[0] for row in rows], expected)
+        for value in ("xi an", "xi'an", "xi’an", "xi‘an"):
+            for mode, generated, expected in [
+                ("full", False, [1]), ("autocomplete", False, [1, 2]), ("full", True, [1, 4]),
+                ("compat", False, [1, 2]), ("compat", True, [4]),
+            ]:
+                with self.subTest(search_value=value, search_mode=mode, generated=generated):
+                    rows = connection.execute(
+                        "SELECT id FROM upgrade_search_probe WHERE pinyin @@@ "
+                        "public.pinyin_regex_phrase_mode(%s, %s, NULL, NULL, %s) ORDER BY id",
+                        (value, mode, generated),
+                    ).fetchall()
+                    self.assertEqual([row[0] for row in rows], expected)
+            for generated, expected in [(False, [1, 2]), (True, [4])]:
+                with self.subTest(default_value=value, generated=generated):
+                    rows = connection.execute(
+                        "SELECT id FROM upgrade_search_probe WHERE pinyin @@@ "
+                        "public.pinyin_regex_phrase(%s, NULL, NULL, %s) ORDER BY id",
+                        (value, generated),
+                    ).fetchall()
+                    self.assertEqual([row[0] for row in rows], expected)
         self.assertEqual(connection.execute(
             "SELECT id FROM upgrade_search_probe WHERE id = 3 OR pinyin @@@ "
             "public.pinyin_regex_phrase_mode('中文', 'full') ORDER BY id"
         ).fetchall(), [(3,)])
+        self.assertEqual(connection.execute(
+            "SELECT id FROM upgrade_search_probe WHERE id = 3 OR pinyin @@@ "
+            "public.pinyin_regex_phrase(%s) ORDER BY id", ("'‘’",)
+        ).fetchall(), [(3,)])
+        self.assertEqual(connection.execute(
+            "SELECT id FROM upgrade_search_probe WHERE id = 3 AND pinyin @@@ "
+            "public.pinyin_regex_phrase(%s) ORDER BY id", ("xi'an!",)
+        ).fetchall(), [])
 
     def test_real_upgrade_preserves_legacy_data_and_matches_fresh_install(self):
         upgraded_url = self.database("search_old", OLD_VERSION, True)
@@ -220,6 +460,7 @@ class QueryModesUpgradeTests(unittest.TestCase):
                 self.assertIsNone(connection.execute("SELECT to_regprocedure(%s)", (signature,)).fetchone()[0])
             old_oids = self.owned_function_oids(connection)
             self.assertTrue(old_oids)
+            old_catalog = self.legacy_catalog(connection)
             old_null = connection.execute(
                 "SELECT public.pinyin_regex_phrase('lunlun', NULL, 4)::text, "
                 "public.pinyin_regex_phrase(NULL, NULL, 4) IS NULL, "
@@ -246,6 +487,7 @@ class QueryModesUpgradeTests(unittest.TestCase):
             self.assertEqual(self.version(connection), NEW_VERSION)
             new_oids = self.owned_function_oids(connection)
             self.assertEqual({name: new_oids.get(name) for name in old_oids}, old_oids)
+            self.assertEqual(self.legacy_catalog(connection), old_catalog)
             # The unreleased 0.0.9 also adds the two document-batch functions.
             self.assertEqual(len(new_oids), len(old_oids) + len(NEW_SIGNATURES) + 2)
             self.assertEqual(connection.execute(
@@ -265,15 +507,24 @@ class QueryModesUpgradeTests(unittest.TestCase):
                 "SELECT pinyin FROM pinyin.pinyin_words WHERE word = %s", (CUSTOM_WORD,)
             ).fetchone()[0], CUSTOM_READING)
             upgraded_catalog = self.assert_mode_catalog(connection, True)
+            upgraded_phrase_definition = self.phrase_definition(connection)
+            upgraded_mode_definition = self.mode_definition(connection)
             self.assert_patterns(connection)
             self.assert_bm25_query(connection)
+            self.assert_native_phrase(connection)
+            self.assert_auto(connection)
         self.assert_parallel_read_only(upgraded_url)
 
         fresh_url = self.database("search_new", NEW_VERSION, True)
         with psycopg.connect(fresh_url, autocommit=True) as connection:
             self.assertEqual(self.assert_mode_catalog(connection, True), upgraded_catalog)
+            self.assertEqual(self.phrase_definition(connection), upgraded_phrase_definition)
+            self.assertEqual(self.mode_definition(connection), upgraded_mode_definition)
             self.assert_patterns(connection)
             self.assert_bm25_query(connection)
+            self.assert_native_phrase(connection)
+            self.assert_auto(connection)
+        self.assert_parallel_read_only(fresh_url)
 
     def test_available_but_uninstalled_pg_search_uses_stub_on_install_and_upgrade(self):
         catalogs = []
@@ -288,21 +539,54 @@ class QueryModesUpgradeTests(unittest.TestCase):
                         for signature in NEW_SIGNATURES:
                             self.assertIsNone(connection.execute("SELECT to_regprocedure(%s)", (signature,)).fetchone()[0])
                         old_oids = self.owned_function_oids(connection)
+                        old_catalog = self.legacy_catalog(connection)
                         connection.execute("ALTER EXTENSION pg_pinyin UPDATE TO '0.0.9'")
                         new_oids = self.owned_function_oids(connection)
                         self.assertEqual({name: new_oids.get(name) for name in old_oids}, old_oids)
+                        self.assertEqual(self.legacy_catalog(connection), old_catalog)
+                        self.assertEqual(len(new_oids), len(old_oids) + len(NEW_SIGNATURES) + 2)
                     self.assertEqual(self.version(connection), NEW_VERSION)
                     catalogs.append(self.assert_mode_catalog(connection, False))
                     self.assert_patterns(connection)
+                    for value, expected in [("xi a", ["xi", "a.*"]), ("whh", ["w.*", "h.*", "h.*"])]:
+                        self.assertEqual(connection.execute(
+                            "SELECT public.pinyin_regex_phrase_patterns_mode(%s,'auto')", (value,),
+                        ).fetchone()[0], expected)
                     with self.assertRaisesRegex(
                         psycopg.errors.RaiseException,
                         "pinyin_regex_phrase_mode requires CREATE EXTENSION pg_search",
                     ):
                         connection.execute("SELECT public.pinyin_regex_phrase_mode('xi an', 'full')")
+                    with self.assertRaisesRegex(
+                        psycopg.errors.RaiseException,
+                        "pinyin_regex_phrase_mode requires CREATE EXTENSION pg_search",
+                    ):
+                        connection.execute("SELECT public.pinyin_regex_phrase_mode('xi a','auto')")
+                    with self.assertRaisesRegex(
+                        psycopg.errors.RaiseException,
+                        "pinyin_phrase requires CREATE EXTENSION pg_search",
+                    ):
+                        connection.execute("SELECT public.pinyin_phrase('xi an')")
                     self.assertFalse(connection.execute(
                         "SELECT EXISTS(SELECT 1 FROM pg_extension WHERE extname = 'pg_search')"
                     ).fetchone()[0])
         self.assertEqual(catalogs[0], catalogs[1])
+
+    def test_missing_native_search_api_has_actionable_stub_on_install_and_upgrade(self):
+        for version in (OLD_VERSION, NEW_VERSION):
+            with self.subTest(start_version=version):
+                # Rename an API only inside this test's disposable database.
+                url = self.database("old_search_api", OLD_VERSION, True)
+                with psycopg.connect(url, autocommit=True) as connection:
+                    connection.execute("ALTER FUNCTION pdb.phrase_array(text[]) RENAME TO phrase_array_hidden")
+                    if version == NEW_VERSION:
+                        connection.execute("DROP EXTENSION pg_pinyin CASCADE")
+                        connection.execute("CREATE EXTENSION pg_pinyin VERSION '0.0.9'")
+                    else:
+                        connection.execute("ALTER EXTENSION pg_pinyin UPDATE TO '0.0.9'")
+                    self.assert_mode_catalog(connection, True)
+                    with self.assertRaisesRegex(psycopg.errors.FeatureNotSupported, "upgrade pg_search"):
+                        connection.execute("SELECT public.pinyin_phrase('xi an')")
 
 
 if __name__ == "__main__":

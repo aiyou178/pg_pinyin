@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Benchmark Python pinyin_regex_phrase-compatible query construction."""
+"""Benchmark Python pinyin_regex_phrase-compatible query construction.
+
+The standalone reference includes the explicit apostrophe boundaries supported
+by the default SQL/Rust helpers; it does not enumerate alternate segmentations.
+"""
 
 from __future__ import annotations
 
@@ -86,10 +90,10 @@ def load_python_helper(token_file: str, mode: str) -> Callable[[str], list[str] 
 
     tokens = sorted(set(tokens), key=lambda item: (-len(item), item))
     tokenizer = re.compile("(" + "|".join(re.escape(token) for token in tokens) + "|[a-z])")
-    all_english = re.compile(r"[a-zA-Z\s]+$")
+    all_english = re.compile(r"[a-zA-Z\s'\u2018\u2019]+")
 
     def helper(value: str) -> list[str] | str | None:
-        if not all_english.match(value):
+        if not all_english.fullmatch(value):
             return []
         pinyins = tokenizer.findall(value.lower())
         patterns = [f"{token}.*" for token in pinyins]

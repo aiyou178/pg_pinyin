@@ -21,6 +21,7 @@
 - `pinyin_word_romanize_batch(origins text[], suffix text)`（带用户词典后缀的文档批次）
 - `pinyin_regex_phrase(text, slope integer DEFAULT NULL, max_expansions integer DEFAULT NULL, generated_pinyin boolean DEFAULT false)`（`pg_search` query helper；当 `pg_search` 已在当前数据库启用时，由 `CREATE EXTENSION pg_pinyin` 安装，返回 `pdb.query`）
 - `pinyin_regex_phrase_mode(text, mode text, slope integer DEFAULT NULL, max_expansions integer DEFAULT NULL, generated_pinyin boolean DEFAULT false)`（显式查询模式，安装条件相同，按需使用）
+- `pinyin_phrase(text, slope integer DEFAULT NULL)`（按需使用的原生精确 term／phrase 查询，仅用于普通音节字段，需要 pg_search 原生 phrase API）
 
 `pinyin_regex_phrase` 是 Rust backend 的公开接口，但返回类型是 `pdb.query`，因此必须先在当前数据库启用 `pg_search`，再 `CREATE EXTENSION pg_pinyin`。PostgreSQL extension script 不能可靠地在安装过程中启用另一个 extension。如果先安装 `pg_pinyin`、后安装 `pg_search`，拼音化接口仍会安装，`pinyin_regex_phrase` 会安装为 error stub，调用时给出明确异常。
 
@@ -42,6 +43,7 @@
 - `sql_pinyin_regex_phrase_patterns(text, generated_pinyin boolean DEFAULT false)`（SQL helper，返回 regex phrase token 的 `text[]`）
 - `sql_pinyin_regex_phrase_mode(text, mode text, slope integer DEFAULT NULL, max_expansions integer DEFAULT NULL, generated_pinyin boolean DEFAULT false)`（独立 SQL 后端的模式查询接口）
 - `sql_pinyin_regex_phrase_patterns_mode(text, mode text, generated_pinyin boolean DEFAULT false)`（独立 SQL 后端的模式 pattern helper）
+- `sql_pinyin_phrase(text, slope integer DEFAULT NULL)`（独立 SQL 后端的原生精确 term／phrase 查询）
 `sql_pinyin_regex_phrase_patterns` 使用同样的空数组语义。`sql_pinyin_regex_phrase` 和 Rust-backed `pinyin_regex_phrase` 会把空 pattern 数组映射为 `pdb.empty()`，因此可以安全用于 `@@@`；如果调用方希望空用户查询不影响其他过滤条件，应省略 `@@@` 条件，或显式使用 `pdb.all()`。
 
 推荐组合：
@@ -80,6 +82,33 @@ FROM voice
 WHERE pinyin @@@ public.sql_pinyin_regex_phrase('zhengshuang');
 ```
 
+### 显式音节边界
+
+默认的 `pinyin_regex_phrase` 和 `compat` 现在把 ASCII 撇号 `'` 及弯引号
+`‘`、`’` 当作硬音节边界，行为与空格一致；独立的 `sql_` 后端也支持。
+不会删除分隔符后重新连写：`xi'an -> xi.* / an.*`，无分隔的 `xian` 仍保留
+原有单路径贪心结果 `xian.*`；`xin'gan -> xin.* / gan.*`，不会变成 `xing.* / an.*`。
+首尾、重复分隔符按空白处理，只有分隔符的输入生成空查询；其他不支持的标点
+仍使整个输入无效，不生成自动替代切分。
+
+```sql
+-- SQL 字符串中的撇号需要写成两个单引号。
+SELECT public.pinyin_regex_phrase_patterns('xi''an'); -- {xi.*,an.*}
+SELECT * FROM voice
+WHERE pinyin @@@ public.pinyin_regex_phrase('xi''an');
+SELECT * FROM voice
+WHERE pinyin @@@ public.sql_pinyin_regex_phrase('xi''an');
+
+-- 需要精确音节 term，而不是默认前缀匹配时：
+SELECT * FROM voice
+WHERE pinyin @@@ public.pinyin_regex_phrase_mode('xi''an', 'full');
+```
+
+本项只扩展默认／compat 的输入边界，不改变前缀、首字母、generated-pinyin
+pattern、NULL 行为或函数签名。声调／ü 归一化仍由下述显式模式提供。
+Rust 后端重编译动态库后使用新连接；独立 SQL 后端重新加载 `sql/word.sql`。
+仍属于未发布的 0.0.9，不额外 bump 版本或新增迁移函数。
+
 ### 显式查询模式
 
 开发版本 0.0.9 增加独立的模式接口，不通过可能干扰旧调用的重载实现。
@@ -91,7 +120,7 @@ WHERE pinyin @@@ public.sql_pinyin_regex_phrase('zhengshuang');
 | `initials` | `whh` | `w.*`、`h.*`、`h.*` |
 | `initials` | `zh ch sh` | `zh.*`、`ch.*`、`sh.*` |
 | `autocomplete` | `xi a` | `xi`、`a.*` |
-| `compat` | `xi an` | 旧模式的 `xi.*`、`an.*` |
+| `compat` | `xi an` 或 `xi'an` | 旧前缀 pattern `xi.*`、`an.*` |
 
 ```sql
 SELECT * FROM voice
@@ -104,7 +133,7 @@ WHERE pinyin @@@ public.sql_pinyin_regex_phrase_mode('xi a', 'autocomplete');
 
 新模式把 `ü`、分解形式、`u:` 和 `v` 统一为 `v`，去掉声调符号，
 数字声调 0-5 和撇号保留为音节边界，例如 `lv4liang2 -> lv liang`。
-`compat` 保留旧接口只接受 ASCII 的行为。无分隔输入仍使用最长优先切分，
+`compat` 保留旧 ASCII 切分与前缀行为，并增加上述显式撇号边界。无分隔输入仍使用最长优先切分，
 尚未做语境消歧；`xin gan` 和 `xing an` 应明确给出边界。
 紧凑首字母按单字母拆分，只有完整的独立 `zh`／`ch`／`sh` 块按双字母声母处理。
 自动补全总是扩展最后一个 token，包括输入末尾带空白的情况。
@@ -123,6 +152,45 @@ Rust 普通词级输出不需要这个标志。选择模式不会删减索引内
 `22023`，SQL NULL 仍保留为 NULL。已有数据库安装新二进制和迁移文件后执行
 `ALTER EXTENSION pg_pinyin UPDATE TO '0.0.9'`；不会覆盖在线词典或 stored generated 值。
 替换 Rust 动态库后，应从新数据库连接执行升级，避免旧连接继续持有已加载的旧库。
+
+### 原生精确音节查询
+
+普通音节字段可以按需使用 `pinyin_phrase`。它复用 `full` 输入语法，包括
+`xi'an` 边界、声调和 ü 归一化；单音节构造精确 `pdb.term`，多音节构造
+`pdb.phrase_array`。后者直接使用音节 tokens，不像 `pdb.phrase(text[])`
+那样再交给字段的 search analyzer 分词。
+
+```sql
+-- Rust 后端，由 CREATE EXTENSION pg_pinyin 安装。
+SELECT id, pdb.score(id) FROM voice
+WHERE pinyin @@@ public.pinyin_phrase('xi''an')
+ORDER BY pdb.score(id) DESC, id;
+
+-- 允许间隔；NULL／0 slope 要求音节相邻。
+SELECT id FROM voice WHERE pinyin @@@ public.pinyin_phrase('xi an', 1);
+
+-- 无需 Rust 扩展的独立 SQL 后端，从 sql/word.sql 加载。
+SELECT id FROM voice WHERE pinyin @@@ public.sql_pinyin_phrase('xi''an');
+```
+
+**评分不兼容，不能静默替换旧接口**：原生单 term 使用 BM25，单 regex 是
+常量评分。排序可能改变，尤其单音节查询与其他搜索分支组合时。
+原有 regex 接口和 `full` 行为完全保留；首字母、末尾补全、
+管道多读音及显式 `max_expansions` 仍用 regex 接口。新接口不接受
+generated-pinyin 标志或 regex 展开上限，也不改变索引内容。
+
+SQL NULL 输入返回 NULL，空／无效输入返回 `pdb.empty()`。非 NULL 输入的
+负 `slope` 报 `22023`；单 term 忽略非负 slop。两端均为 `STABLE`、
+`PARALLEL SAFE`，保留 full 的输入／token 限制，Rust 分词仍不执行 SPI。
+Slop 沿用 pg_search phrase 语义：一个 token 间隔成本为 1，交换相邻音节成本
+为 2，正值不等于只允许按原顺序增加间隔。
+pg_search 0.26.1 对重复 term 加正 slop 时可能复用同一个索引位置：
+`an an` 配合 slop 1 能命中只有一个 `an` 的文档，旧 full regex 也有此行为。
+必须要求相邻重复音节分别出现时使用零 slop；正 slop 不保证出现次数。
+应先启用 pg_search，再安装／升级 pg_pinyin；未启用时安装明确报错的 stub，
+已有 pg_search 但缺少原生构造／slop API 时也明确提示升级，不自动退回 regex
+改变评分。本实现验证目标为 pg_search 0.26.1。安装新动态库和现有未发布
+`0.0.8 → 0.0.9` 迁移后，从新连接升级；不额外 bump version。
 
 ## Token 数组与文档批次
 
@@ -401,6 +469,45 @@ DOCKER_BUILDKIT=1 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/tes
 ```
 
 ## Benchmark
+
+### 原生精确查询
+
+`scripts/benchmark_pinyin_phrase.py` 在独立 UUID 数据库、同一个普通字段 BM25
+索引上，对比两端的新原生查询与保留的 `full` regex 路径，区分实际 query
+对象构造与完整 client 查询；结束后删除本次数据库。安装新动态库后运行：
+
+```bash
+python3 scripts/benchmark_pinyin_phrase.py --dsn "$PGADMINURL" \
+  --rows 20000 --queries 2000 --repeats 3 \
+  --json-output benchmarks/native_phrase.json \
+  --markdown-output benchmarks/native_phrase.md
+```
+
+计时外核对完整命中集合及 Rust／SQL 一致性，单独记录原生与 regex 的评分／
+排序差异，不伪装为完全相同的排名。对比使用同一分词器和动态库，不是 parser
+单独提速或索引体积缩减。下方历史报告保留原样。
+
+本次 [报告](benchmarks/native_phrase.md) 和 [原始 JSON](benchmarks/native_phrase.json)
+使用 PG19 beta4／pg_search 0.26.1，2 万行、2 千次查询、三轮轮换。
+四种方法的计划均确认使用 BM25 score Top-K，排序表达式没有额外类型转换。
+Warm 中位数，单位 ms：
+
+| 路径 | 实际 query 构造，2 万输入 | 完整索引查询，2 千输入 | 单次 p95 |
+| --- | ---: | ---: | ---: |
+| Rust full regex | 49.321 | 366.692 | 0.222 |
+| Rust 原生 phrase | 45.005 | 282.677 | 0.181 |
+| SQL full regex | 5,560.614 | 1,037.258 | 0.651 |
+| SQL 原生 phrase | 5,530.890 | 869.343 | 0.523 |
+
+本轮完整查询耗时分别减少约 22.9%／16.2%，分词器未变，是构造和执行路径的
+合并对比。2 千个计时样本均为多音节，完整命中、评分、排序全部一致；独立的
+单音节及 OR gold 确认评分／排名会改变，因此新接口仍需主动选择。
+共用索引均为 3,350,528 bytes，不代表索引缩减。共享宿主约有 28 GB swap
+占用，三轮结果不能证明普遍或统计显著提速。PG19 使用实验性 source-built
+兼容镜像，不是官方 PG19 包或重新完成的完整 Docker 构建。
+本地通过 26 项 Rust 测试、90 项 Python 集成／协议测试、22 项数据测试及
+八个文件的 1,356 项 pgTAP 断言，覆盖真实 0.0.8 升级、SQL-only 和只读并行
+worker。Rust 格式／检查通过，重新生成的词典字节完全一致。
 
 ### Native 数组与文档批次
 

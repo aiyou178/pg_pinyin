@@ -35,7 +35,7 @@ class QueryModeBenchmarkProtocolTests(unittest.TestCase):
         self.assertIn(112, legacy["zhan an"]["negative_ids"])
         full = {case["query"]: case for case in fixtures["retrieval_queries"] if case["mode"] == "full"}
         self.assertEqual(full["xi'an"]["positive_ids"], [105])
-        self.assertEqual(full["xian"]["negative_ids"], [105])
+        self.assertEqual(full["xian"]["negative_ids"], [105, 131, 132])
 
     def test_compact_initials_and_explicit_digraphs_have_handwritten_patterns(self):
         cases = {case["label"]: case for case in self.fixtures()["pattern_cases"]}

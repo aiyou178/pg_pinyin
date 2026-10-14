@@ -94,9 +94,12 @@ LANGUAGE sql
 STABLE
 PARALLEL SAFE
 AS $$
+  WITH input AS (
+    SELECT translate(value, U&'\0027\2018\2019', '   ') AS normalized
+  )
   SELECT CASE
-    WHEN value IS NULL THEN NULL
-    WHEN value !~ '^[A-Za-z[:space:]]+$' THEN ARRAY[]::text[]
+    WHEN input.normalized IS NULL THEN NULL
+    WHEN input.normalized !~ '^[A-Za-z[:space:]]+$' THEN ARRAY[]::text[]
     ELSE COALESCE((
       SELECT array_agg(
         CASE
@@ -107,10 +110,11 @@ AS $$
       )
       FROM (
         SELECT token, row_number() OVER () AS ord
-        FROM public.pinyin_tokenize(value, true) AS token
+        FROM public.pinyin_tokenize(input.normalized, true) AS token
       ) AS tokenized
     ), ARRAY[]::text[])
     END
+  FROM input
 $$;
 
 CREATE OR REPLACE FUNCTION public.sql_pinyin__regex_phrase_query_from_patterns(
@@ -193,6 +197,7 @@ DECLARE
   tone_chunks integer[] := ARRAY[]::integer[];
   tone_positions integer[] := ARRAY[]::integer[];
   inventory text[];
+  compat_inventory text[];
   tokens text[] := ARRAY[]::text[];
   patterns text[] := ARRAY[]::text[];
   remaining text;
@@ -205,6 +210,8 @@ DECLARE
   tone_count integer;
   is_prefix boolean;
   prefix_exists boolean;
+  auto_prefix boolean := false;
+  auto_fallback boolean := false;
 BEGIN
   IF value IS NULL OR mode IS NULL OR generated_pinyin IS NULL THEN
     RETURN NULL;
@@ -212,7 +219,7 @@ BEGIN
   IF mode = 'compat' THEN
     RETURN public.sql_pinyin_regex_phrase_patterns(value, generated_pinyin);
   END IF;
-  IF mode NOT IN ('full', 'initials', 'autocomplete') THEN
+  IF mode NOT IN ('full', 'initials', 'autocomplete', 'auto') THEN
     RAISE EXCEPTION 'unknown pinyin matching mode: %', mode USING ERRCODE = '22023';
   END IF;
   IF char_length(value) > 256 THEN
@@ -295,6 +302,178 @@ BEGIN
     UNION SELECT 'm'
     UNION SELECT 'n'
   ) AS t;
+
+  IF mode = 'auto' THEN
+    -- Tone-bearing chunks must remain valid complete syllables even when
+    -- initials later require compatibility fallback.
+    FOR chunk_index IN 1..cardinality(chunks) LOOP
+      IF NOT numeric_tones[chunk_index] AND NOT chunk_has_tones[chunk_index] THEN
+        CONTINUE;
+      END IF;
+      remaining := chunks[chunk_index];
+      consumed := 0;
+      WHILE remaining <> '' LOOP
+        matched := NULL;
+        FOREACH token IN ARRAY inventory LOOP
+          IF left(remaining, char_length(token)) = token THEN
+            matched := token;
+            EXIT;
+          END IF;
+        END LOOP;
+        IF matched IS NULL THEN
+          RETURN ARRAY[]::text[];
+        END IF;
+        remaining := substr(remaining, char_length(matched) + 1);
+        tone_count := 0;
+        FOR tone_index IN 1..cardinality(tone_positions) LOOP
+          IF tone_chunks[tone_index] = chunk_index
+             AND tone_positions[tone_index] > consumed
+             AND tone_positions[tone_index] <= consumed + char_length(matched) THEN
+            tone_count := tone_count + 1;
+          END IF;
+        END LOOP;
+        IF tone_count > 1 OR (remaining = '' AND numeric_tones[chunk_index] AND tone_count > 0) THEN
+          RETURN ARRAY[]::text[];
+        END IF;
+        consumed := consumed + char_length(matched);
+      END LOOP;
+    END LOOP;
+
+    auto_fallback := generated_pinyin;
+    IF NOT auto_fallback THEN
+      <<auto_chunks>>
+      FOR chunk_index IN 1..cardinality(chunks) LOOP
+        remaining := chunks[chunk_index];
+        consumed := 0;
+        WHILE remaining <> '' LOOP
+          matched := NULL;
+          is_prefix := false;
+          tone_count := 0;
+          FOR tone_index IN 1..cardinality(tone_positions) LOOP
+            IF tone_chunks[tone_index] = chunk_index
+               AND tone_positions[tone_index] > consumed THEN
+              tone_count := tone_count + 1;
+            END IF;
+          END LOOP;
+          -- A final valid prefix stays whole, including yon rather than yo+n.
+          IF chunk_index = cardinality(chunks) AND NOT numeric_tones[chunk_index]
+             AND tone_count = 0 THEN
+            FOREACH token IN ARRAY inventory LOOP
+              IF left(token, char_length(remaining)) = remaining THEN
+                matched := remaining;
+                EXIT;
+              END IF;
+            END LOOP;
+          END IF;
+          IF matched IS NULL THEN
+            FOREACH token IN ARRAY inventory LOOP
+              IF left(remaining, char_length(token)) = token THEN
+                matched := token;
+                EXIT;
+              END IF;
+            END LOOP;
+          END IF;
+          IF matched IS NULL THEN
+            auto_fallback := true;
+            EXIT auto_chunks;
+          END IF;
+          remaining := substr(remaining, char_length(matched) + 1);
+          tone_count := 0;
+          FOR tone_index IN 1..cardinality(tone_positions) LOOP
+            IF tone_chunks[tone_index] = chunk_index
+               AND tone_positions[tone_index] > consumed
+               AND tone_positions[tone_index] <= consumed + char_length(matched) THEN
+              tone_count := tone_count + 1;
+            END IF;
+          END LOOP;
+          IF tone_count > 1 OR (remaining = '' AND numeric_tones[chunk_index] AND tone_count > 0) THEN
+            RETURN ARRAY[]::text[];
+          END IF;
+          -- Bare leading m/n may be initials, not syllabic interjections.
+          -- Only that token's own tone or numeric completion resolves it.
+          IF matched IN ('m', 'n')
+             AND (remaining <> '' OR chunk_index < cardinality(chunks))
+             AND tone_count = 0
+             AND NOT (numeric_tones[chunk_index] AND remaining = '') THEN
+            auto_fallback := true;
+            EXIT auto_chunks;
+          END IF;
+          IF chunk_index = cardinality(chunks) AND remaining = ''
+             AND NOT numeric_tones[chunk_index] AND tone_count = 0 THEN
+            is_prefix := NOT (matched = ANY(inventory));
+            IF NOT is_prefix THEN
+              FOREACH token IN ARRAY inventory LOOP
+                IF char_length(token) > char_length(matched)
+                   AND left(token, char_length(matched)) = matched THEN
+                  is_prefix := true;
+                  EXIT;
+                END IF;
+              END LOOP;
+            END IF;
+          END IF;
+          auto_prefix := is_prefix;
+          tokens := array_append(tokens, matched);
+          IF cardinality(tokens) > 64 THEN
+            RETURN ARRAY[]::text[];
+          END IF;
+          consumed := consumed + char_length(matched);
+        END LOOP;
+      END LOOP auto_chunks;
+    END IF;
+
+    IF NOT auto_fallback AND cardinality(tokens) > 1
+       AND NOT (true = ANY(numeric_tones))
+       AND NOT (true = ANY(chunk_has_tones)) THEN
+      -- Multiple unmarked single letters are an initials query, even when
+      -- some letters also happen to be complete vowel syllables.
+      auto_fallback := true;
+      FOREACH token IN ARRAY tokens LOOP
+        IF char_length(token) <> 1 THEN
+          auto_fallback := false;
+          EXIT;
+        END IF;
+      END LOOP;
+    END IF;
+
+    IF auto_fallback THEN
+      tokens := ARRAY[]::text[];
+      SELECT array_agg(t.character ORDER BY char_length(t.character) DESC, t.character COLLATE "C")
+      INTO compat_inventory
+      FROM (
+        SELECT character FROM pinyin.pinyin_token
+        WHERE category = 1 AND character ~ '^[a-z]+$'
+        UNION SELECT 'zh'
+        UNION SELECT 'ch'
+        UNION SELECT 'sh'
+      ) AS t;
+      FOREACH remaining IN ARRAY chunks LOOP
+        WHILE remaining <> '' LOOP
+          matched := NULL;
+          FOREACH token IN ARRAY compat_inventory LOOP
+            IF left(remaining, char_length(token)) = token THEN
+              matched := token;
+              EXIT;
+            END IF;
+          END LOOP;
+          matched := COALESCE(matched, left(remaining, 1));
+          tokens := array_append(tokens, matched);
+          IF cardinality(tokens) > 64 THEN
+            RETURN ARRAY[]::text[];
+          END IF;
+          remaining := substr(remaining, char_length(matched) + 1);
+        END LOOP;
+      END LOOP;
+    END IF;
+
+    FOR position IN 1..cardinality(tokens) LOOP
+      token := tokens[position];
+      is_prefix := auto_fallback OR (auto_prefix AND position = cardinality(tokens));
+      patterns := array_append(patterns,
+        CASE WHEN generated_pinyin THEN '.*\|' || token || '.*'
+             ELSE token || CASE WHEN is_prefix THEN '.*' ELSE '' END END);
+    END LOOP;
+    RETURN patterns;
+  END IF;
 
   FOR chunk_index IN 1..cardinality(chunks) LOOP
     -- Unmarked initials are deliberately not syllabified. Tone-bearing input
@@ -393,13 +572,136 @@ CREATE OR REPLACE FUNCTION public.sql_pinyin_regex_phrase_mode(
   generated_pinyin boolean DEFAULT false
 )
 RETURNS pdb.query
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 PARALLEL SAFE
 AS $$
-  SELECT public.sql_pinyin__regex_phrase_query_from_patterns(
-    public.sql_pinyin_regex_phrase_patterns_mode(value, mode, generated_pinyin),
-    slope,
-    max_expansions
-  );
+DECLARE
+  patterns text[];
+  tokens text[];
+  all_full boolean := true;
+  terminal_prefix boolean := false;
+  token_index integer;
+BEGIN
+  patterns := public.sql_pinyin_regex_phrase_patterns_mode(value, mode, generated_pinyin);
+  IF mode <> 'auto' OR generated_pinyin OR max_expansions IS NOT NULL THEN
+    RETURN public.sql_pinyin__regex_phrase_query_from_patterns(patterns, slope, max_expansions);
+  END IF;
+  IF patterns IS NULL THEN
+    RETURN NULL;
+  END IF;
+  IF cardinality(patterns) = 0 THEN
+    RETURN pdb.empty();
+  END IF;
+
+  -- These shapes come only from the parser above, never from caller regexes.
+  tokens := patterns;
+  FOR token_index IN 1..cardinality(patterns) LOOP
+    IF patterns[token_index] ~ '^[a-z]+$' THEN
+      CONTINUE;
+    END IF;
+    all_full := false;
+    IF token_index = cardinality(patterns) AND patterns[token_index] ~ '^[a-z]+[.][*]$' THEN
+      terminal_prefix := true;
+      tokens[token_index] := left(patterns[token_index], -2);
+    ELSE
+      EXIT;
+    END IF;
+  END LOOP;
+  IF all_full THEN
+    IF cardinality(patterns) = 1 AND to_regprocedure('pdb.term(text)') IS NOT NULL THEN
+      RETURN pdb.term(patterns[1]);
+    END IF;
+    IF cardinality(patterns) > 1 AND to_regprocedure('pdb.phrase_array(text[])') IS NOT NULL THEN
+      IF slope IS NULL OR slope = 0 THEN
+        RETURN pdb.phrase_array(patterns);
+      END IF;
+      IF slope > 0 AND to_regtype('pdb.slop') IS NOT NULL THEN
+        IF to_regprocedure('paradedb.query_to_slop(pdb.query,integer,boolean)') IS NOT NULL
+           AND to_regprocedure('paradedb.slop_to_query(pdb.slop)') IS NOT NULL THEN
+          RETURN paradedb.slop_to_query(paradedb.query_to_slop(pdb.phrase_array(patterns), slope, true));
+        END IF;
+      END IF;
+    END IF;
+  ELSIF terminal_prefix AND cardinality(patterns) > 1 AND (slope IS NULL OR slope = 0)
+        AND to_regprocedure('pdb.phrase_prefix(text[],integer)') IS NOT NULL THEN
+    -- Keep the prefix ceiling aligned with regex phrase, not the default 50.
+    -- An unbounded value would cause a huge upfront allocation upstream.
+    RETURN pdb.phrase_prefix(tokens, 16384);
+  END IF;
+  RETURN public.sql_pinyin__regex_phrase_query_from_patterns(patterns, slope, max_expansions);
+END;
 $$;
+
+DO $sql_pinyin_native_phrase$
+DECLARE
+  native_phrase_available boolean := false;
+BEGIN
+  IF to_regtype('pdb.slop') IS NOT NULL THEN
+    native_phrase_available :=
+      to_regprocedure('pdb.empty()') IS NOT NULL
+      AND to_regprocedure('pdb.term(text)') IS NOT NULL
+      AND to_regprocedure('pdb.phrase_array(text[])') IS NOT NULL
+      AND to_regprocedure('paradedb.query_to_slop(pdb.query,integer,boolean)') IS NOT NULL
+      AND to_regprocedure('paradedb.slop_to_query(pdb.slop)') IS NOT NULL;
+  END IF;
+
+  IF native_phrase_available THEN
+    EXECUTE $create_function$
+      CREATE OR REPLACE FUNCTION public.sql_pinyin_phrase(
+        value text,
+        slope integer DEFAULT NULL
+      )
+      RETURNS pdb.query
+      LANGUAGE plpgsql
+      STABLE
+      PARALLEL SAFE
+      AS $function$
+      DECLARE
+        patterns text[];
+      BEGIN
+        IF value IS NULL THEN
+          RETURN NULL;
+        END IF;
+        IF slope < 0 THEN
+          RAISE EXCEPTION 'pinyin phrase slope must be non-negative'
+            USING ERRCODE = '22023';
+        END IF;
+
+        patterns := public.sql_pinyin_regex_phrase_patterns_mode(value, 'full', false);
+        IF cardinality(patterns) = 0 THEN
+          RETURN pdb.empty();
+        END IF;
+        IF cardinality(patterns) = 1 THEN
+          RETURN pdb.term(patterns[1]);
+        END IF;
+        IF slope IS NULL OR slope = 0 THEN
+          RETURN pdb.phrase_array(patterns);
+        END IF;
+        RETURN paradedb.slop_to_query(
+          paradedb.query_to_slop(pdb.phrase_array(patterns), slope, true)
+        );
+      END;
+      $function$;
+    $create_function$;
+  ELSE
+    EXECUTE $create_function$
+      CREATE OR REPLACE FUNCTION public.sql_pinyin_phrase(
+        value text,
+        slope integer DEFAULT NULL
+      )
+      RETURNS pdb.query
+      LANGUAGE plpgsql
+      STABLE
+      PARALLEL SAFE
+      AS $function$
+      BEGIN
+        RAISE EXCEPTION
+          'public.sql_pinyin_phrase requires native phrase APIs; upgrade pg_search and reload sql/word.sql'
+          USING ERRCODE = '0A000';
+      END;
+      $function$;
+    $create_function$;
+  END IF;
+END;
+$sql_pinyin_native_phrase$;

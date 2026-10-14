@@ -4,6 +4,10 @@ target/
 benchmark_pg18_report*.txt
 benchmark_pg19beta2_report*.txt
 
+# Full hitset reports are committed as lossless .json.gz archives.
+benchmarks/native_phrase_tradeoff.json
+benchmarks/pinyin_auto.json
+
 # Local/editor/system files
 .DS_Store
 *.log
