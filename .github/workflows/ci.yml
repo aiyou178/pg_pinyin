@@ -64,6 +64,8 @@ jobs:
               sleep 1
             done
             cd /work
+            # The bind mount belongs to the runner, not container root.
+            git config --global --add safe.directory /work
             PG_CONFIG=/usr/lib/postgresql/18/bin/pg_config
             if [ ! -x "$PG_CONFIG" ]; then
               PG_CONFIG="$(command -v pg_config)"
@@ -119,6 +121,8 @@ jobs:
               sleep 1
             done
             cd /work
+            # The bind mount belongs to the runner, not container root.
+            git config --global --add safe.directory /work
             PG_CONFIG=/usr/lib/postgresql/19/bin/pg_config
             cargo pgrx init --pg19="$PG_CONFIG"
             export PG_CONFIG

@@ -122,6 +122,28 @@ are unchanged. A direct baseline positive control also confirmed the quoted-live
 row regression: `whh` succeeds before inserting `qq'rr`, then the old parser
 fails with SQLSTATE `42601`; the new parser still returns `w.* h.* h.*`.
 
+### CI Checkout Ownership
+
+After rebasing PR #7 onto `46d3bbc`, the PG18 and PG19 CI failures were traced
+to Git rejecting `/work`: the host checkout belongs to the runner, but the
+test command runs as container root. In both original CI runs, the real
+benchmark CLI integration was the only failure among 169 Python tests; pgTAP
+was not reached. The parser and benchmark results were not implicated.
+
+Both CI jobs now explicitly trust only the mounted `/work` checkout in the
+disposable container's Git configuration. No host configuration or wildcard
+trust is added, and the benchmark retains Git's normal ownership protection.
+The existing CLI regression remains the primary guard because it reads the
+baseline Git object and executes the complete benchmark through a subprocess.
+Validation must include a foreign-owned checkout negative control before
+applying the same exact-path trust, followed by that CLI test and the complete
+suite. The local 2026-10-15 negative control reproduced Git exit 128 against a
+checkout owned by PostgreSQL's UID 999. Applying only `/work` trust made all
+12 SQL-only integration tests pass as root, without changing the CLI test.
+Original benchmark data and recorded source/harness hashes stay intact.
+
+### Benchmark Evidence
+
 The [final benchmark](../benchmarks/sql_parser.md) retains
 [lossless raw evidence](../benchmarks/sql_parser.json.gz): 30 stage-complete
 implementation/mode samples from six fresh databases. Independent audit
