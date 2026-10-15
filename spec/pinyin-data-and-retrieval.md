@@ -622,6 +622,10 @@ ICU-only warm median is 48.015 ms and is not charged to precomputed arrays.
 The shared host used 31946.69M swap before timing; these are exploratory
 server-side conversion/unindexed INSERT observations, not client upload or
 BM25-index-maintenance throughput and not an index-size optimization.
+
+The six remaining improvement candidates and the real BM25 bulk-import protocol
+are tracked in [the improvement roadmap](pinyin-improvement-roadmap.md).
+
 ## P2: Sources and Evaluation
 
 Candidate sources are not automatically ingested or treated as independent gold:
