@@ -1,6 +1,10 @@
+<p align="center">
+  <img src="assets/logo/pg-pinyin-512.png" alt="pg_pinyin logo" width="160" height="160">
+</p>
+
 # pg_pinyin
 
-[中文说明](README.zh-CN.md)
+[中文说明](README.zh-CN.md) | [Logo assets](assets/logo)
 
 `pg_pinyin` includes:
 
