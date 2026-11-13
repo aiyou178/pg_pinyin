@@ -158,7 +158,7 @@ fn token_count_normalized(lower: &str, dictionary: &RegexTokenDictionary) -> usi
             continue;
         }
 
-        let token_len = dictionary.match_token_len(&lower, idx);
+        let token_len = dictionary.match_token_len(lower, idx);
         count += 1;
         idx += token_len;
     }

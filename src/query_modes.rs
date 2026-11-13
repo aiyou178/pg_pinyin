@@ -453,10 +453,10 @@ pub fn pinyin_regex_phrase_patterns(
         }
     }
 
-    if mode == QueryMode::Autocomplete {
-        if let Some((_, prefix)) = tokens.last_mut() {
-            *prefix = true;
-        }
+    if mode == QueryMode::Autocomplete
+        && let Some((_, prefix)) = tokens.last_mut()
+    {
+        *prefix = true;
     }
 
     tokens

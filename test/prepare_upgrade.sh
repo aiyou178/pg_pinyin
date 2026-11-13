@@ -21,7 +21,12 @@ BUILD_FLAGS=()
 if [ "${PG_PINYIN_BUILD_RELEASE:-0}" = "1" ]; then
   BUILD_FLAGS+=(--release)
 fi
-cargo pgrx install "${BUILD_FLAGS[@]}" --features "$PG_FEATURE" --no-default-features --pg-config "$PG_CONFIG"
+# Old source must use its matching cargo-pgrx, independently of the new CLI.
+if [ -n "${BASELINE_CARGO_PGRX:-}" ]; then
+  "$BASELINE_CARGO_PGRX" pgrx install "${BUILD_FLAGS[@]}" --features "$PG_FEATURE" --no-default-features --pg-config "$PG_CONFIG"
+else
+  cargo pgrx install "${BUILD_FLAGS[@]}" --features "$PG_FEATURE" --no-default-features --pg-config "$PG_CONFIG"
+fi
 BASE_SQL="$("$PG_CONFIG" --sharedir)/extension/pg_pinyin--${BASE_VERSION}.sql"
 test -f "$BASE_SQL"
 if [ "$BASE_VERSION" = "0.0.8" ] && grep -q 'pinyin_regex_phrase_patterns_mode' "$BASE_SQL"; then

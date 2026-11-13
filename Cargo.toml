@@ -2,6 +2,7 @@
 name = "pg_pinyin"
 version = "0.0.9"
 edition = "2024"
+rust-version = "1.99.1"
 description = "Pinyin romanization and search helpers for PostgreSQL"
 license = "MIT"
 
@@ -11,17 +12,16 @@ crate-type = ["cdylib", "lib"]
 [features]
 default = []
 extension = ["dep:pgrx", "dep:serde_json"]
-pg14 = ["extension", "pgrx/pg14"]
-pg15 = ["extension", "pgrx/pg15"]
-pg16 = ["extension", "pgrx/pg16"]
-pg17 = ["extension", "pgrx/pg17"]
-pg18 = ["extension", "pgrx/pg18"]
-pg19 = ["extension", "pgrx/pg19"]
-pg_test = ["extension", "dep:pgrx-tests", "pgrx-tests/pg18"]
+pg15 = ["extension", "pgrx/pg15", "pgrx-tests?/pg15"]
+pg16 = ["extension", "pgrx/pg16", "pgrx-tests?/pg16"]
+pg17 = ["extension", "pgrx/pg17", "pgrx-tests?/pg17"]
+pg18 = ["extension", "pgrx/pg18", "pgrx-tests?/pg18"]
+pg19 = ["extension", "pgrx/pg19", "pgrx-tests?/pg19"]
+pg_test = ["extension", "dep:pgrx-tests"]
 
 [dependencies]
-pgrx = { version = "=0.19.3", optional = true }
-pgrx-tests = { version = "=0.19.3", optional = true }
+pgrx = { version = "=0.20.0", optional = true }
+pgrx-tests = { version = "=0.20.0", optional = true }
 serde_json = { version = "1.0", optional = true }
 unicode-normalization = "=0.1.25"
 

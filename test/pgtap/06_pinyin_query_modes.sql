@@ -135,6 +135,21 @@ SELECT is(cardinality(public.pinyin_regex_phrase_patterns_mode(repeat('a ', 64),
 SELECT is(cardinality(public.sql_pinyin_regex_phrase_patterns_mode(repeat('a ', 64), 'full')), 64,
           'SQL accepts the 64-token boundary');
 
+-- A stored generated column requires truthful immutable parser semantics.
+CREATE TEMP TABLE immutable_patterns_probe (
+  value text,
+  legacy text[] GENERATED ALWAYS AS (public.pinyin_regex_phrase_patterns(value)) STORED,
+  generated text[] GENERATED ALWAYS AS (public.pinyin_regex_phrase_patterns(value, true)) STORED,
+  initials text[] GENERATED ALWAYS AS (public.pinyin_regex_phrase_patterns_mode(value, 'initials')) STORED
+);
+INSERT INTO immutable_patterns_probe(value) VALUES ('whh');
+SELECT is(legacy, ARRAY['w.*','h.*','h.*'], 'legacy parser works in stored generated columns')
+FROM immutable_patterns_probe;
+SELECT is(generated, ARRAY[$re$.*\|w.*$re$,$re$.*\|h.*$re$,$re$.*\|h.*$re$],
+          'generated-token parser works in stored generated columns') FROM immutable_patterns_probe;
+SELECT is(initials, ARRAY['w.*','h.*','h.*'], 'mode parser works in stored generated columns')
+FROM immutable_patterns_probe;
+
 SELECT is(p.proparallel::text, 's', 'new Rust API is parallel safe: ' || p.oid::regprocedure::text)
 FROM pg_proc AS p WHERE p.oid IN (
   'public.pinyin_regex_phrase_patterns_mode(text,text,boolean)'::regprocedure,
