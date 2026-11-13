@@ -11,6 +11,32 @@
 1. SQL 基线方案（`sql/pinyin.sql`）
 2. Rust 扩展方案（`src/lib.rs`）
 
+## 兼容性与升级
+
+待发布的 0.0.9 二进制对**运行端 PostgreSQL 和构建头文件**均有最低版本要求：
+
+| PostgreSQL 主版本 | 最低版本 |
+| --- | --- |
+| 15 | 15.20 |
+| 16 | 16.16 |
+| 17 | 17.12 |
+| 18 | 18.7 |
+| 19 | 19rc2，实验性核心支持 |
+
+支持各稳定主版本内后续的小版本。这些最低版本包含 PostgreSQL composite-datum
+安全修复；用这些头文件构建的二进制不能在更早的小版本上加载。不再支持 PG14。
+源码构建需要 Rust 1.99.1 与 cargo-pgrx 0.20.0。
+
+安装 0.0.9 二进制和升级 SQL 后，从新连接执行：
+
+```sql
+ALTER EXTENSION pg_pinyin UPDATE TO '0.0.9';
+```
+
+升级保留在线词典和 stored generated 值，词典刷新需单独执行。修改词典后应刷新
+依赖它的存储值并重建函数表达式索引。需要 pg_search 查询 helper 时，先启用
+pg_search，再安装或升级 pg_pinyin。
+
 ## 核心扩展公开接口
 
 `CREATE EXTENSION pg_pinyin` 会安装 Rust-backed 核心接口：
@@ -36,8 +62,9 @@
 当输入为空、仅空白、或无法解析为拼音 token 时，`pinyin_regex_phrase_patterns` 返回空 `text[]`。SQL NULL 输入仍返回 SQL NULL，因为该函数是 strict。
 
 `pinyin_regex_phrase_patterns_mode(text, mode text, generated_pinyin boolean DEFAULT false)`
-是模式感知的内部 helper。Rust 分词仍使用内嵌数据，不执行 runtime SPI，保持
-`PARALLEL SAFE`。旧 helper 与签名均不改变，包括未显式标注类型的 NULL 参数调用。
+是模式感知的内部 helper。两个 Rust pattern API 都使用内嵌数据，不执行 runtime
+SPI，声明为 `IMMUTABLE`、`STRICT`、`PARALLEL SAFE`，常量输入可在规划时折叠；
+可选 SQL backend 仍读取实时表。旧 helper 与签名均不改变，包括未显式标注类型的 NULL 参数调用。
 
 ## 可选 pg_search SQL Helper
 
@@ -426,7 +453,10 @@ Rust 扩展测试：
 cargo pgrx test pg18 --features pg18
 ```
 
-PostgreSQL 19 beta 4 通过 `pgrx` 0.19.3 支持：
+当前构建要求 Rust 1.99.1、`cargo-pgrx` 0.20.0，以及同一 LLVM 主版本的
+`clang`、`llvm`、`libclang-dev`。支持 PG15-19，不再支持 PG14。
+使用修补后的头文件（15.20、16.16、17.12、18.7、19rc2 或更高版本）。
+PostgreSQL 19 rc2 核心支持通过 `pgrx` 0.20.0 提供：
 
 ```bash
 cargo pgrx init --pg19=/usr/lib/postgresql/19/bin/pg_config
@@ -435,12 +465,14 @@ cargo pgrx install --features pg19 --no-default-features --pg-config /usr/lib/po
 
 完整 Python 集成与真实升级测试需要 psycopg 3、能创建数据库的管理员 `PGURL`，
 以及预加载的 pg_search 0.26.1。初始化 pgrx 后，先在隔离的 Cargo target 中
-安装旧 catalog，再恢复当前动态库后测试（以下以 PG19 为例）：
+安装旧 catalog，再恢复当前动态库后测试（以下以 PG18 集成测试为例）。旧源码
+需要配套的 cargo-pgrx 0.19.3；测试镜像已经单独安装：
 
 ```bash
-export PG_CONFIG=/usr/lib/postgresql/19/bin/pg_config
+export PG_CONFIG=/usr/lib/postgresql/18/bin/pg_config
+export BASELINE_CARGO_PGRX=/opt/pgrx-baseline/bin/cargo-pgrx
 bash test/prepare_upgrade.sh v0.0.8
-cargo pgrx install --features pg19 --no-default-features --pg-config "$PG_CONFIG"
+cargo pgrx install --features pg18 --no-default-features --pg-config "$PG_CONFIG"
 cp pg_pinyin--*--*.sql "$("$PG_CONFIG" --sharedir)/extension/"
 PGURL="$PGURL" PG_LOADER_TESTS=1 TEST_UPGRADE_DSN="$PGURL" python3 -m unittest discover -s test
 python3 -m unittest discover -s scripts/data/tests
@@ -453,12 +485,12 @@ cargo test --lib --no-default-features --locked
 ## Docker（通用上游地址）
 
 - `docker/Dockerfile.test-trixie`
-- `docker/Dockerfile.test-pg19beta4-trixie`
+- `docker/Dockerfile.test-core-trixie`（PG15-19 核心测试，不含 pg_search）
 - `docker/Dockerfile.release-trixie`
 
 默认使用上游地址（不再改写镜像源）：
 
-- 基础镜像：PG18 测试使用 `postgres:18.3-trixie`，PG19 beta 测试使用 `postgres:19beta4-trixie`
+- 基础镜像：使用对应的已修补稳定版本镜像；PG19 核心测试在 `postgres:18.7-trixie` 上安装 rc2 包
 - apt 源：基础镜像默认配置
 - rustup/cargo：官方默认地址
 
@@ -477,19 +509,21 @@ docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/test:trixie \
   .
 ```
 
-构建 PostgreSQL 19 beta 测试镜像：
+构建 PostgreSQL 19 rc2 核心测试镜像：
 
 ```bash
-docker build -f docker/Dockerfile.test-pg19beta4-trixie -t pg_pinyin/test:pg19beta4 .
+docker build -f docker/Dockerfile.test-core-trixie \
+  --build-arg TARGET_PG_MAJOR=19 -t pg_pinyin/test:pg19rc2 .
 ```
 
-测试镜像固定为 2026-10-13 核验的最新稳定版
-[pg_search 0.26.1](https://github.com/paradedb/paradedb/releases/tag/v0.26.1)，该版本没有
-PostgreSQL 19 安装包。PG19 beta 4 Dockerfile 从 `v0.26.1` 的固定 commit
+PG18 测试镜像固定为
+[pg_search 0.26.1](https://github.com/paradedb/paradedb/releases/tag/v0.26.1)，以保持
+升级前后性能对比条件一致。PG19rc2 只验证不含 pg_search 的核心扩展。
+历史 PG19 beta 4 benchmark 继续保留旧 Dockerfile，从 `v0.26.1` 的固定 commit
 `529c77e9dffe4bd86b6b7971c019bb26b8eadbfa` 构建，使用上游已有的 pgrx
 0.19.3，并应用限定范围的 `docker/patches/paradedb-0.26.1-pg19beta4.patch`
-兼容补丁。这是本项目集成测试和性能测试使用的实验性兼容构建，并非 ParadeDB
-官方发布的 PG19 二进制包。
+兼容补丁。这是历史集成和性能测试使用的实验性兼容构建，并非 ParadeDB
+官方发布的 PG19 二进制包，也不代表 PG19rc2 集成验证。
 
 构建发布镜像：
 
@@ -505,6 +539,35 @@ DOCKER_BUILDKIT=1 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/tes
 ```
 
 ## Benchmark
+
+### pgrx 0.20.0 升级
+
+[2026-11-13 报告](benchmarks/pgrx_0200.md) 在 PG18.7 / pg_search 0.26.1
+上对比三个 release 构建，使用相同的 Rust 1.99.1 和词典。每个版本三轮独立
+新库，每轮 2 万文档、2 千次排序查询。下表为整个任务的耗时中位数，单位毫秒。
+原始测量、执行计划和构建记录保留在本地，PR 只包含最终汇总报告。
+
+| 任务 | pgrx 0.19.3 | 仅升级到 0.20.0 | 0.20.0 最终实现 |
+| --- | ---: | ---: | ---: |
+| 字级拼音化，2 万行 | 238.471 | 214.129 | 228.624 |
+| 词级拼音化，2 万行 | 246.098 | 235.852 | 228.094 |
+| token 数组拼音化，2 万行 | 229.665 | 235.293 | 230.198 |
+| 每批 512 文档，2 万行 | 27.603 | 26.510 | 26.547 |
+| 动态输入 pattern 解析，2 万行 | 16.479 | 17.043 | 16.759 |
+| 常量输入 pattern 解析，2 万行 | 11.305 | 11.625 | 5.343 |
+| 带 stored 拼音列和 BM25 的 COPY，2 万行 | 395.751 | 346.390 | 384.251 |
+| Top-10 排序检索，2 千次查询 | 1345.264 | 1586.252 | 1393.960 |
+
+常量 pattern 耗时降低 52.7%，来自内嵌 parser 的 `IMMUTABLE` 修正和规划期
+常量折叠。动态输入没有提速；完整查询中位数慢 3.6%，本次不能证明端到端提速。
+完整报告列出了范围、首次 backend 调用和 p95。输出及全部命中评分一致，各轮
+查询索引均为 3,350,528 字节。已有文档 batch 在本次测量中比逐行词级调用快
+8.6 倍；下一项应优先分析逐行 SPI 词典版本检查的成本。
+
+PG18 通过 208 项 Python 测试和 1,588 项 pgTAP 断言；PG19rc2 通过不含 pg_search
+的 40 项核心 pgTAP 断言。兼容性和验证范围见
+[升级 spec](spec/pgrx-0.20-upgrade.md)。以下报告保留历史版本与测量，旧 PG19
+beta4 镜像不用于构建当前 pgrx 0.20.0 代码。
 
 ### 原生精确查询
 

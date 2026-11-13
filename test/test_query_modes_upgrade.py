@@ -127,6 +127,15 @@ class QueryModesUpgradeTests(unittest.TestCase):
             "ORDER BY p.oid::regprocedure::text", LEGACY_SIGNATURES,
         ).fetchall()
 
+    @staticmethod
+    def upgraded_legacy_catalog(old_catalog):
+        return [
+            row[:4] + ("i",) + row[5:]
+            if row[0].split("(")[0].split(".")[-1] == "pinyin_regex_phrase_patterns"
+            else row
+            for row in old_catalog
+        ]
+
     def assert_mode_catalog(self, connection, with_search):
         rows = self.mode_catalog(connection)
         self.assertEqual(len(rows), 3)
@@ -134,7 +143,7 @@ class QueryModesUpgradeTests(unittest.TestCase):
         patterns = by_name["pinyin_regex_phrase_patterns_mode"]
         query = by_name["pinyin_regex_phrase_mode"]
         phrase = by_name["pinyin_phrase"]
-        self.assertEqual(patterns[2:], ("text[]", "s", "s", True, 1, "c", "pg_pinyin"))
+        self.assertEqual(patterns[2:], ("text[]", "s", "i", True, 1, "c", "pg_pinyin"))
         self.assertEqual(
             query[2:],
             ("pdb.query" if with_search else "text", "s", "s", False, 3, "plpgsql", "pg_pinyin"),
@@ -487,7 +496,8 @@ class QueryModesUpgradeTests(unittest.TestCase):
             self.assertEqual(self.version(connection), NEW_VERSION)
             new_oids = self.owned_function_oids(connection)
             self.assertEqual({name: new_oids.get(name) for name in old_oids}, old_oids)
-            self.assertEqual(self.legacy_catalog(connection), old_catalog)
+            upgraded_legacy_catalog = self.legacy_catalog(connection)
+            self.assertEqual(upgraded_legacy_catalog, self.upgraded_legacy_catalog(old_catalog))
             # The unreleased 0.0.9 also adds the two document-batch functions.
             self.assertEqual(len(new_oids), len(old_oids) + len(NEW_SIGNATURES) + 2)
             self.assertEqual(connection.execute(
@@ -517,6 +527,7 @@ class QueryModesUpgradeTests(unittest.TestCase):
 
         fresh_url = self.database("search_new", NEW_VERSION, True)
         with psycopg.connect(fresh_url, autocommit=True) as connection:
+            self.assertEqual(self.legacy_catalog(connection), upgraded_legacy_catalog)
             self.assertEqual(self.assert_mode_catalog(connection, True), upgraded_catalog)
             self.assertEqual(self.phrase_definition(connection), upgraded_phrase_definition)
             self.assertEqual(self.mode_definition(connection), upgraded_mode_definition)
@@ -543,7 +554,7 @@ class QueryModesUpgradeTests(unittest.TestCase):
                         connection.execute("ALTER EXTENSION pg_pinyin UPDATE TO '0.0.9'")
                         new_oids = self.owned_function_oids(connection)
                         self.assertEqual({name: new_oids.get(name) for name in old_oids}, old_oids)
-                        self.assertEqual(self.legacy_catalog(connection), old_catalog)
+                        self.assertEqual(self.legacy_catalog(connection), self.upgraded_legacy_catalog(old_catalog))
                         self.assertEqual(len(new_oids), len(old_oids) + len(NEW_SIGNATURES) + 2)
                     self.assertEqual(self.version(connection), NEW_VERSION)
                     catalogs.append(self.assert_mode_catalog(connection, False))

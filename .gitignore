@@ -8,6 +8,9 @@ benchmark_pg19beta2_report*.txt
 benchmarks/native_phrase_tradeoff.json
 benchmarks/pinyin_auto.json
 
+# Publish the pgrx upgrade summary; keep raw local evidence out of PRs.
+benchmarks/pgrx_0200*.json.gz
+
 # Local/editor/system files
 .DS_Store
 *.log

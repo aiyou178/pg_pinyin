@@ -1,10 +1,11 @@
 # syntax=docker/dockerfile:1.7
 # Test image for pg_pinyin on PostgreSQL 18 (Debian trixie)
-ARG BASE_IMAGE=postgres:18.3-trixie
+ARG BASE_IMAGE=postgres:18.7-trixie
 FROM ${BASE_IMAGE}
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG PG_SEARCH_VERSION=0.26.1
+ARG RUST_VERSION=1.99.1
 ARG DEBIAN_MIRROR=
 ARG DEBIAN_SECURITY_MIRROR=
 ARG PGDG_MIRROR=
@@ -12,10 +13,16 @@ ARG RUSTUP_DIST_SERVER=
 ARG RUSTUP_UPDATE_ROOT=
 ARG CARGO_REGISTRIES_CRATES_IO_INDEX=
 
-ENV PATH=/root/.cargo/bin:$PATH \
+ENV PATH=/usr/lib/postgresql/18/bin:/root/.cargo/bin:$PATH \
+    PG_MAJOR=18 \
+    PGDATA=/var/lib/postgresql/18/docker \
+    CC=clang \
+    AR=llvm-ar \
+    BASELINE_CARGO_PGRX=/opt/pgrx-baseline/bin/cargo-pgrx \
     CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
 
 RUN set -eux; \
+  sed -i 's|http://apt.postgresql.org|https://apt.postgresql.org|g' /etc/apt/sources.list.d/pgdg.list; \
   if [ -n "$DEBIAN_MIRROR" ]; then \
     find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) -exec \
       sed -i \
@@ -37,13 +44,20 @@ RUN set -eux; \
         -e "s|https://apt.postgresql.org/pub/repos/apt|$PGDG_MIRROR|g" \
         {} +; \
   fi; \
-  apt-get update; \
+  mv /etc/apt/sources.list.d/pgdg.list /tmp/pgdg.list; \
+  apt-get update -o APT::Update::Error-Mode=any; \
+  apt-get install -y --no-install-recommends ca-certificates; \
+  mv /tmp/pgdg.list /etc/apt/sources.list.d/pgdg.list; \
+  apt-get update -o APT::Update::Error-Mode=any; \
   apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
     git \
+    sudo \
     pkg-config \
     clang \
+    llvm \
+    libclang-dev \
     llvm-dev \
     libc6-dev \
     libicu-dev \
@@ -73,9 +87,13 @@ RUN --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
   if [ -n "$RUSTUP_DIST_SERVER" ]; then export RUSTUP_DIST_SERVER; fi; \
   if [ -n "$RUSTUP_UPDATE_ROOT" ]; then export RUSTUP_UPDATE_ROOT; fi; \
   if [ -n "$CARGO_REGISTRIES_CRATES_IO_INDEX" ]; then export CARGO_REGISTRIES_CRATES_IO_INDEX; fi; \
-  curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal; \
-  rustup default stable; \
-  cargo install --locked cargo-pgrx --version 0.19.3
+  if ! command -v rustup >/dev/null 2>&1; then \
+    curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain "$RUST_VERSION"; \
+  fi; \
+  rustup toolchain install "$RUST_VERSION" --profile minimal --component rustfmt --component clippy; \
+  rustup default "$RUST_VERSION"; \
+  cargo install --locked cargo-pgrx --version 0.19.3 --root /opt/pgrx-baseline; \
+  cargo install --locked cargo-pgrx --version 0.20.0
 
 WORKDIR /work
 COPY . /work

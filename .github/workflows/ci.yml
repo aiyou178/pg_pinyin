@@ -2,11 +2,10 @@ name: CI
 
 on:
   pull_request:
+    branches: [main]
   push:
-    branches:
-      - '**'
-    tags:
-      - 'v*.*.*'
+    branches: [main]
+    tags: ['v*.*.*']
   workflow_dispatch:
 
 jobs:
@@ -27,63 +26,147 @@ jobs:
           git diff --exit-code -- sql/data
 
   rust-check:
-    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.99.1
       - name: Run Rust checks
         run: |
+          cargo fmt --check
           cargo check --lib --no-default-features --locked
+          cargo check --bin benchmark_pinyin_regex_phrase --no-default-features --locked
           cargo test --lib --no-default-features --locked
 
-  pg-integration-tests:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 80
+  postgres-tests:
+    name: PG${{ matrix.pg_major }} (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - pg_major: '15'
+            base_image: postgres:15.20-trixie
+            arch: amd64
+            runner: ubuntu-24.04
+          - pg_major: '15'
+            base_image: postgres:15.20-trixie
+            arch: arm64
+            runner: ubuntu-24.04-arm
+          - pg_major: '16'
+            base_image: postgres:16.16-trixie
+            arch: amd64
+            runner: ubuntu-24.04
+          - pg_major: '16'
+            base_image: postgres:16.16-trixie
+            arch: arm64
+            runner: ubuntu-24.04-arm
+          - pg_major: '17'
+            base_image: postgres:17.12-trixie
+            arch: amd64
+            runner: ubuntu-24.04
+          - pg_major: '17'
+            base_image: postgres:17.12-trixie
+            arch: arm64
+            runner: ubuntu-24.04-arm
+          - pg_major: '18'
+            base_image: postgres:18.7-trixie
+            arch: amd64
+            runner: ubuntu-24.04
+          - pg_major: '18'
+            base_image: postgres:18.7-trixie
+            arch: arm64
+            runner: ubuntu-24.04-arm
+          - pg_major: '19'
+            base_image: postgres:18.7-trixie
+            arch: amd64
+            runner: ubuntu-24.04
+          - pg_major: '19'
+            base_image: postgres:18.7-trixie
+            arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Build test image
-        run: docker build -f docker/Dockerfile.test-trixie -t pg-pinyin-test:ci .
+        run: |
+          build_args=(--build-arg 'BASE_IMAGE=${{ matrix.base_image }}')
+          if [[ '${{ matrix.pg_major }}' == '18' ]]; then
+            dockerfile=docker/Dockerfile.test-trixie
+          else
+            dockerfile=docker/Dockerfile.test-core-trixie
+            build_args+=(--build-arg 'TARGET_PG_MAJOR=${{ matrix.pg_major }}')
+          fi
+          docker build "${build_args[@]}" -f "$dockerfile" -t pg-pinyin-test:ci .
 
       - name: Start test container
         run: |
+          postgres_args=()
+          if [[ '${{ matrix.pg_major }}' == '18' ]]; then
+            postgres_args=(-c shared_preload_libraries=pg_search)
+          fi
           docker run -d --name pg-pinyin-test \
             -e POSTGRES_HOST_AUTH_METHOD=trust \
             -e POSTGRES_DB=postgres \
             -v "$GITHUB_WORKSPACE:/work" \
-            pg-pinyin-test:ci \
-            postgres -c shared_preload_libraries=pg_search
+            pg-pinyin-test:ci postgres "${postgres_args[@]}"
 
-      - name: Run extension install + smoke + pgTAP tests
+      - name: Run native tests, release install, upgrade and pgTAP checks
         run: |
-          docker exec -u root pg-pinyin-test bash -lc '
-            set -euo pipefail
-            until pg_isready -h 127.0.0.1 -p 5432 -U postgres >/dev/null 2>&1; do
-              sleep 1
-            done
-            cd /work
-            # The bind mount belongs to the runner, not container root.
-            git config --global --add safe.directory /work
-            PG_CONFIG=/usr/lib/postgresql/18/bin/pg_config
-            if [ ! -x "$PG_CONFIG" ]; then
-              PG_CONFIG="$(command -v pg_config)"
-            fi
-            cargo pgrx init --pg18="$PG_CONFIG"
-            export PG_CONFIG
-            bash test/prepare_upgrade.sh
-            cargo pgrx install -v --features pg18 --no-default-features --pg-config "$PG_CONFIG"
-            cp pg_pinyin--*--*.sql "$("$PG_CONFIG" --sharedir)/extension/"
-            psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U postgres -d postgres -c "CREATE EXTENSION IF NOT EXISTS pg_search CASCADE;"
-            pg_search_version="$(psql -At -h 127.0.0.1 -p 5432 -U postgres -d postgres -c "SELECT extversion FROM pg_extension WHERE extname = \$\$pg_search\$\$")"
-            test "$pg_search_version" = "0.26.1"
-            PGURL=postgres://postgres@127.0.0.1:5432/postgres PG_LOADER_TESTS=1 TEST_UPGRADE_DSN=postgres://postgres@127.0.0.1:5432/postgres python3 -m unittest discover -s test -p "test_*.py"
-            psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U postgres -d postgres -c "CREATE EXTENSION IF NOT EXISTS pg_pinyin;"
-            out="$(psql -At -h 127.0.0.1 -p 5432 -U postgres -d postgres -c "SELECT public.pinyin_word_romanize(\$\$郑爽ABC\$\$)")"
-            test "$out" = "zheng shuang abc"
-            PGURL=postgres://postgres@127.0.0.1:5432/postgres ./test/pgtap/run.sh
-          '
+          docker exec -i -u root pg-pinyin-test bash -s <<'BASH'
+          set -euo pipefail
+          for attempt in {1..60}; do
+            if pg_isready -h 127.0.0.1 -p 5432 -U postgres >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          pg_isready -h 127.0.0.1 -p 5432 -U postgres
+          cd /work
+          git config --global --add safe.directory /work
+          export PG_CONFIG="/usr/lib/postgresql/${PG_MAJOR}/bin/pg_config"
+          export PGURL=postgres://postgres@127.0.0.1:5432/postgres
+          "$PG_CONFIG" --version
+          rustc --version
+          cargo pgrx --version
+          psql "$PGURL" -Atc 'SELECT version()'
+          cargo pgrx init "--pg${PG_MAJOR}=$PG_CONFIG"
+          cargo pgrx test "pg${PG_MAJOR}" --release --features pg_test --no-default-features \
+            --runas postgres --pgdata /tmp/pg-pinyin-tests
+          if [[ "$PG_MAJOR" == '18' ]]; then
+            PG_PINYIN_BUILD_RELEASE=1 bash test/prepare_upgrade.sh
+          fi
+          cargo pgrx install -v --release --features "pg${PG_MAJOR}" --no-default-features --pg-config "$PG_CONFIG"
+          cp pg_pinyin--*--*.sql "$("$PG_CONFIG" --sharedir)/extension/"
+          if [[ "$PG_MAJOR" == '18' ]]; then
+            psql "$PGURL" -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION IF NOT EXISTS pg_search CASCADE;'
+            test "$(psql "$PGURL" -Atc "SELECT extversion FROM pg_extension WHERE extname='pg_search'")" = 0.26.1
+            PG_LOADER_TESTS=1 TEST_UPGRADE_DSN="$PGURL" python3 -m unittest discover -s test -p 'test_*.py'
+          fi
+          psql "$PGURL" -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION IF NOT EXISTS pg_pinyin;'
+          if [[ "$PG_MAJOR" == '18' ]]; then
+            ./test/pgtap/run.sh
+          else
+            pg_prove --dbname "$PGURL" test/pgtap/02_pg_pinyin_extension.sql test/pgtap/04_parallel_read_only.sql
+          fi
+          BASH
+
+      - name: Consume dynamic conversion and parser benchmark outputs
+        run: |
+          docker exec -i pg-pinyin-test psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE TEMP TABLE benchmark_probe AS
+          SELECT n, '郑爽ABC'::text AS value, 'whh'::text AS query FROM generate_series(1,20000) n;
+          EXPLAIN (ANALYZE, BUFFERS)
+          SELECT sum(octet_length(public.pinyin_word_romanize(value))) FROM benchmark_probe;
+          EXPLAIN (ANALYZE, BUFFERS)
+          SELECT sum(cardinality(public.pinyin_regex_phrase_patterns(query))) FROM benchmark_probe;
+          SQL
 
       - name: Container logs
         if: always()
@@ -91,58 +174,4 @@ jobs:
 
       - name: Cleanup container
         if: always()
-        run: docker rm -f pg-pinyin-test || true
-
-  pg19-beta4-tests:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 120
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Build PostgreSQL 19 beta 4 + ParadeDB test image
-        run: docker build -f docker/Dockerfile.test-pg19beta4-trixie -t pg-pinyin-test:pg19beta4 .
-
-      - name: Start PostgreSQL 19 beta test container
-        run: |
-          docker run -d --name pg-pinyin-test-pg19 \
-            -e POSTGRES_HOST_AUTH_METHOD=trust \
-            -e POSTGRES_DB=postgres \
-            -v "$GITHUB_WORKSPACE:/work" \
-            pg-pinyin-test:pg19beta4 \
-            postgres -c shared_preload_libraries=pg_search
-
-      - name: Run PG19 extension install + pgTAP tests
-        run: |
-          docker exec -u root pg-pinyin-test-pg19 bash -lc '
-            set -euo pipefail
-            until pg_isready -h 127.0.0.1 -p 5432 -U postgres >/dev/null 2>&1; do
-              sleep 1
-            done
-            cd /work
-            # The bind mount belongs to the runner, not container root.
-            git config --global --add safe.directory /work
-            PG_CONFIG=/usr/lib/postgresql/19/bin/pg_config
-            cargo pgrx init --pg19="$PG_CONFIG"
-            export PG_CONFIG
-            bash test/prepare_upgrade.sh
-            cargo pgrx install -v --features pg19 --no-default-features --pg-config "$PG_CONFIG"
-            cp pg_pinyin--*--*.sql "$("$PG_CONFIG" --sharedir)/extension/"
-            psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U postgres -d postgres -c "CREATE EXTENSION IF NOT EXISTS pg_search CASCADE;"
-            pg_search_version="$(psql -At -h 127.0.0.1 -p 5432 -U postgres -d postgres -c "SELECT extversion FROM pg_extension WHERE extname = \$\$pg_search\$\$")"
-            test "$pg_search_version" = "0.26.1"
-            PGURL=postgres://postgres@127.0.0.1:5432/postgres PG_LOADER_TESTS=1 TEST_UPGRADE_DSN=postgres://postgres@127.0.0.1:5432/postgres python3 -m unittest discover -s test -p "test_*.py"
-            psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U postgres -d postgres -c "CREATE EXTENSION IF NOT EXISTS pg_pinyin;"
-            out="$(psql -At -h 127.0.0.1 -p 5432 -U postgres -d postgres -c "SELECT public.pinyin_word_romanize(\$\$郑爽ABC\$\$)")"
-            test "$out" = "zheng shuang abc"
-            PGURL=postgres://postgres@127.0.0.1:5432/postgres ./test/pgtap/run.sh
-          '
-
-      - name: PostgreSQL 19 container logs
-        if: always()
-        run: docker logs pg-pinyin-test-pg19 || true
-
-      - name: Cleanup PostgreSQL 19 container
-        if: always()
-        run: docker rm -f pg-pinyin-test-pg19 || true
+        run: docker rm -fv pg-pinyin-test || true

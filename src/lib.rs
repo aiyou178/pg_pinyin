@@ -804,7 +804,9 @@ mod extension {
     fn fetch_tokenizer_input_tokens(tokenizer_input: AnyElement) -> Option<Vec<String>> {
         if tokenizer_input.oid() == pg_sys::TEXTARRAYOID {
             // Keep old anyelement OIDs/generated expressions, but bypass the SPI/JSON cast.
-            let tokens = unsafe { AnyElement::into::<Array<&str>>(&tokenizer_input) }
+            let tokens = tokenizer_input
+                .value::<Array<&str>>()
+                .unwrap_or_else(|err| error!("invalid tokenizer text[] datum: {err}"))
                 .expect("non-NULL text[] datum");
             return Some(
                 tokens
@@ -1193,12 +1195,22 @@ mod extension {
         pinyin_word_romanize_tokenizer_with_suffix_impl(tokenizer_input, suffix)
     }
 
-    #[pg_extern(stable, strict, parallel_safe, name = "pinyin_regex_phrase_patterns")]
+    #[pg_extern(
+        immutable,
+        strict,
+        parallel_safe,
+        name = "pinyin_regex_phrase_patterns"
+    )]
     fn pinyin_regex_phrase_patterns_default(value: &str) -> Option<Vec<String>> {
         pinyin_regex_phrase_patterns_impl(value, false)
     }
 
-    #[pg_extern(stable, strict, parallel_safe, name = "pinyin_regex_phrase_patterns")]
+    #[pg_extern(
+        immutable,
+        strict,
+        parallel_safe,
+        name = "pinyin_regex_phrase_patterns"
+    )]
     fn pinyin_regex_phrase_patterns_with_generated(
         value: &str,
         generated_pinyin: bool,
@@ -1207,7 +1219,7 @@ mod extension {
     }
 
     #[pg_extern(
-        stable,
+        immutable,
         strict,
         parallel_safe,
         name = "pinyin_regex_phrase_patterns_mode"

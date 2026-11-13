@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_DIR="${OUT_DIR:-$ROOT_DIR/dist}"
 EXT_VERSION="${EXT_VERSION:-$(awk -F'\"' '/^version = / { print $2; exit }' "$ROOT_DIR/Cargo.toml")}"
-PG_VERSIONS=(14 15 16 17 18 19)
+PG_VERSIONS=(15 16 17 18 19)
 ARCH="$(dpkg --print-architecture)"
 
 mkdir -p "$OUT_DIR"
@@ -33,7 +33,6 @@ if [[ ${#upgrade_files[@]} -eq 0 ]]; then
 fi
 
 cargo pgrx init \
-  --pg14=/usr/lib/postgresql/14/bin/pg_config \
   --pg15=/usr/lib/postgresql/15/bin/pg_config \
   --pg16=/usr/lib/postgresql/16/bin/pg_config \
   --pg17=/usr/lib/postgresql/17/bin/pg_config \
@@ -85,6 +84,7 @@ for pg in "${PG_VERSIONS[@]}"; do
   done
   cp "$ROOT_DIR/scripts/data/sources.lock.json" "$doc_dir/"
 
+  pg_package_version="$(dpkg-query -W -f='${Version}' "postgresql-server-dev-${pg}")"
   cat > "$deb_root/DEBIAN/control" <<CONTROL
 Package: postgresql-${pg}-pg-pinyin
 Version: ${EXT_VERSION}
@@ -92,7 +92,7 @@ Section: database
 Priority: optional
 Architecture: ${ARCH}
 Maintainer: Liang Zhanzhao <liangzhanzhao1985@gmail.com>
-Depends: postgresql-${pg}
+Depends: postgresql-${pg} (>= ${pg_package_version})
 Description: pinyin romanization extension for PostgreSQL
  Rust+pgrx extension with character and word-level pinyin romanization.
 CONTROL

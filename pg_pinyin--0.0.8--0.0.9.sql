@@ -7,9 +7,13 @@ CREATE OR REPLACE FUNCTION public.pinyin_regex_phrase_patterns_mode(
 RETURNS text[]
 AS 'MODULE_PATHNAME', 'pinyin_regex_phrase_patterns_with_mode_wrapper'
 LANGUAGE c
-STABLE
+IMMUTABLE
 STRICT
 PARALLEL SAFE;
+
+-- These parsers use embedded token dictionaries, not live tables.
+ALTER FUNCTION public.pinyin_regex_phrase_patterns(text) IMMUTABLE;
+ALTER FUNCTION public.pinyin_regex_phrase_patterns(text, boolean) IMMUTABLE;
 
 DO $pinyin_query_modes$
 BEGIN

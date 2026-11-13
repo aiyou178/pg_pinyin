@@ -1,0 +1,70 @@
+# syntax=docker/dockerfile:1.7
+# Core matrix; PG18 pg_search integration uses Dockerfile.test-trixie.
+ARG BASE_IMAGE=postgres:18.7-trixie
+FROM ${BASE_IMAGE}
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG TARGET_PG_MAJOR=19
+ARG RUST_VERSION=1.99.1
+ARG DEBIAN_MIRROR=
+ARG DEBIAN_SECURITY_MIRROR=
+ARG PGDG_MIRROR=
+ARG RUSTUP_DIST_SERVER=
+ARG RUSTUP_UPDATE_ROOT=
+ARG CARGO_REGISTRIES_CRATES_IO_INDEX=
+
+ENV PATH=/usr/lib/postgresql/${TARGET_PG_MAJOR}/bin:/root/.cargo/bin:$PATH \
+    PG_MAJOR=${TARGET_PG_MAJOR} \
+    PGDATA=/var/lib/postgresql/${TARGET_PG_MAJOR}/docker \
+    PG_CONFIG=/usr/lib/postgresql/${TARGET_PG_MAJOR}/bin/pg_config \
+    CC=clang \
+    AR=llvm-ar \
+    CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
+
+RUN set -eux; \
+  sed -i 's|http://apt.postgresql.org|https://apt.postgresql.org|g' /etc/apt/sources.list.d/pgdg.list; \
+  if [ "$PG_MAJOR" = "19" ]; then \
+    sed -i -E '/trixie-pgdg/ { /(^| )19( |$)/! s/$/ 19/; }' /etc/apt/sources.list.d/pgdg.list; \
+  fi; \
+  if [ -n "$DEBIAN_MIRROR" ]; then \
+    find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) -exec \
+      sed -i -e "s|http://deb.debian.org/debian|$DEBIAN_MIRROR|g" \
+      -e "s|https://deb.debian.org/debian|$DEBIAN_MIRROR|g" {} +; \
+  fi; \
+  if [ -n "$DEBIAN_SECURITY_MIRROR" ]; then \
+    find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) -exec \
+      sed -i -e "s|http://deb.debian.org/debian-security|$DEBIAN_SECURITY_MIRROR|g" \
+      -e "s|https://deb.debian.org/debian-security|$DEBIAN_SECURITY_MIRROR|g" {} +; \
+  fi; \
+  if [ -n "$PGDG_MIRROR" ]; then \
+    find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) -exec \
+      sed -i -e "s|http://apt.postgresql.org/pub/repos/apt|$PGDG_MIRROR|g" \
+      -e "s|https://apt.postgresql.org/pub/repos/apt|$PGDG_MIRROR|g" {} +; \
+  fi; \
+  mv /etc/apt/sources.list.d/pgdg.list /tmp/pgdg.list; \
+  apt-get update -o APT::Update::Error-Mode=any; \
+  apt-get install -y --no-install-recommends ca-certificates; \
+  mv /tmp/pgdg.list /etc/apt/sources.list.d/pgdg.list; \
+  apt-get update -o APT::Update::Error-Mode=any; \
+  apt-get install -y --no-install-recommends curl git make sudo pkg-config \
+    clang llvm llvm-dev libclang-dev libc6-dev libicu-dev libssl-dev \
+    python3-psycopg pgtap postgresql-${PG_MAJOR} postgresql-client-${PG_MAJOR} \
+    postgresql-${PG_MAJOR}-pgtap postgresql-server-dev-${PG_MAJOR}; \
+  rm -rf /var/lib/apt/lists/*
+
+RUN --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
+  --mount=type=cache,target=/root/.cargo/git,sharing=locked \
+  --mount=type=cache,target=/root/.rustup/downloads,sharing=locked \
+  set -eux; \
+  if [ -n "$RUSTUP_DIST_SERVER" ]; then export RUSTUP_DIST_SERVER; fi; \
+  if [ -n "$RUSTUP_UPDATE_ROOT" ]; then export RUSTUP_UPDATE_ROOT; fi; \
+  if [ -n "$CARGO_REGISTRIES_CRATES_IO_INDEX" ]; then export CARGO_REGISTRIES_CRATES_IO_INDEX; fi; \
+  if ! command -v rustup >/dev/null 2>&1; then \
+    curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain "$RUST_VERSION"; \
+  fi; \
+  rustup toolchain install "$RUST_VERSION" --profile minimal --component rustfmt; \
+  rustup default "$RUST_VERSION"; \
+  cargo install --locked cargo-pgrx --version 0.20.0
+
+WORKDIR /work
+COPY . /work

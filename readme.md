@@ -11,6 +11,35 @@
 1. SQL baseline (`sql/pinyin.sql`)
 2. Rust extension (`src/lib.rs`)
 
+## Compatibility And Upgrade
+
+The upcoming 0.0.9 binaries require these minimum versions for **both the runtime
+server and build headers**:
+
+| PostgreSQL major | Minimum version |
+| --- | --- |
+| 15 | 15.20 |
+| 16 | 16.16 |
+| 17 | 17.12 |
+| 18 | 18.7 |
+| 19 | 19rc2, experimental core support |
+
+Later minor releases within each stable major are supported. These minimums
+include PostgreSQL's composite-datum security fix; binaries built with these
+headers cannot load on earlier minor releases. PG14 support is removed.
+Source builds require Rust 1.99.1 and cargo-pgrx 0.20.0.
+
+After installing the 0.0.9 binary and migration SQL, use a new connection:
+
+```sql
+ALTER EXTENSION pg_pinyin UPDATE TO '0.0.9';
+```
+
+The migration preserves live dictionaries and stored generated values. Dictionary
+refreshes are separate; after changing a dictionary, refresh stored values and
+rebuild function-expression indexes that depend on it. For pg_search query
+helpers, enable pg_search before installing or upgrading pg_pinyin.
+
 ## Core Extension Public API
 
 `CREATE EXTENSION pg_pinyin` installs the Rust-backed core API:
@@ -36,8 +65,9 @@
 `pinyin_regex_phrase_patterns` returns an empty `text[]` when the input is empty, whitespace-only, or cannot be parsed as pinyin tokens. SQL NULL input still returns SQL NULL because the function is strict.
 
 `pinyin_regex_phrase_patterns_mode(text, mode text, generated_pinyin boolean DEFAULT false)`
-is the mode-aware internal helper. Its Rust tokenizer uses embedded data without
-runtime SPI, retaining `PARALLEL SAFE`. The original helpers and their signatures
+is the mode-aware internal helper. Both Rust pattern APIs use embedded data without
+runtime SPI and are `IMMUTABLE`, `STRICT`, and `PARALLEL SAFE`. Constant inputs can
+fold during planning; the optional SQL backend still reads live tables. The original helpers and their signatures
 remain unchanged, including untyped NULL arguments.
 
 ## Optional pg_search SQL Helpers
@@ -519,7 +549,11 @@ Rust extension tests:
 cargo pgrx test pg18 --features pg18
 ```
 
-PostgreSQL 19 beta 4 is supported through `pgrx` 0.19.3:
+The current build requires Rust 1.99.1 and `cargo-pgrx` 0.20.0, matching the
+library dependency. Install `clang`, `llvm` and `libclang-dev` from the same LLVM
+release. Supported PostgreSQL majors are 15-19; PG14 is no longer supported.
+Build against patched headers (15.20, 16.16, 17.12, 18.7 or 19rc2 or newer).
+PostgreSQL 19 rc2 core support is provided through `pgrx` 0.20.0:
 
 ```bash
 cargo pgrx init --pg19=/usr/lib/postgresql/19/bin/pg_config
@@ -529,12 +563,14 @@ cargo pgrx install --features pg19 --no-default-features --pg-config /usr/lib/po
 Full Python integration and genuine upgrade tests require psycopg 3, an admin
 `PGURL` able to create databases, and preloaded pg_search 0.26.1. After initializing
 pgrx for the server, install the old catalog in its isolated Cargo target, then
-restore the current library before testing (PG19 example):
+restore the current library before testing (PG18 integration example). The old
+source needs cargo-pgrx 0.19.3; the test image installs it separately:
 
 ```bash
-export PG_CONFIG=/usr/lib/postgresql/19/bin/pg_config
+export PG_CONFIG=/usr/lib/postgresql/18/bin/pg_config
+export BASELINE_CARGO_PGRX=/opt/pgrx-baseline/bin/cargo-pgrx
 bash test/prepare_upgrade.sh v0.0.8
-cargo pgrx install --features pg19 --no-default-features --pg-config "$PG_CONFIG"
+cargo pgrx install --features pg18 --no-default-features --pg-config "$PG_CONFIG"
 cp pg_pinyin--*--*.sql "$("$PG_CONFIG" --sharedir)/extension/"
 PGURL="$PGURL" PG_LOADER_TESTS=1 TEST_UPGRADE_DSN="$PGURL" python3 -m unittest discover -s test
 python3 -m unittest discover -s scripts/data/tests
@@ -549,12 +585,12 @@ checks real parallel workers executing both mode-aware public and pattern APIs.
 Dockerfiles:
 
 - `docker/Dockerfile.test-trixie`
-- `docker/Dockerfile.test-pg19beta4-trixie`
+- `docker/Dockerfile.test-core-trixie` (PG15-19 core matrix, without pg_search)
 - `docker/Dockerfile.release-trixie`
 
 Defaults now use upstream addresses (no mirror rewrite):
 
-- base image: `postgres:18.3-trixie` for PG18 tests, `postgres:19beta4-trixie` for PG19 beta tests
+- base image: the corresponding patched stable PostgreSQL image; PG19 core tests install rc2 packages on `postgres:18.7-trixie`
 - apt source: base image defaults
 - rustup/cargo source: upstream defaults
 
@@ -580,20 +616,21 @@ docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/test:trixie \
 # docker build --build-arg PG_SEARCH_VERSION=0.26.1 -f docker/Dockerfile.test-trixie -t pg_pinyin/test:trixie .
 ```
 
-Build PostgreSQL 19 beta test image:
+Build PostgreSQL 19 rc2 core test image:
 
 ```bash
-docker build -f docker/Dockerfile.test-pg19beta4-trixie -t pg_pinyin/test:pg19beta4 .
+docker build -f docker/Dockerfile.test-core-trixie \
+  --build-arg TARGET_PG_MAJOR=19 -t pg_pinyin/test:pg19rc2 .
 ```
 
-Test images now pin [pg_search 0.26.1](https://github.com/paradedb/paradedb/releases/tag/v0.26.1),
-the latest stable release verified on 2026-10-13. ParadeDB does not publish a
-PostgreSQL 19 package for this release.
-The PG19 beta 4 Dockerfile builds the pinned `v0.26.1` source commit
+The PG18 test image pins [pg_search 0.26.1](https://github.com/paradedb/paradedb/releases/tag/v0.26.1)
+to keep upgrade performance comparisons consistent. PG19rc2 validation covers
+the core extension without pg_search. Historical PG19 beta 4 benchmarks use
+the old Dockerfile, which builds the pinned `v0.26.1` source commit
 `529c77e9dffe4bd86b6b7971c019bb26b8eadbfa` with its existing pgrx 0.19.3 and the
 scoped `docker/patches/paradedb-0.26.1-pg19beta4.patch` compatibility patch. This is
-an experimental compatibility build used by this project's integration and
-performance tests, not an upstream ParadeDB binary.
+an experimental compatibility build used by the historical integration and
+performance tests, not an upstream ParadeDB binary or PG19rc2 integration proof.
 
 Build release image:
 
@@ -609,6 +646,40 @@ DOCKER_BUILDKIT=1 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/tes
 ```
 
 ## Benchmark
+
+### pgrx 0.20.0 Upgrade
+
+The [2026-11-13 report](benchmarks/pgrx_0200.md) compares three release builds on
+PG18.7 / pg_search 0.26.1 with the same Rust 1.99.1 compiler and dictionaries.
+Each variant uses three fresh database rounds, 20,000 documents and 2,000 ranked
+queries per round. Median wall times below are milliseconds per complete workload.
+Raw measurements, plans and build receipts are preserved locally; only the final
+summary is included in the PR.
+
+| Workload | pgrx 0.19.3 | 0.20.0 dependency only | 0.20.0 final |
+| --- | ---: | ---: | ---: |
+| Character conversion, 20k rows | 238.471 | 214.129 | 228.624 |
+| Word conversion, 20k rows | 246.098 | 235.852 | 228.094 |
+| Token-array conversion, 20k rows | 229.665 | 235.293 | 230.198 |
+| Document batches of 512, 20k rows | 27.603 | 26.510 | 26.547 |
+| Dynamic pattern parsing, 20k rows | 16.479 | 17.043 | 16.759 |
+| Constant pattern parsing, 20k rows | 11.305 | 11.625 | 5.343 |
+| COPY with stored pinyin and BM25, 20k rows | 395.751 | 346.390 | 384.251 |
+| Ranked Top-10 search, 2k queries | 1345.264 | 1586.252 | 1393.960 |
+
+Constant pattern calls take 52.7% less time because the embedded parsers are now
+truthfully IMMUTABLE and fold during planning. Dynamic parsing does not improve;
+full search is 3.6% slower by median, so this upgrade does not establish an
+end-to-end speedup. The report includes ranges, first-backend timings and p95.
+All outputs and scored hits match; search indexes are 3,350,528 bytes in every
+run. Existing document batching is 8.6x faster than scalar word calls here; the
+per-scalar SPI dictionary-version lookup is the next profiling target.
+
+PG18 validation passes 208 Python tests and 1,588 pgTAP assertions; PG19rc2 passes
+40 core pgTAP assertions without pg_search. See the
+[upgrade spec](spec/pgrx-0.20-upgrade.md) for compatibility and validation limits.
+The reports below retain their historical versions and measurements; the old
+PG19 beta4 image is not a build target for the current pgrx 0.20.0 dependency.
 
 ### Native Exact Queries
 
