@@ -40,8 +40,6 @@ RUN set -eux; \
         -e "s|https://apt.postgresql.org/pub/repos/apt|$PGDG_MIRROR|g" \
         {} +; \
   fi; \
-  find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) -exec \
-    sed -i -E '/trixie-pgdg/ { /(^| )19( |$)/! s/(trixie-pgdg[[:space:]]+main.*)/\1 19/; }' {} +; \
   mv /etc/apt/sources.list.d/pgdg.list /tmp/pgdg.list; \
   apt-get update -o APT::Update::Error-Mode=any; \
   apt-get install -y --no-install-recommends ca-certificates; \
@@ -76,6 +74,7 @@ RUN set -eux; \
     postgresql-server-dev-17 \
     postgresql-server-dev-18 \
     postgresql-server-dev-19; \
+  case "$(/usr/lib/postgresql/19/bin/pg_config --version)" in "PostgreSQL 19."*) ;; *) exit 1 ;; esac; \
   update-ca-certificates; \
   rm -rf /var/lib/apt/lists/* /tmp/*
 

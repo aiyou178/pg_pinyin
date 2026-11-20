@@ -22,7 +22,7 @@ server and build headers**:
 | 16 | 16.16 |
 | 17 | 17.12 |
 | 18 | 18.7 |
-| 19 | 19rc2, experimental core support |
+| 19 | 19.0 or later, core |
 
 Later minor releases within each stable major are supported. These minimums
 include PostgreSQL's composite-datum security fix; binaries built with these
@@ -552,8 +552,9 @@ cargo pgrx test pg18 --features pg18
 The current build requires Rust 1.99.1 and `cargo-pgrx` 0.20.0, matching the
 library dependency. Install `clang`, `llvm` and `libclang-dev` from the same LLVM
 release. Supported PostgreSQL majors are 15-19; PG14 is no longer supported.
-Build against patched headers (15.20, 16.16, 17.12, 18.7 or 19rc2 or newer).
-PostgreSQL 19 rc2 core support is provided through `pgrx` 0.20.0:
+Build against patched headers (15.20, 16.16, 17.12, 18.7 or 19.0 or newer).
+Use the installed PostgreSQL 19 release's `pg_config` explicitly; the
+`cargo pgrx init --pg19=download` default in pgrx 0.20.0 is still 19rc2:
 
 ```bash
 cargo pgrx init --pg19=/usr/lib/postgresql/19/bin/pg_config
@@ -561,7 +562,7 @@ cargo pgrx install --features pg19 --no-default-features --pg-config /usr/lib/po
 ```
 
 Full Python integration and genuine upgrade tests require psycopg 3, an admin
-`PGURL` able to create databases, and preloaded pg_search 0.26.1. After initializing
+`PGURL` able to create databases, and preloaded pg_search 0.27.0. After initializing
 pgrx for the server, install the old catalog in its isolated Cargo target, then
 restore the current library before testing (PG18 integration example). The old
 source needs cargo-pgrx 0.19.3; the test image installs it separately:
@@ -590,7 +591,7 @@ Dockerfiles:
 
 Defaults now use upstream addresses (no mirror rewrite):
 
-- base image: the corresponding patched stable PostgreSQL image; PG19 core tests install rc2 packages on `postgres:18.7-trixie`
+- base image: `paradedb/paradedb:0.27.0-pg18` for PG18 integration; matching PostgreSQL runtime images for core tests. Release builds install PGDG packages for all supported majors.
 - apt source: base image defaults
 - rustup/cargo source: upstream defaults
 
@@ -600,8 +601,8 @@ Build test image:
 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/test:trixie .
 docker run -d --name pg_pinyin_test \
   -e POSTGRES_HOST_AUTH_METHOD=trust \
-  pg_pinyin/test:trixie \
-  postgres -c shared_preload_libraries=pg_search
+  -e PDB_TUNE=false \
+  pg_pinyin/test:trixie
 
 # optional: use local mirrors for one-off local builds
 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/test:trixie \
@@ -612,25 +613,35 @@ docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/test:trixie \
   --build-arg CARGO_REGISTRIES_CRATES_IO_INDEX=sparse+https://mirrors.tuna.tsinghua.edu.cn/crates.io-index/ \
   .
 
-# optional: pin pg_search version at build time
-# docker build --build-arg PG_SEARCH_VERSION=0.26.1 -f docker/Dockerfile.test-trixie -t pg_pinyin/test:trixie .
+# optional: select a different pinned ParadeDB image and assert the bundled version
+# docker build --build-arg BASE_IMAGE=paradedb/paradedb:0.26.1-pg18 \
+#   --build-arg PG_SEARCH_VERSION=0.26.1 -f docker/Dockerfile.test-trixie -t pg_pinyin/test:trixie .
 ```
 
-Build PostgreSQL 19 rc2 core test image:
+Build the PostgreSQL 19 core test image. Until the
+[official PG19 GA tag is published](https://github.com/docker-library/official-images/pull/22805),
+first build the runtime from its pinned upstream recipe using PGDG over HTTPS.
+The test layer adds headers and tooling.
 
 ```bash
+bash scripts/build_pg19_runtime.sh
 docker build -f docker/Dockerfile.test-core-trixie \
-  --build-arg TARGET_PG_MAJOR=19 -t pg_pinyin/test:pg19rc2 .
+  --build-arg BASE_IMAGE=pg-pinyin-postgres:19.0-trixie \
+  --build-arg TARGET_PG_MAJOR=19 -t pg_pinyin/test:pg19 .
 ```
 
-The PG18 test image pins [pg_search 0.26.1](https://github.com/paradedb/paradedb/releases/tag/v0.26.1)
-to keep upgrade performance comparisons consistent. PG19rc2 validation covers
-the core extension without pg_search. Historical PG19 beta 4 benchmarks use
+The PG18 test image inherits [ParadeDB 0.27.0 on PG18](https://hub.docker.com/r/paradedb/paradedb/tags?name=0.27.0-pg18)
+without downloading or installing pg_search in the test build. The base image
+preloads pg_search; keep its startup configuration, and disable auto-tuning
+with `PDB_TUNE=false` when running tests or comparing benchmarks.
+Current PG19 validation covers only the core extension because
+[ParadeDB has not released PG19 support](https://github.com/paradedb/paradedb/issues/5405).
+Historical PG19 beta 4 benchmarks use
 the old Dockerfile, which builds the pinned `v0.26.1` source commit
 `529c77e9dffe4bd86b6b7971c019bb26b8eadbfa` with its existing pgrx 0.19.3 and the
 scoped `docker/patches/paradedb-0.26.1-pg19beta4.patch` compatibility patch. This is
 an experimental compatibility build used by the historical integration and
-performance tests, not an upstream ParadeDB binary or PG19rc2 integration proof.
+performance tests, not an upstream ParadeDB binary or PG19 GA integration proof.
 
 Build release image:
 
@@ -646,6 +657,14 @@ DOCKER_BUILDKIT=1 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/tes
 ```
 
 ## Benchmark
+
+### PostgreSQL 19 GA and pg_search 0.27.0
+
+The [platform benchmark](benchmarks/pg19_ga_pg_search_027.md) compares PG19.0
+with RC2 for core conversion, parsing and COPY, and compares pg_search
+0.27.0 with 0.26.1 on the same PG18.7 build. PG19 core timings were close to
+RC2. On PG18, the 2,000-query Top-10 workload was 11.8% slower by median with
+0.27.0, while index size grew 1.0%. Hits, ranking and scores were identical.
 
 ### pgrx 0.20.0 Upgrade
 
@@ -1124,7 +1143,7 @@ Session command:
 ROWS=2000 REGEX_BENCH_ROWS=20000 USER_TABLE_SUFFIX=_bench PGURL=postgres://postgres@localhost:5432/postgres ./scripts/benchmark_pg18.sh
 ```
 
-Latest run (PG18, `pg_search=0.24.0`, `pg_pinyin=0.0.4`, fresh benchmark database, `ROWS=2000`, `REGEX_BENCH_ROWS=20000`, 2026-06-08):
+Historical run (PG18, `pg_search=0.24.0`, `pg_pinyin=0.0.4`, fresh benchmark database, `ROWS=2000`, `REGEX_BENCH_ROWS=20000`, 2026-06-08):
 
 Character mode:
 

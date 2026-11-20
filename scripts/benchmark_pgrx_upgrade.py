@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Fresh-database pgrx comparison: consumed conversion, COPY and real Top-K.
+"""Fresh-database comparison: consumed conversion, COPY and real Top-K.
 
 Variant manifests identify separately rebuilt libraries installed on the local
-server. No production database is modified and report overwrite is refused.
+server. Alternatively, --server compares stock extension installs on disposable
+servers. Report overwrite is refused.
 """
 from __future__ import annotations
 
@@ -51,31 +52,44 @@ def nodes(plan):
         yield from nodes(child)
 
 
-def setup(dsn, database, variant, corpus):
+def setup(dsn, database, variant, corpus, *, search=True):
     with connect(dsn, database) as conn:
-        conn.execute("CREATE EXTENSION pg_search CASCADE")
+        server_version = conn.execute("SHOW server_version").fetchone()[0].split()[0]
+        if "server_version" in variant and server_version != variant["server_version"]:
+            raise RuntimeError(f"Expected PostgreSQL {variant['server_version']}; got {server_version}")
+        if search:
+            conn.execute("CREATE EXTENSION pg_search CASCADE")
+        extensions = dict(conn.execute("SELECT extname,extversion FROM pg_extension"))
+        if "pg_search" in variant and extensions.get("pg_search") != variant["pg_search"]:
+            raise RuntimeError(f"Unexpected pg_search version: {extensions.get('pg_search')}")
         conn.execute("CREATE EXTENSION pg_pinyin")
-        functions = conn.execute(
-            "SELECT p.oid::regprocedure::text,pg_get_functiondef(p.oid) FROM pg_proc p "
-            "JOIN pg_language l ON l.oid=p.prolang WHERE l.lanname='c' AND p.probin='$libdir/pg_pinyin'"
-        ).fetchall()
-        if not functions:
-            raise RuntimeError("Missing extension C bindings")
-        for signature, definition in functions:
-            conn.execute(definition.replace("'$libdir/pg_pinyin'", "'$libdir/" + variant["library"] + "'"))
-            if "pinyin_regex_phrase_patterns" in signature:
-                # Restore the source variant's declared catalog property.
-                conn.execute("ALTER FUNCTION " + signature + " " + variant["pattern_volatility"])
+        library = variant.get("library", "pg_pinyin")
+        if "library" in variant:
+            functions = conn.execute(
+                "SELECT p.oid::regprocedure::text,pg_get_functiondef(p.oid) FROM pg_proc p "
+                "JOIN pg_language l ON l.oid=p.prolang WHERE l.lanname='c' AND p.probin='$libdir/pg_pinyin'"
+            ).fetchall()
+            if not functions:
+                raise RuntimeError("Missing extension C bindings")
+            for signature, definition in functions:
+                conn.execute(definition.replace("'$libdir/pg_pinyin'", "'$libdir/" + library + "'"))
+                if "pinyin_regex_phrase_patterns" in signature:
+                    conn.execute("ALTER FUNCTION " + signature + " " + variant["pattern_volatility"])
+        installed_path = variant.get("installed_path")
+        if installed_path is None:
+            pkglibdir = conn.execute("SELECT setting FROM pg_config WHERE name='PKGLIBDIR'").fetchone()[0]
+            installed_path = f"{pkglibdir}/{library}.so"
         installed = conn.execute(
-            "SELECT encode(sha256(pg_read_binary_file(%s)),'hex')", (variant["installed_path"],)
+            "SELECT encode(sha256(pg_read_binary_file(%s)),'hex')", (installed_path,)
         ).fetchone()[0]
-        if installed != variant["library_sha256"]:
+        if "library_sha256" in variant and installed != variant["library_sha256"]:
             raise RuntimeError("Loaded library does not match rebuilt artifact manifest")
         conn.execute("CREATE TABLE bench_docs(id bigint PRIMARY KEY,name text,plain text,tokens text[])")
         with conn.cursor().copy("COPY bench_docs(id,name,plain,tokens) FROM STDIN") as copy:
             for row in corpus:
                 copy.write_row((row["id"], row["name"], row["plain"], list(row["name"])))
-        conn.execute("CREATE INDEX bench_bm25 ON bench_docs USING bm25(id,(plain::pdb.whitespace))")
+        if search:
+            conn.execute("CREATE INDEX bench_bm25 ON bench_docs USING bm25(id,(plain::pdb.whitespace))")
         conn.execute("ANALYZE bench_docs")
         gold = conn.execute(
             "SELECT public.pinyin_word_romanize(value) FROM unnest(%s::text[]) WITH ORDINALITY AS g(value,n) ORDER BY n",
@@ -86,13 +100,15 @@ def setup(dsn, database, variant, corpus):
         if conn.execute("SELECT public.pinyin_regex_phrase_patterns('whh')").fetchone()[0] != ["w.*", "h.*", "h.*"]:
             raise RuntimeError("Initials gold failed")
         return {"server": conn.execute("SELECT version()").fetchone()[0],
-                "pg_search": conn.execute("SELECT extversion FROM pg_extension WHERE extname='pg_search'").fetchone()[0],
+                "pg_search": extensions.get("pg_search"),
+                "pg_pinyin": conn.execute("SELECT extversion FROM pg_extension WHERE extname='pg_pinyin'").fetchone()[0],
+                "library_sha256": installed,
                 "settings": dict(conn.execute("SELECT name,setting FROM pg_settings WHERE name IN "
                     "('jit','max_parallel_workers_per_gather','fsync','synchronous_commit','full_page_writes',"
                     "'shared_buffers','work_mem')").fetchall()),
-                "bm25_bytes": conn.execute("SELECT pg_relation_size('bench_bm25')").fetchone()[0],
+                "bm25_bytes": conn.execute("SELECT pg_relation_size('bench_bm25')").fetchone()[0] if search else None,
                 "bindings": conn.execute("SELECT proname,probin,provolatile FROM pg_proc WHERE probin=%s ORDER BY proname,oid",
-                                         ("$libdir/" + variant["library"],)).fetchall()}
+                                         ("$libdir/" + library,)).fetchall()}
 
 
 def aggregate_run(dsn, database, statement, expected=None):
@@ -145,28 +161,33 @@ def search_run(dsn, database, queries, expected):
                 "full_scored_hits": full_hits, "plan": plan}
 
 
-def copy_run(dsn, database, corpus):
+def copy_run(dsn, database, corpus, *, search=True):
+    table = sql.Identifier("bench_copy" if search else "bench_core_copy")
     with connect(dsn, database) as conn:
-        conn.execute("CREATE TABLE bench_copy(id bigint PRIMARY KEY,name text,"
-                     "plain text GENERATED ALWAYS AS (public.pinyin_word_romanize(name)) STORED)")
-        conn.execute("CREATE INDEX bench_copy_bm25 ON bench_copy USING bm25(id,(plain::pdb.whitespace))")
+        conn.execute(sql.SQL("CREATE TABLE {}(id bigint PRIMARY KEY,name text,"
+                             "plain text GENERATED ALWAYS AS (public.pinyin_word_romanize(name)) STORED)").format(table))
+        if search:
+            conn.execute("CREATE INDEX bench_copy_bm25 ON bench_copy USING bm25(id,(plain::pdb.whitespace))")
         start = time.perf_counter()
         with conn.transaction():
-            with conn.cursor().copy("COPY bench_copy(id,name) FROM STDIN") as copy:
+            with conn.cursor().copy(sql.SQL("COPY {}(id,name) FROM STDIN").format(table)) as copy:
                 for row in corpus:
                     copy.write_row((row["id"], row["name"]))
         elapsed = (time.perf_counter() - start) * 1000
-        actual = conn.execute("SELECT id,name,plain FROM bench_copy ORDER BY id").fetchall()
+        actual = conn.execute(sql.SQL("SELECT id,name,plain FROM {} ORDER BY id").format(table)).fetchall()
         if actual != [(r["id"], r["name"], r["plain"]) for r in corpus]:
             raise RuntimeError("COPY stored values differ from independent source dictionary")
         return {"warm_ms": elapsed, "output_sha256": digest(actual),
-                "bm25_bytes": conn.execute("SELECT pg_relation_size('bench_copy_bm25')").fetchone()[0]}
+                "bm25_bytes": conn.execute("SELECT pg_relation_size('bench_copy_bm25')").fetchone()[0] if search else None}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--dsn", required=True)
-    parser.add_argument("--manifest", type=Path, required=True)
+    parser.add_argument("--dsn")
+    target = parser.add_mutually_exclusive_group(required=True)
+    target.add_argument("--manifest", type=Path)
+    target.add_argument("--server", action="append", nargs=4, metavar=("LABEL", "DSN", "VERSION", "PG_SEARCH"),
+                        help="Repeat per disposable server; use '-' for core-only without pg_search.")
     parser.add_argument("--rows", type=int, default=20000)
     parser.add_argument("--queries", type=int, default=2000)
     parser.add_argument("--rounds", type=int, default=3)
@@ -177,12 +198,23 @@ def main():
     raw_path, md_path = args.output.with_suffix(".json.gz"), args.output.with_suffix(".md")
     if raw_path.exists() or md_path.exists():
         raise ValueError("Refusing report overwrite")
-    variants = json.loads(args.manifest.read_text())
-    if len(variants) < 2 or len({v["label"] for v in variants}) != len(variants):
-        raise ValueError("Require at least two uniquely labeled variants")
-    for variant in variants:
-        if not re.fullmatch(r"pg_pinyin_[a-z0-9_]+", variant["library"]) or variant["pattern_volatility"] not in ("STABLE", "IMMUTABLE"):
-            raise ValueError("Invalid variant library or volatility")
+    if args.manifest:
+        if not args.dsn:
+            parser.error("--manifest requires --dsn")
+        variants = json.loads(args.manifest.read_text())
+        dsns = dict.fromkeys((v["label"] for v in variants), args.dsn)
+        for variant in variants:
+            if not re.fullmatch(r"pg_pinyin_[a-z0-9_]+", variant["library"]) or variant["pattern_volatility"] not in ("STABLE", "IMMUTABLE"):
+                raise ValueError("Invalid variant library or volatility")
+    else:
+        if args.dsn:
+            parser.error("Provide each DSN with --server")
+        variants = [{"label": label, "server_version": version,
+                     "pg_search": None if pg_search == "-" else pg_search}
+                    for label, _, version, pg_search in args.server]
+        dsns = {label: dsn for label, dsn, _, _ in args.server}
+    if len(variants) < 2 or len(dsns) != len(variants):
+        raise ValueError("Require at least two uniquely labeled targets")
     words = COMMON.read_words((ROOT / "sql/data/pinyin_words.csv").read_bytes())
     words = {w: p for w, p in words.items() if all("\u3400" <= c <= "\u9fff" for c in w)}
     corpus = COMMON.make_corpus(words, args.rows)
@@ -201,7 +233,7 @@ def main():
                      hashlib.sha256("\n".join(r["plain"] for r in corpus).encode()).hexdigest())
     report = {"started_at": datetime.now(timezone.utc).isoformat(), "variants": variants,
               "configuration": {"rows": args.rows, "queries": args.queries, "rounds": args.rounds,
-                                "manifest": str(args.manifest), "output": str(args.output)},
+                                "manifest": str(args.manifest) if args.manifest else None, "output": str(args.output)},
               "corpus_sha256": digest(corpus), "queries_sha256": digest(queries), "queries": queries,
               "source_sha256": {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest()
                   for p in [ROOT / "Cargo.toml", ROOT / "Cargo.lock", ROOT / "src/lib.rs", Path(__file__),
@@ -210,35 +242,44 @@ def main():
               "aggregate_statements": methods,
               "host_before": {kind: Path("/proc/pressure", kind).read_text() for kind in ("memory", "cpu", "io")},
               "samples": []}
-    reference, aggregate_refs = None, {}
+    search_refs, aggregate_refs = {}, {}
+    workload = [*methods, *([] if args.manifest else ["core_copy"]), "indexed_copy", "ranked_search"]
     for round_index in range(args.rounds):
         shift = round_index % len(variants)
         ordered = variants[shift:] + variants[:shift]
         for variant in ordered:
+            dsn = dsns[variant["label"]]
+            has_search = bool(variant.get("pg_search", args.manifest))
             database = PREFIX + uuid.uuid4().hex[:16]
-            with psycopg.connect(args.dsn, autocommit=True) as admin:
+            with psycopg.connect(dsn, autocommit=True) as admin:
                 admin.execute(sql.SQL("CREATE DATABASE {} TEMPLATE template0").format(sql.Identifier(database)))
             print(f"[round {round_index + 1}] {variant['label']} {database}", flush=True)
             try:
                 cell = {"round": round_index, "variant": variant["label"], "database": database,
-                        "setup": setup(args.dsn, database, variant, corpus), "methods": {}}
+                        "setup": setup(dsn, database, variant, corpus, search=has_search), "methods": {}}
                 ordered_methods = list(methods.items())
                 shift = round_index % len(ordered_methods)
                 ordered_methods = ordered_methods[shift:] + ordered_methods[:shift]
                 for method, statement in ordered_methods:
                     expected = expected_word if method in ("word_text", "word_tokens", "batch_512") else aggregate_refs.get(method)
-                    result = aggregate_run(args.dsn, database, statement, expected)
+                    result = aggregate_run(dsn, database, statement, expected)
                     aggregate_refs.setdefault(method, result["result"])
                     cell["methods"][method] = result
                     print(f"  {method}: {result['warm_ms']:.3f} ms", flush=True)
-                cell["methods"]["indexed_copy"] = copy_run(args.dsn, database, corpus)
-                search = search_run(args.dsn, database, queries, reference)
-                reference = search["full_scored_hits"] if reference is None else reference
-                cell["methods"]["ranked_search"] = search
+                if not args.manifest:
+                    cell["methods"]["core_copy"] = copy_run(dsn, database, corpus, search=False)
+                if has_search:
+                    cell["methods"]["indexed_copy"] = copy_run(dsn, database, corpus)
+                    # Require repeatability per search release; cross-release scores may legitimately change.
+                    search_release = cell["setup"]["pg_search"]
+                    search_key = "manifest" if args.manifest else search_release
+                    result = search_run(dsn, database, queries, search_refs.get(search_key))
+                    search_refs.setdefault(search_key, result["full_scored_hits"])
+                    cell["methods"]["ranked_search"] = result
+                    print(f"  ranked_search: {result['warm_ms']:.3f} ms", flush=True)
                 report["samples"].append(cell)
-                print(f"  ranked_search: {search['warm_ms']:.3f} ms", flush=True)
             finally:
-                with psycopg.connect(args.dsn, autocommit=True) as admin:
+                with psycopg.connect(dsn, autocommit=True) as admin:
                     admin.execute(sql.SQL("DROP DATABASE {} WITH (FORCE)").format(sql.Identifier(database)))
     report["host_after"] = {kind: Path("/proc/pressure", kind).read_text() for kind in ("memory", "cpu", "io")}
     report["finished_at"] = datetime.now(timezone.utc).isoformat()
@@ -246,18 +287,24 @@ def main():
     raw = (json.dumps(report, ensure_ascii=False, indent=2) + "\n").encode()
     with raw_path.open("xb") as stream:
         stream.write(gzip.compress(raw))
-    lines = ["# pgrx 0.20.0 Upgrade Benchmark", "", f"Started: {report['started_at']}.", "",
+    lines = ["# " + ("pgrx Upgrade Benchmark" if args.manifest else "PostgreSQL Platform Benchmark"),
+             "", f"Started: {report['started_at']}.", "",
              f"{args.rows:,} documents; {args.queries:,} queries; {args.rounds} fresh rounds per variant.", "",
-             "All variants use the same PostgreSQL, pg_search, compiler, dictionaries and release flags.",
+             ("All variants share one PostgreSQL server." if args.manifest else
+              "The same corpus and queries are used on each server. Core-only targets cannot run BM25."),
              "Native library hashes, full scored hits, plans, warm/first-backend aggregates and pressure are retained in JSON.", "",
              "| Method | " + " | ".join(v["label"] for v in variants) + " |",
              "| --- | " + " | ".join("---:" for _ in variants) + " |"]
-    for method in [*methods, "indexed_copy", "ranked_search"]:
-        medians = [statistics.median(c["methods"][method]["warm_ms"] for c in report["samples"] if c["variant"] == v["label"]) for v in variants]
-        lines.append("| " + method + " | " + " | ".join(f"{m:.3f}" for m in medians) + " |")
+    for method in workload:
+        columns = []
+        for variant in variants:
+            times = [c["methods"][method]["warm_ms"] for c in report["samples"]
+                     if c["variant"] == variant["label"] and method in c["methods"]]
+            columns.append(f"{statistics.median(times):.3f}" if times else "n/a")
+        lines.append("| " + method + " | " + " | ".join(columns) + " |")
     lines += ["", "Times are client wall milliseconds per complete workload, not isolated Rust CPU.",
               "First-backend aggregate includes initialization; it is not a cold OS-cache measurement.",
-              "COPY includes first-use conversion, indexed writes, upload and commit; it is not warm conversion CPU.",
+              "COPY includes first-use conversion, writes, upload and commit; it is not warm conversion CPU.",
               "Constant parsing intentionally measures planner constant-folding separately from dynamic inputs.",
               "Fresh databases prevent collisions, not shared OS caches or external host load.",
               "No business-ranking or index-reduction improvement is inferred from output parity.",

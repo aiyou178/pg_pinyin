@@ -1,10 +1,11 @@
 # syntax=docker/dockerfile:1.7
-# Core matrix; PG18 pg_search integration uses Dockerfile.test-trixie.
+# Core matrix; the base image supplies the PostgreSQL server.
+# PG18 pg_search integration uses Dockerfile.test-trixie.
 ARG BASE_IMAGE=postgres:18.7-trixie
 FROM ${BASE_IMAGE}
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG TARGET_PG_MAJOR=19
+ARG TARGET_PG_MAJOR=18
 ARG RUST_VERSION=1.99.1
 ARG DEBIAN_MIRROR=
 ARG DEBIAN_SECURITY_MIRROR=
@@ -22,10 +23,8 @@ ENV PATH=/usr/lib/postgresql/${TARGET_PG_MAJOR}/bin:/root/.cargo/bin:$PATH \
     CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
 
 RUN set -eux; \
+  case "$(postgres --version)" in "postgres (PostgreSQL) ${PG_MAJOR}."*) ;; *) exit 1 ;; esac; \
   sed -i 's|http://apt.postgresql.org|https://apt.postgresql.org|g' /etc/apt/sources.list.d/pgdg.list; \
-  if [ "$PG_MAJOR" = "19" ]; then \
-    sed -i -E '/trixie-pgdg/ { /(^| )19( |$)/! s/$/ 19/; }' /etc/apt/sources.list.d/pgdg.list; \
-  fi; \
   if [ -n "$DEBIAN_MIRROR" ]; then \
     find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) -exec \
       sed -i -e "s|http://deb.debian.org/debian|$DEBIAN_MIRROR|g" \
@@ -48,8 +47,9 @@ RUN set -eux; \
   apt-get update -o APT::Update::Error-Mode=any; \
   apt-get install -y --no-install-recommends curl git make sudo pkg-config \
     clang llvm llvm-dev libclang-dev libc6-dev libicu-dev libssl-dev \
-    python3-psycopg pgtap postgresql-${PG_MAJOR} postgresql-client-${PG_MAJOR} \
+    python3-psycopg pgtap \
     postgresql-${PG_MAJOR}-pgtap postgresql-server-dev-${PG_MAJOR}; \
+  case "$("$PG_CONFIG" --version)" in "PostgreSQL ${PG_MAJOR}."*) ;; *) exit 1 ;; esac; \
   rm -rf /var/lib/apt/lists/*
 
 RUN --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
