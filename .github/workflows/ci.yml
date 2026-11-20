@@ -82,11 +82,11 @@ jobs:
             arch: arm64
             runner: ubuntu-24.04-arm
           - pg_major: '19'
-            base_image: pg-pinyin-postgres:19.0-trixie
+            base_image: docker.io/library/postgres:19.0-trixie@sha256:bb6e70add742cd868fb62cb3b2f67d1dd2bdd2b65a521e778420748753687c60
             arch: amd64
             runner: ubuntu-24.04
           - pg_major: '19'
-            base_image: pg-pinyin-postgres:19.0-trixie
+            base_image: docker.io/library/postgres:19.0-trixie@sha256:bb6e70add742cd868fb62cb3b2f67d1dd2bdd2b65a521e778420748753687c60
             arch: arm64
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
@@ -95,11 +95,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Build the PostgreSQL 19 GA base
-        if: matrix.pg_major == '19'
-        # Use the upstream recipe until https://github.com/docker-library/official-images/pull/22805 is published.
-        run: bash scripts/build_pg19_runtime.sh '${{ matrix.base_image }}'
 
       - name: Build test image
         run: |

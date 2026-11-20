@@ -512,15 +512,12 @@ docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/test:trixie \
   .
 ```
 
-构建 PostgreSQL 19 核心测试镜像。等待
-[官方 PG19 正式版镜像发布](https://github.com/docker-library/official-images/pull/22805)
-期间，先用固定的上游 Dockerfile 构建基础镜像，通过 HTTPS 访问 PGDG；
-测试层只添加头文件和工具。
+使用官方 PostgreSQL 19.0 正式版镜像构建核心测试镜像，
+并固定其多架构 manifest digest。测试层只添加头文件和工具。
 
 ```bash
-bash scripts/build_pg19_runtime.sh
 docker build -f docker/Dockerfile.test-core-trixie \
-  --build-arg BASE_IMAGE=pg-pinyin-postgres:19.0-trixie \
+  --build-arg BASE_IMAGE=docker.io/library/postgres:19.0-trixie@sha256:bb6e70add742cd868fb62cb3b2f67d1dd2bdd2b65a521e778420748753687c60 \
   --build-arg TARGET_PG_MAJOR=19 -t pg_pinyin/test:pg19 .
 ```
 

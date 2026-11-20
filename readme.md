@@ -618,15 +618,13 @@ docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/test:trixie \
 #   --build-arg PG_SEARCH_VERSION=0.26.1 -f docker/Dockerfile.test-trixie -t pg_pinyin/test:trixie .
 ```
 
-Build the PostgreSQL 19 core test image. Until the
-[official PG19 GA tag is published](https://github.com/docker-library/official-images/pull/22805),
-first build the runtime from its pinned upstream recipe using PGDG over HTTPS.
-The test layer adds headers and tooling.
+Build the PostgreSQL 19 core test image from the official PostgreSQL 19.0 GA
+image, pinned to its multi-architecture manifest digest. The test layer adds
+headers and tooling.
 
 ```bash
-bash scripts/build_pg19_runtime.sh
 docker build -f docker/Dockerfile.test-core-trixie \
-  --build-arg BASE_IMAGE=pg-pinyin-postgres:19.0-trixie \
+  --build-arg BASE_IMAGE=docker.io/library/postgres:19.0-trixie@sha256:bb6e70add742cd868fb62cb3b2f67d1dd2bdd2b65a521e778420748753687c60 \
   --build-arg TARGET_PG_MAJOR=19 -t pg_pinyin/test:pg19 .
 ```
 
