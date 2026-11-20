@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1.7
-# Test image for pg_pinyin on PostgreSQL 18 (Debian trixie)
-ARG BASE_IMAGE=postgres:18.7-trixie
+# Test image for pg_pinyin on PostgreSQL 18 with preinstalled pg_search.
+ARG BASE_IMAGE=paradedb/paradedb:0.27.0-pg18
 FROM ${BASE_IMAGE}
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG PG_SEARCH_VERSION=0.26.1
+ARG PG_SEARCH_VERSION=0.27.0
 ARG RUST_VERSION=1.99.1
 ARG DEBIAN_MIRROR=
 ARG DEBIAN_SECURITY_MIRROR=
@@ -66,17 +66,9 @@ RUN set -eux; \
     pgtap \
     libpq5 \
     libpq-dev \
-    postgresql-18 \
-    postgresql-client-18 \
-    postgresql-18-pgvector \
     postgresql-18-pgtap \
     postgresql-server-dev-18; \
-  ARCH="$(dpkg --print-architecture)"; \
-  case "$ARCH" in amd64|arm64) ;; *) echo "unsupported architecture for pg_search: $ARCH" >&2; exit 1 ;; esac; \
-  PG_SEARCH_DEB="postgresql-18-pg-search_${PG_SEARCH_VERSION}-1PARADEDB-trixie_${ARCH}.deb"; \
-  curl -fsSL -o "/tmp/${PG_SEARCH_DEB}" \
-    "https://github.com/paradedb/paradedb/releases/download/v${PG_SEARCH_VERSION}/${PG_SEARCH_DEB}"; \
-  apt-get install -y --no-install-recommends "/tmp/${PG_SEARCH_DEB}"; \
+  test "$(dpkg-query -W -f='${Version}' postgresql-18-pg-search)" = "$PG_SEARCH_VERSION"; \
   update-ca-certificates; \
   rm -rf /var/lib/apt/lists/* /tmp/*
 

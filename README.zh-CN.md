@@ -21,7 +21,7 @@
 | 16 | 16.16 |
 | 17 | 17.12 |
 | 18 | 18.7 |
-| 19 | 19rc2，实验性核心支持 |
+| 19 | 19.0 或更新版本，核心扩展 |
 
 支持各稳定主版本内后续的小版本。这些最低版本包含 PostgreSQL composite-datum
 安全修复；用这些头文件构建的二进制不能在更早的小版本上加载。不再支持 PG14。
@@ -455,8 +455,9 @@ cargo pgrx test pg18 --features pg18
 
 当前构建要求 Rust 1.99.1、`cargo-pgrx` 0.20.0，以及同一 LLVM 主版本的
 `clang`、`llvm`、`libclang-dev`。支持 PG15-19，不再支持 PG14。
-使用修补后的头文件（15.20、16.16、17.12、18.7、19rc2 或更高版本）。
-PostgreSQL 19 rc2 核心支持通过 `pgrx` 0.20.0 提供：
+使用修补后的头文件（15.20、16.16、17.12、18.7、19.0 或更高版本）。
+请显式指定已安装的正式版 PostgreSQL 19 的 `pg_config`；
+pgrx 0.20.0 的 `cargo pgrx init --pg19=download` 仍默认下载 19rc2：
 
 ```bash
 cargo pgrx init --pg19=/usr/lib/postgresql/19/bin/pg_config
@@ -464,7 +465,7 @@ cargo pgrx install --features pg19 --no-default-features --pg-config /usr/lib/po
 ```
 
 完整 Python 集成与真实升级测试需要 psycopg 3、能创建数据库的管理员 `PGURL`，
-以及预加载的 pg_search 0.26.1。初始化 pgrx 后，先在隔离的 Cargo target 中
+以及预加载的 pg_search 0.27.0。初始化 pgrx 后，先在隔离的 Cargo target 中
 安装旧 catalog，再恢复当前动态库后测试（以下以 PG18 集成测试为例）。旧源码
 需要配套的 cargo-pgrx 0.19.3；测试镜像已经单独安装：
 
@@ -490,7 +491,7 @@ cargo test --lib --no-default-features --locked
 
 默认使用上游地址（不再改写镜像源）：
 
-- 基础镜像：使用对应的已修补稳定版本镜像；PG19 核心测试在 `postgres:18.7-trixie` 上安装 rc2 包
+- 基础镜像：PG18 集成测试使用 `paradedb/paradedb:0.27.0-pg18`；核心测试使用对应主版本的 PostgreSQL 运行镜像。发布打包仍为各个主版本安装 PGDG 包。
 - apt 源：基础镜像默认配置
 - rustup/cargo：官方默认地址
 
@@ -498,6 +499,8 @@ cargo test --lib --no-default-features --locked
 
 ```bash
 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/test:trixie .
+docker run -d --name pg_pinyin_test \
+  -e POSTGRES_HOST_AUTH_METHOD=trust -e PDB_TUNE=false pg_pinyin/test:trixie
 
 # 可选：本地临时使用镜像源构建，默认 CI/远端仍不替换源
 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/test:trixie \
@@ -509,21 +512,29 @@ docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/test:trixie \
   .
 ```
 
-构建 PostgreSQL 19 rc2 核心测试镜像：
+构建 PostgreSQL 19 核心测试镜像。等待
+[官方 PG19 正式版镜像发布](https://github.com/docker-library/official-images/pull/22805)
+期间，先用固定的上游 Dockerfile 构建基础镜像，通过 HTTPS 访问 PGDG；
+测试层只添加头文件和工具。
 
 ```bash
+bash scripts/build_pg19_runtime.sh
 docker build -f docker/Dockerfile.test-core-trixie \
-  --build-arg TARGET_PG_MAJOR=19 -t pg_pinyin/test:pg19rc2 .
+  --build-arg BASE_IMAGE=pg-pinyin-postgres:19.0-trixie \
+  --build-arg TARGET_PG_MAJOR=19 -t pg_pinyin/test:pg19 .
 ```
 
-PG18 测试镜像固定为
-[pg_search 0.26.1](https://github.com/paradedb/paradedb/releases/tag/v0.26.1)，以保持
-升级前后性能对比条件一致。PG19rc2 只验证不含 pg_search 的核心扩展。
+PG18 测试镜像继承
+[ParadeDB 0.27.0 PG18 镜像](https://hub.docker.com/r/paradedb/paradedb/tags?name=0.27.0-pg18)，
+构建时不再单独下载或安装 pg_search。保留基础镜像的 preload 配置；
+测试及 benchmark 建议设置 `PDB_TUNE=false`，避免自动调优影响结果。
+[ParadeDB 尚未正式支持 PG19](https://github.com/paradedb/paradedb/issues/5405)，
+因此当前 PG19 只验证不含 pg_search 的核心扩展。
 历史 PG19 beta 4 benchmark 继续保留旧 Dockerfile，从 `v0.26.1` 的固定 commit
 `529c77e9dffe4bd86b6b7971c019bb26b8eadbfa` 构建，使用上游已有的 pgrx
 0.19.3，并应用限定范围的 `docker/patches/paradedb-0.26.1-pg19beta4.patch`
 兼容补丁。这是历史集成和性能测试使用的实验性兼容构建，并非 ParadeDB
-官方发布的 PG19 二进制包，也不代表 PG19rc2 集成验证。
+官方发布的 PG19 二进制包，也不代表 PG19 正式版集成验证。
 
 构建发布镜像：
 
@@ -539,6 +550,13 @@ DOCKER_BUILDKIT=1 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/tes
 ```
 
 ## Benchmark
+
+### PostgreSQL 19 正式版与 pg_search 0.27.0
+
+[平台 benchmark](benchmarks/pg19_ga_pg_search_027.md) 对比了 PG19.0 与 RC2 的
+核心拼音化、解析和 COPY，也在同一 PG18.7 构建上对比了 pg_search 0.27.0 与
+0.26.1。PG19 核心耗时与 RC2 接近；PG18 上 2 千次 Top-10 查询的耗时中位数
+增加 11.8%，检索索引体积增加 1.0%，命中、排序和评分一致。
 
 ### pgrx 0.20.0 升级
 
@@ -771,7 +789,7 @@ python3 scripts/benchmark_pinyin_regex_phrase.py --rows 20000 --runs 5
 ROWS=2000 REGEX_BENCH_ROWS=20000 USER_TABLE_SUFFIX=_bench PGURL=postgres://postgres@localhost:5432/postgres ./scripts/benchmark_pg18.sh
 ```
 
-最新一次结果（PG18，`pg_search=0.24.0`，`pg_pinyin=0.0.4`，fresh benchmark database，`ROWS=2000`，`REGEX_BENCH_ROWS=20000`，2026-06-08）：
+历史结果（PG18，`pg_search=0.24.0`，`pg_pinyin=0.0.4`，fresh benchmark database，`ROWS=2000`，`REGEX_BENCH_ROWS=20000`，2026-06-08）：
 
 字级模式：
 

@@ -123,6 +123,9 @@ class SqlParserIntegrationTests(unittest.TestCase):
             self.assertIsNone(connection.prepare_threshold)
             self.assertTrue(connection.autocommit)
             major = int(connection.execute("SHOW server_version_num").fetchone()[0]) // 10000
+            pg_search_version = connection.execute(
+                "SELECT extversion FROM pg_extension WHERE extname = 'pg_search'"
+            ).fetchone()[0]
         self.assertIn(major, (18, 19))
         with tempfile.TemporaryDirectory(prefix="pinyin_sql_parser_report_") as directory:
             raw_path = Path(directory) / "report.json.gz"
@@ -131,6 +134,7 @@ class SqlParserIntegrationTests(unittest.TestCase):
                 [sys.executable, str(ROOT / "scripts/benchmark_sql_parser.py"),
                  "--rows", "20", "--queries", "3", "--repeats", "1", "--top-k", "3",
                  "--postgresql-version-pattern", f"PostgreSQL {major}",
+                 "--pg-search-version", pg_search_version,
                  "--json-output", str(raw_path), "--markdown-output", str(markdown_path)],
                 cwd=ROOT, capture_output=True, text=True,
             )
@@ -153,7 +157,7 @@ class SqlParserIntegrationTests(unittest.TestCase):
             with self.subTest(setup=setup["implementation"]):
                 self.assertEqual(setup["round"], 0)
                 self.assertEqual(setup["rows"], 20)
-                self.assertEqual(setup["extensions"]["pg_search"], "0.26.1")
+                self.assertEqual(setup["extensions"]["pg_search"], pg_search_version)
                 self.assertNotIn("pg_pinyin", setup["extensions"])
                 self.assertGreater(setup["index_bytes"], 0)
                 self.assertTrue(setup["installed_functions"])

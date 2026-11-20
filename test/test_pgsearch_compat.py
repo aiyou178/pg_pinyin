@@ -1,4 +1,4 @@
-"""Focused pg_search 0.26.1 smoke tests, including the experimental PG19 patch.
+"""Focused smoke tests against the installed default pg_search release.
 
 Enable PG_LOADER_TESTS=1 and set PGURL to an administrative connection with
 CREATE DATABASE privileges. Every case owns a fresh database. These checks
@@ -12,9 +12,6 @@ import uuid
 import psycopg
 from psycopg import sql
 from psycopg.conninfo import make_conninfo
-
-
-PG_SEARCH_VERSION = "0.26.1"
 
 
 def plan_nodes(node):
@@ -32,16 +29,12 @@ class PgSearchCompatibilityTests(unittest.TestCase):
     def setUpClass(cls):
         cls.admin_url = os.environ["PGURL"]
         with psycopg.connect(cls.admin_url, autocommit=True) as connection:
-            versions = {
-                row[0] for row in connection.execute(
-                    "SELECT version FROM pg_available_extension_versions "
-                    "WHERE name = 'pg_search'"
-                )
-            }
-        if PG_SEARCH_VERSION not in versions:
-            raise unittest.SkipTest(
-                f"pg_search {PG_SEARCH_VERSION} is required; available: {sorted(versions)}"
-            )
+            row = connection.execute(
+                "SELECT default_version FROM pg_available_extensions WHERE name = 'pg_search'"
+            ).fetchone()
+        if row is None:
+            raise unittest.SkipTest("pg_search is not available")
+        cls.pg_search_version = row[0]
 
     def setUp(self):
         self.database = "pgsearch_compat_" + uuid.uuid4().hex[:16]
@@ -54,14 +47,10 @@ class PgSearchCompatibilityTests(unittest.TestCase):
             )
         self.addCleanup(self.remove_database)
         with self.connect() as connection:
-            connection.execute(
-                sql.SQL("CREATE EXTENSION pg_search VERSION {} CASCADE").format(
-                    sql.Literal(PG_SEARCH_VERSION)
-                )
-            )
+            connection.execute("CREATE EXTENSION pg_search CASCADE")
             self.assertEqual(connection.execute(
                 "SELECT extversion FROM pg_extension WHERE extname = 'pg_search'"
-            ).fetchone()[0], PG_SEARCH_VERSION)
+            ).fetchone()[0], self.pg_search_version)
 
     def connect(self):
         connection = psycopg.connect(self.url, autocommit=True, prepare_threshold=None)

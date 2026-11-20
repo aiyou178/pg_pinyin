@@ -45,6 +45,8 @@ jobs:
 
   postgres-tests:
     name: PG${{ matrix.pg_major }} (${{ matrix.arch }})
+    env:
+      PG_SEARCH_VERSION: '0.27.0'
     strategy:
       fail-fast: false
       matrix:
@@ -74,19 +76,17 @@ jobs:
             arch: arm64
             runner: ubuntu-24.04-arm
           - pg_major: '18'
-            base_image: postgres:18.7-trixie
             arch: amd64
             runner: ubuntu-24.04
           - pg_major: '18'
-            base_image: postgres:18.7-trixie
             arch: arm64
             runner: ubuntu-24.04-arm
           - pg_major: '19'
-            base_image: postgres:18.7-trixie
+            base_image: pg-pinyin-postgres:19.0-trixie
             arch: amd64
             runner: ubuntu-24.04
           - pg_major: '19'
-            base_image: postgres:18.7-trixie
+            base_image: pg-pinyin-postgres:19.0-trixie
             arch: arm64
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
@@ -96,32 +96,36 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Build the PostgreSQL 19 GA base
+        if: matrix.pg_major == '19'
+        # Use the upstream recipe until https://github.com/docker-library/official-images/pull/22805 is published.
+        run: bash scripts/build_pg19_runtime.sh '${{ matrix.base_image }}'
+
       - name: Build test image
         run: |
-          build_args=(--build-arg 'BASE_IMAGE=${{ matrix.base_image }}')
           if [[ '${{ matrix.pg_major }}' == '18' ]]; then
             dockerfile=docker/Dockerfile.test-trixie
+            build_args=(--build-arg "BASE_IMAGE=paradedb/paradedb:${PG_SEARCH_VERSION}-pg18"
+                        --build-arg "PG_SEARCH_VERSION=$PG_SEARCH_VERSION")
           else
             dockerfile=docker/Dockerfile.test-core-trixie
-            build_args+=(--build-arg 'TARGET_PG_MAJOR=${{ matrix.pg_major }}')
+            build_args=(--build-arg 'BASE_IMAGE=${{ matrix.base_image }}'
+                        --build-arg 'TARGET_PG_MAJOR=${{ matrix.pg_major }}')
           fi
           docker build "${build_args[@]}" -f "$dockerfile" -t pg-pinyin-test:ci .
 
       - name: Start test container
         run: |
-          postgres_args=()
-          if [[ '${{ matrix.pg_major }}' == '18' ]]; then
-            postgres_args=(-c shared_preload_libraries=pg_search)
-          fi
           docker run -d --name pg-pinyin-test \
             -e POSTGRES_HOST_AUTH_METHOD=trust \
             -e POSTGRES_DB=postgres \
+            -e PDB_TUNE=false \
             -v "$GITHUB_WORKSPACE:/work" \
-            pg-pinyin-test:ci postgres "${postgres_args[@]}"
+            pg-pinyin-test:ci
 
       - name: Run native tests, release install, upgrade and pgTAP checks
         run: |
-          docker exec -i -u root pg-pinyin-test bash -s <<'BASH'
+          docker exec -i -u root -e PG_SEARCH_VERSION pg-pinyin-test bash -s <<'BASH'
           set -euo pipefail
           for attempt in {1..60}; do
             if pg_isready -h 127.0.0.1 -p 5432 -U postgres >/dev/null 2>&1; then break; fi
@@ -146,7 +150,7 @@ jobs:
           cp pg_pinyin--*--*.sql "$("$PG_CONFIG" --sharedir)/extension/"
           if [[ "$PG_MAJOR" == '18' ]]; then
             psql "$PGURL" -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION IF NOT EXISTS pg_search CASCADE;'
-            test "$(psql "$PGURL" -Atc "SELECT extversion FROM pg_extension WHERE extname='pg_search'")" = 0.26.1
+            test "$(psql "$PGURL" -Atc "SELECT extversion FROM pg_extension WHERE extname='pg_search'")" = "$PG_SEARCH_VERSION"
             PG_LOADER_TESTS=1 TEST_UPGRADE_DSN="$PGURL" python3 -m unittest discover -s test -p 'test_*.py'
           fi
           psql "$PGURL" -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION IF NOT EXISTS pg_pinyin;'
