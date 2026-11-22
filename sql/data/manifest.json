@@ -1,9 +1,9 @@
 {
   "counts": {
-    "accepted_phrase_rows": 618507,
-    "character_reading_mismatch_sequences": 160,
+    "accepted_phrase_rows": 340285,
+    "character_reading_mismatch_sequences": 145,
     "characters": 44435,
-    "conflicting_words": 576,
+    "conflicting_words": 397,
     "coverage": {
       "baseline_initial_common_words": 93611,
       "baseline_words": 157702,
@@ -30,7 +30,7 @@
       "retained_changed_words": 2998,
       "unresolved_words": 0
     },
-    "distinct_phrase_readings": 196766,
+    "distinct_phrase_readings": 196585,
     "rejected_rows": 0,
     "rejections_by_reason": {},
     "token_rows": 447,
@@ -49,10 +49,10 @@
     "revision": "7398408499cab61c6bcbc047804d72f00fd71f6f",
     "sha256": "c296b883c47b61ab8e6cfa051ba8e4f9456704f9408d383d0462e4294e66decf"
   },
-  "generator_sha256": "4a18eb47921b204a92f88298d2717b781aa85a9c519d6f04f57a7bb26114dddb",
+  "generator_sha256": "129bc89d06d2a49901b72ef4e15f5720f66e0d5e7023da0801987e3764ea1125",
   "implementation_sha256": {
     "coverage_audit.py": "8e4bc8fcf6f401a415463dab53365796b3afb0606916e20f1e2c5b55fa2b260d",
-    "generate_extension_data.py": "4a18eb47921b204a92f88298d2717b781aa85a9c519d6f04f57a7bb26114dddb"
+    "generate_extension_data.py": "129bc89d06d2a49901b72ef4e15f5720f66e0d5e7023da0801987e3764ea1125"
   },
   "normalization": "nfd-toneless-v1-preserve-umlaut",
   "outputs": {
@@ -62,23 +62,23 @@
     },
     "pinyin_token.csv": {
       "bytes": 2736,
-      "sha256": "9a891b4a1f348ba9cfe24074d61152dcc8e8e87e01df58b4770966bb237a9dfb"
+      "sha256": "c7d1baa4878f0165e752a66c13afd2ac8a4bf72aab229fbde7ee9e12ab4afea8"
     },
     "pinyin_words.csv": {
       "bytes": 4255057,
       "sha256": "b8fc4f84b0480c7ee46ce9a8367db49a13b849568d949822ef4fd6777d3810d7"
     },
     "reports/char_reading_mismatches.json": {
-      "bytes": 160242,
-      "sha256": "c1cdd8bda3b1f345af54a4ab729a5d6cbe5ccd0feba7e0bb697732863e95e89d"
+      "bytes": 129989,
+      "sha256": "707ac804ae9b26bb1f4a70ab062432ee74aadfdb59dd6057d2358bfa143cee9a"
     },
     "reports/conflicts.json": {
-      "bytes": 1033596,
-      "sha256": "774abe7c7cc4456bcaad8b55655e0128f4591b3a8360492b0612c9d582993d0a"
+      "bytes": 466162,
+      "sha256": "9423a5a97da03808597e9f391d56e45001b802a73057683eeeb91796f036a6d6"
     },
     "reports/coverage_audit.json": {
-      "bytes": 48056885,
-      "sha256": "52f1a1af4820d8df8e77b2d2d257049e763dc05d4b506a65d43ee5b3eb837541"
+      "bytes": 46480998,
+      "sha256": "3e98ae382446aca0a26803c3eb1799cbb26d9fb904e71d4ce808106dca050cca"
     },
     "reports/coverage_audit.md": {
       "bytes": 2381,

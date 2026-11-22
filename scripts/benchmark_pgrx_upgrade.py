@@ -113,6 +113,13 @@ def setup(dsn, database, variant, corpus, *, search=True):
 
 def aggregate_run(dsn, database, statement, expected=None):
     with connect(dsn, database) as conn:
+        def backend_rss():
+            status = conn.execute(
+                "SELECT pg_read_file('/proc/' || pg_backend_pid() || '/status',0,65536)"
+            ).fetchone()[0]
+            return int(re.search(r"^VmRSS:\s+(\d+)\s+kB$", status, re.M)[1])
+
+        rss_before = backend_rss()
         start = time.perf_counter()
         first = conn.execute(statement).fetchone()
         first_ms = (time.perf_counter() - start) * 1000
@@ -123,7 +130,10 @@ def aggregate_run(dsn, database, statement, expected=None):
         if result != first or (expected is not None and result != expected):
             raise RuntimeError("Consumed output checksum differs")
         plan = conn.execute("EXPLAIN (ANALYZE,FORMAT JSON) " + statement).fetchone()[0]
-        return {"first_backend_aggregate_ms": first_ms, "warm_ms": elapsed, "result": result, "plan": plan}
+        rss_after = backend_rss()
+        return {"first_backend_aggregate_ms": first_ms, "warm_ms": elapsed, "result": result, "plan": plan,
+                "backend_rss_before_kib": rss_before, "backend_rss_after_kib": rss_after,
+                "backend_rss_delta_kib": rss_after - rss_before}
 
 
 def search_run(dsn, database, queries, expected):
@@ -191,6 +201,7 @@ def main():
     parser.add_argument("--rows", type=int, default=20000)
     parser.add_argument("--queries", type=int, default=2000)
     parser.add_argument("--rounds", type=int, default=3)
+    parser.add_argument("--icu", action="store_true", help="Also consume real pdb.icu casts; report pronunciation parity separately.")
     parser.add_argument("--output", type=Path, default=ROOT / "benchmarks/pgrx_0200")
     args = parser.parse_args()
     if not 1 <= args.queries <= args.rows or args.rounds < 3:
@@ -215,6 +226,8 @@ def main():
         dsns = {label: dsn for label, dsn, _, _ in args.server}
     if len(variants) < 2 or len(dsns) != len(variants):
         raise ValueError("Require at least two uniquely labeled targets")
+    if args.icu and not all(bool(v.get("pg_search", args.manifest)) for v in variants):
+        raise ValueError("--icu requires pg_search on every target")
     words = COMMON.read_words((ROOT / "sql/data/pinyin_words.csv").read_bytes())
     words = {w: p for w, p in words.items() if all("\u3400" <= c <= "\u9fff" for c in w)}
     corpus = COMMON.make_corpus(words, args.rows)
@@ -229,21 +242,25 @@ def main():
         "patterns_dynamic": consumed("public.pinyin_regex_phrase_patterns(replace(plain,' ',''))::text"),
         "patterns_constant": consumed("public.pinyin_regex_phrase_patterns('whh')::text"),
     }
+    if args.icu:
+        methods["word_icu"] = consumed("public.pinyin_word_romanize(name::pdb.icu)")
     expected_word = (args.rows, sum(len(r["plain"].encode()) for r in corpus),
                      hashlib.sha256("\n".join(r["plain"] for r in corpus).encode()).hexdigest())
     report = {"started_at": datetime.now(timezone.utc).isoformat(), "variants": variants,
               "configuration": {"rows": args.rows, "queries": args.queries, "rounds": args.rounds,
+                                "icu": args.icu,
                                 "manifest": str(args.manifest) if args.manifest else None, "output": str(args.output)},
               "corpus_sha256": digest(corpus), "queries_sha256": digest(queries), "queries": queries,
               "source_sha256": {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest()
                   for p in [ROOT / "Cargo.toml", ROOT / "Cargo.lock", ROOT / "src/lib.rs", Path(__file__),
                             ROOT / "sql/data/pinyin_words.csv", ROOT / "sql/data/pinyin_mapping.csv",
-                            ROOT / "sql/data/pinyin_token.csv"]},
+                            ROOT / "sql/data/pinyin_token.csv", ROOT / "src/romanization.rs",
+                            ROOT / "src/query_modes.rs"]},
               "aggregate_statements": methods,
               "host_before": {kind: Path("/proc/pressure", kind).read_text() for kind in ("memory", "cpu", "io")},
               "samples": []}
     search_refs, aggregate_refs = {}, {}
-    workload = [*methods, *([] if args.manifest else ["core_copy"]), "indexed_copy", "ranked_search"]
+    workload = [*methods, "core_copy", "indexed_copy", "ranked_search"]
     for round_index in range(args.rounds):
         shift = round_index % len(variants)
         ordered = variants[shift:] + variants[:shift]
@@ -261,13 +278,17 @@ def main():
                 shift = round_index % len(ordered_methods)
                 ordered_methods = ordered_methods[shift:] + ordered_methods[:shift]
                 for method, statement in ordered_methods:
-                    expected = expected_word if method in ("word_text", "word_tokens", "batch_512") else aggregate_refs.get(method)
+                    expected = expected_word if method in ("word_text", "word_tokens", "batch_512") else (
+                        None if method == "word_icu" else aggregate_refs.get(method))
                     result = aggregate_run(dsn, database, statement, expected)
+                    if method == "word_icu":
+                        result["matches_word_gold"] = result["result"] == expected_word
+                        if variant.get("require_icu_gold") and not result["matches_word_gold"]:
+                            raise RuntimeError("ICU pronunciation differs from dictionary gold")
                     aggregate_refs.setdefault(method, result["result"])
                     cell["methods"][method] = result
                     print(f"  {method}: {result['warm_ms']:.3f} ms", flush=True)
-                if not args.manifest:
-                    cell["methods"]["core_copy"] = copy_run(dsn, database, corpus, search=False)
+                cell["methods"]["core_copy"] = copy_run(dsn, database, corpus, search=False)
                 if has_search:
                     cell["methods"]["indexed_copy"] = copy_run(dsn, database, corpus)
                     # Require repeatability per search release; cross-release scores may legitimately change.
@@ -305,6 +326,7 @@ def main():
     lines += ["", "Times are client wall milliseconds per complete workload, not isolated Rust CPU.",
               "First-backend aggregate includes initialization; it is not a cold OS-cache measurement.",
               "COPY includes first-use conversion, writes, upload and commit; it is not warm conversion CPU.",
+              "ICU output parity is recorded separately; differing outputs are not equivalent-work speedups.",
               "Constant parsing intentionally measures planner constant-folding separately from dynamic inputs.",
               "Fresh databases prevent collisions, not shared OS caches or external host load.",
               "No business-ranking or index-reduction improvement is inferred from output parity.",

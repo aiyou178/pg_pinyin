@@ -80,6 +80,28 @@ class NormalizationTests(unittest.TestCase):
 
 
 class ImportTests(unittest.TestCase):
+    def test_restoration_sources_cannot_pollute_initial_words(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fixture = SourceFixture(root, [
+                ("initial", 200, "朝阳: zhāo yáng\n"),
+                ("restore", 100, "朝阳: cháo yáng\n吕女: lǚ nǚ\n"),
+            ])
+            fixture.sources[1]["restore_baseline_only"] = True
+            baseline = data.csv_bytes([("朝阳","chao yang"),("吕女","lv nv")])
+            (root / "baseline.csv").write_bytes(baseline)
+            fixture.baseline = {"path":"baseline.csv","sha256":data.sha256(baseline)}
+            fixture.write_lock()
+            result = fixture.build()
+            self.assertEqual(result.word_map, {"朝阳":["zhao","yang"],"吕女":["lv","nv"]})
+            self.assertEqual(json.loads(result.artifacts["reports/conflicts.json"]), [])
+            self.assertEqual(result.manifest["counts"]["accepted_phrase_rows"], 2)
+
+    def test_syllabic_nasals_are_exact_single_letter_syllables(self):
+        rows = data.build_token_rows({"呣":["m"],"嗯":["n","ng"],"安":["an"]})
+        self.assertEqual(dict(rows), {"m":3,"n":3,"ng":1,"an":1,
+            **{token:2 for token in data.INITIALS if token not in {"m","n"}}})
+
     def test_preserves_source_syllables_and_character_normalization(self):
         with tempfile.TemporaryDirectory() as directory:
             result = SourceFixture(Path(directory)).build()

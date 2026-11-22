@@ -344,20 +344,25 @@ migration, then upgrade from a new connection. No additional version bump is mad
 
 ## Token Arrays and Document Batches
 
-The unreleased development version 0.0.9 reads real `text[]` tokenizer input directly in Rust,
-without the previous SPI/JSON serialization. Existing `anyelement` signatures,
-function OIDs and generated-column bindings are unchanged; castable non-`text[]`
-inputs retain the legacy fallback. Tokens are trimmed, empty tokens dropped,
-and wholly ASCII-alphanumeric tokens lowercased. NULL token elements still raise
-an error. Array dimensions/lower bounds do not affect row-major token order.
+Real `text[]` tokenizer input is read directly in Rust, without SPI/JSON
+serialization. The current development tree also directly invokes eligible
+immutable, parallel-safe casts such as `pdb.icu`, preserving EXECUTE privileges;
+other cast pathways use typed
+SPI without JSON. Existing `anyelement` signatures, function OIDs and
+generated-column bindings are unchanged. Mixed Han/ASCII tokens use the same
+normalization as plain text: ASCII runs are lowercased, punctuation is dropped,
+and Han chunks participate in greedy phrase lookup. NULL token elements still
+raise an error. Array dimensions/lower bounds do not affect row-major token order.
 
 The new `pinyin_word_romanize_batch` API has different semantics: each element
 is a complete, independent plain-text document, not a token to concatenate.
 It reuses one live dictionary-version check and dictionary snapshot per explicit
-batch. Ordinary calls still check the version on every invocation. Cache identity
-also includes the metadata row's `xmin`, preventing reused version counters
-after savepoint rollback from serving an earlier uncommitted dictionary. Suffix
-overrides follow the existing cache-clear and base-version invalidation rules.
+batch. Ordinary calls now reuse a version check only within the same active MVCC
+snapshot and command state, not for an entire transaction. Snapshot changes,
+nested SPI command advances and transaction/savepoint boundaries invalidate
+that check. Dictionary identity also includes the metadata row's `xmin`.
+Suffix creation/drop/recreation is detected through relation OIDs; suffix table
+DML still requires the existing explicit cache-clear API.
 The batch functions are `STABLE`, `STRICT`, `PARALLEL SAFE` Rust functions; use
 the existing scalar `IMMUTABLE` API for stored generated columns.
 
@@ -657,6 +662,37 @@ DOCKER_BUILDKIT=1 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/tes
 ```
 
 ## Benchmark
+
+### Dictionary Remediation
+
+The [remediation spec](spec/pinyin-remediation-and-perf.md) and
+[benchmark report](benchmarks/remediation_20261122.md) record development changes
+without changing extension version. Three fresh rotated rounds used 20k
+documents and, on PG18, 2k default-regex queries. Median wall times:
+
+| Workload | PG18 Before / After (ms) | PG19 Before / After (ms) |
+| --- | ---: | ---: |
+| Word text, 20k rows | 239.993 / 12.135 | 144.873 / 11.613 |
+| Native text[] tokens | 222.162 / 16.807 | 141.707 / 16.067 |
+| Batch, 512 documents per call | 25.201 / 21.084 | 19.775 / 16.095 |
+| COPY with generated pinyin + BM25 | 364.523 / 160.579 | n/a |
+| Ranked Top-10, 2k queries | 1402.255 / 1414.842 | n/a |
+
+PG18 used 18.7 + pg_search 0.27.0; PG19.0 was core-only. Search outputs and index
+sizes were unchanged. This improves conversion/import, not search latency.
+The prefix index costs about 10 MiB extra backend RSS in the word workload;
+the first batch was 4.8% slower on PG18 despite its 16.3% warm improvement.
+Real ICU inputs also improved, with dictionary-gold inconsistencies falling
+from 120/20,000 to zero; that is a corrected pipeline, not equivalent-output CPU.
+
+To add current dictionary entries after installing the matching binary, run
+`python3 scripts/sync_dictionary.py --dsn "$PGURL"` with psycopg 3 installed.
+Existing keys always win; this does not replace customized readings or delete rows.
+It also preserves existing token categories and legacy-only rows, so an upgraded
+dictionary need not have exactly the same row count as a fresh installation.
+SQL `characters2romanize` / `icu_romanize_tokens` now consistently emit piped
+tokens, including whole phrases. Regenerate existing stored SQL-backend columns
+and rebuild their indexes before pairing them with legacy generated-mode queries.
 
 ### PostgreSQL 19 GA and pg_search 0.27.0
 

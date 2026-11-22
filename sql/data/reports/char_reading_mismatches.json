@@ -2,38 +2,6 @@
   {
     "mismatches": [
       {
-        "character": "㐖",
-        "known_readings": [
-          "xie"
-        ],
-        "position": 0,
-        "syllable": "ye"
-      }
-    ],
-    "provenance": [
-      {
-        "line": 66,
-        "priority": 30,
-        "raw_syllables": [
-          "Ye4",
-          "du2"
-        ],
-        "simplified": "㐖毒",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "㐖毒",
-        "traditional": "㐖毒"
-      }
-    ],
-    "selected": false,
-    "syllables": [
-      "ye",
-      "du"
-    ],
-    "word": "㐖毒"
-  },
-  {
-    "mismatches": [
-      {
         "character": "麼",
         "known_readings": [
           "me"
@@ -137,42 +105,6 @@
         ],
         "source_id": "cc-cedict",
         "source_key": "乐亭"
-      },
-      {
-        "line": 59011,
-        "priority": 50,
-        "raw_syllables": [
-          "Lao4",
-          "ting2"
-        ],
-        "simplified": "乐亭",
-        "source_id": "cc-cedict-official-2026",
-        "source_key": "乐亭",
-        "traditional": "樂亭"
-      },
-      {
-        "line": 55305,
-        "priority": 40,
-        "raw_syllables": [
-          "Lao4",
-          "ting2"
-        ],
-        "simplified": "乐亭",
-        "source_id": "cc-cedict-historical-2019",
-        "source_key": "乐亭",
-        "traditional": "樂亭"
-      },
-      {
-        "line": 50966,
-        "priority": 30,
-        "raw_syllables": [
-          "Lao4",
-          "ting2"
-        ],
-        "simplified": "乐亭",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "乐亭",
-        "traditional": "樂亭"
       }
     ],
     "selected": true,
@@ -227,45 +159,6 @@
         ],
         "source_id": "cc-cedict",
         "source_key": "乐亭县"
-      },
-      {
-        "line": 59012,
-        "priority": 50,
-        "raw_syllables": [
-          "Lao4",
-          "ting2",
-          "Xian4"
-        ],
-        "simplified": "乐亭县",
-        "source_id": "cc-cedict-official-2026",
-        "source_key": "乐亭县",
-        "traditional": "樂亭縣"
-      },
-      {
-        "line": 55306,
-        "priority": 40,
-        "raw_syllables": [
-          "Lao4",
-          "ting2",
-          "xian4"
-        ],
-        "simplified": "乐亭县",
-        "source_id": "cc-cedict-historical-2019",
-        "source_key": "乐亭县",
-        "traditional": "樂亭縣"
-      },
-      {
-        "line": 50967,
-        "priority": 30,
-        "raw_syllables": [
-          "Lao4",
-          "ting2",
-          "xian4"
-        ],
-        "simplified": "乐亭县",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "乐亭县",
-        "traditional": "樂亭縣"
       }
     ],
     "selected": true,
@@ -275,74 +168,6 @@
       "xian"
     ],
     "word": "乐亭县"
-  },
-  {
-    "mismatches": [
-      {
-        "character": "乐",
-        "known_readings": [
-          "le",
-          "yue"
-        ],
-        "position": 0,
-        "syllable": "lao"
-      }
-    ],
-    "provenance": [
-      {
-        "line": 59090,
-        "priority": 50,
-        "raw_syllables": [
-          "Lao4",
-          "ling2"
-        ],
-        "simplified": "乐陵",
-        "source_id": "cc-cedict-official-2026",
-        "source_key": "乐陵",
-        "traditional": "樂陵"
-      }
-    ],
-    "selected": false,
-    "syllables": [
-      "lao",
-      "ling"
-    ],
-    "word": "乐陵"
-  },
-  {
-    "mismatches": [
-      {
-        "character": "乐",
-        "known_readings": [
-          "le",
-          "yue"
-        ],
-        "position": 0,
-        "syllable": "lao"
-      }
-    ],
-    "provenance": [
-      {
-        "line": 59091,
-        "priority": 50,
-        "raw_syllables": [
-          "Lao4",
-          "ling2",
-          "Shi4"
-        ],
-        "simplified": "乐陵市",
-        "source_id": "cc-cedict-official-2026",
-        "source_key": "乐陵市",
-        "traditional": "樂陵市"
-      }
-    ],
-    "selected": false,
-    "syllables": [
-      "lao",
-      "ling",
-      "shi"
-    ],
-    "word": "乐陵市"
   },
   {
     "mismatches": [
@@ -673,42 +498,6 @@
         ],
         "source_id": "cc-cedict",
         "source_key": "刈包"
-      },
-      {
-        "line": 13765,
-        "priority": 50,
-        "raw_syllables": [
-          "gua4",
-          "bao1"
-        ],
-        "simplified": "刈包",
-        "source_id": "cc-cedict-official-2026",
-        "source_key": "刈包",
-        "traditional": "刈包"
-      },
-      {
-        "line": 12863,
-        "priority": 40,
-        "raw_syllables": [
-          "gua4",
-          "bao1"
-        ],
-        "simplified": "刈包",
-        "source_id": "cc-cedict-historical-2019",
-        "source_key": "刈包",
-        "traditional": "刈包"
-      },
-      {
-        "line": 11879,
-        "priority": 30,
-        "raw_syllables": [
-          "gua4",
-          "bao1"
-        ],
-        "simplified": "刈包",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "刈包",
-        "traditional": "刈包"
       }
     ],
     "selected": true,
@@ -907,42 +696,6 @@
         ],
         "source_id": "cc-cedict",
         "source_key": "割包"
-      },
-      {
-        "line": 14799,
-        "priority": 50,
-        "raw_syllables": [
-          "gua4",
-          "bao1"
-        ],
-        "simplified": "割包",
-        "source_id": "cc-cedict-official-2026",
-        "source_key": "割包",
-        "traditional": "割包"
-      },
-      {
-        "line": 13807,
-        "priority": 40,
-        "raw_syllables": [
-          "gua4",
-          "bao1"
-        ],
-        "simplified": "割包",
-        "source_id": "cc-cedict-historical-2019",
-        "source_key": "割包",
-        "traditional": "割包"
-      },
-      {
-        "line": 12755,
-        "priority": 30,
-        "raw_syllables": [
-          "gua4",
-          "bao1"
-        ],
-        "simplified": "割包",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "割包",
-        "traditional": "割包"
       }
     ],
     "selected": true,
@@ -1150,48 +903,6 @@
         ],
         "source_id": "cc-cedict",
         "source_key": "半间不界"
-      },
-      {
-        "line": 16952,
-        "priority": 50,
-        "raw_syllables": [
-          "ban4",
-          "gan1",
-          "bu4",
-          "ga4"
-        ],
-        "simplified": "半间不界",
-        "source_id": "cc-cedict-official-2026",
-        "source_key": "半间不界",
-        "traditional": "半間不界"
-      },
-      {
-        "line": 15855,
-        "priority": 40,
-        "raw_syllables": [
-          "ban4",
-          "gan1",
-          "bu4",
-          "ga4"
-        ],
-        "simplified": "半间不界",
-        "source_id": "cc-cedict-historical-2019",
-        "source_key": "半间不界",
-        "traditional": "半間不界"
-      },
-      {
-        "line": 14675,
-        "priority": 30,
-        "raw_syllables": [
-          "ban4",
-          "gan1",
-          "bu4",
-          "ga4"
-        ],
-        "simplified": "半间不界",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "半间不界",
-        "traditional": "半間不界"
       }
     ],
     "selected": false,
@@ -1418,63 +1129,6 @@
   {
     "mismatches": [
       {
-        "character": "呒",
-        "known_readings": [
-          "wu",
-          "m"
-        ],
-        "position": 0,
-        "syllable": "fu"
-      }
-    ],
-    "provenance": [
-      {
-        "line": 21900,
-        "priority": 40,
-        "raw_syllables": [
-          "fu3",
-          "xia1",
-          "mi3",
-          "shu1",
-          "ru4",
-          "fa3"
-        ],
-        "simplified": "呒虾米输入法",
-        "source_id": "cc-cedict-historical-2019",
-        "source_key": "呒虾米输入法",
-        "traditional": "嘸蝦米輸入法"
-      },
-      {
-        "line": 20276,
-        "priority": 30,
-        "raw_syllables": [
-          "fu3",
-          "xia1",
-          "mi3",
-          "shu1",
-          "ru4",
-          "fa3"
-        ],
-        "simplified": "呒虾米输入法",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "呒虾米输入法",
-        "traditional": "嘸蝦米輸入法"
-      }
-    ],
-    "selected": false,
-    "syllables": [
-      "fu",
-      "xia",
-      "mi",
-      "shu",
-      "ru",
-      "fa"
-    ],
-    "word": "呒虾米输入法"
-  },
-  {
-    "mismatches": [
-      {
         "character": "呫",
         "known_readings": [
           "tie",
@@ -1494,42 +1148,6 @@
         ],
         "source_id": "cc-cedict",
         "source_key": "呫吨"
-      },
-      {
-        "line": 21033,
-        "priority": 50,
-        "raw_syllables": [
-          "zhan1",
-          "dun1"
-        ],
-        "simplified": "呫吨",
-        "source_id": "cc-cedict-official-2026",
-        "source_key": "呫吨",
-        "traditional": "呫噸"
-      },
-      {
-        "line": 19732,
-        "priority": 40,
-        "raw_syllables": [
-          "zhan1",
-          "dun1"
-        ],
-        "simplified": "呫吨",
-        "source_id": "cc-cedict-historical-2019",
-        "source_key": "呫吨",
-        "traditional": "呫噸"
-      },
-      {
-        "line": 18270,
-        "priority": 30,
-        "raw_syllables": [
-          "zhan1",
-          "dun1"
-        ],
-        "simplified": "呫吨",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "呫吨",
-        "traditional": "呫噸"
       }
     ],
     "selected": true,
@@ -1562,45 +1180,6 @@
         ],
         "source_id": "cc-cedict",
         "source_key": "呫吨酮"
-      },
-      {
-        "line": 21034,
-        "priority": 50,
-        "raw_syllables": [
-          "zhan1",
-          "dun1",
-          "tong2"
-        ],
-        "simplified": "呫吨酮",
-        "source_id": "cc-cedict-official-2026",
-        "source_key": "呫吨酮",
-        "traditional": "呫噸酮"
-      },
-      {
-        "line": 19733,
-        "priority": 40,
-        "raw_syllables": [
-          "zhan1",
-          "dun1",
-          "tong2"
-        ],
-        "simplified": "呫吨酮",
-        "source_id": "cc-cedict-historical-2019",
-        "source_key": "呫吨酮",
-        "traditional": "呫噸酮"
-      },
-      {
-        "line": 18271,
-        "priority": 30,
-        "raw_syllables": [
-          "zhan1",
-          "dun1",
-          "tong2"
-        ],
-        "simplified": "呫吨酮",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "呫吨酮",
-        "traditional": "呫噸酮"
       }
     ],
     "selected": true,
@@ -1782,42 +1361,6 @@
         ],
         "source_id": "cc-cedict",
         "source_key": "嗯哼"
-      },
-      {
-        "line": 23089,
-        "priority": 50,
-        "raw_syllables": [
-          "en5",
-          "heng1"
-        ],
-        "simplified": "嗯哼",
-        "source_id": "cc-cedict-official-2026",
-        "source_key": "嗯哼",
-        "traditional": "嗯哼"
-      },
-      {
-        "line": 21686,
-        "priority": 40,
-        "raw_syllables": [
-          "en5",
-          "heng1"
-        ],
-        "simplified": "嗯哼",
-        "source_id": "cc-cedict-historical-2019",
-        "source_key": "嗯哼",
-        "traditional": "嗯哼"
-      },
-      {
-        "line": 20076,
-        "priority": 30,
-        "raw_syllables": [
-          "en5",
-          "heng1"
-        ],
-        "simplified": "嗯哼",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "嗯哼",
-        "traditional": "嗯哼"
       }
     ],
     "selected": true,
@@ -2007,42 +1550,6 @@
   {
     "mismatches": [
       {
-        "character": "缪",
-        "known_readings": [
-          "mou",
-          "miao",
-          "miu"
-        ],
-        "position": 1,
-        "syllable": "mu"
-      }
-    ],
-    "provenance": [
-      {
-        "line": 22952,
-        "priority": 30,
-        "raw_syllables": [
-          "Sai1",
-          "mu2",
-          "er3"
-        ],
-        "simplified": "塞缪尔",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "塞缪尔",
-        "traditional": "塞繆爾"
-      }
-    ],
-    "selected": false,
-    "syllables": [
-      "sai",
-      "mu",
-      "er"
-    ],
-    "word": "塞缪尔"
-  },
-  {
-    "mismatches": [
-      {
         "character": "鳽",
         "known_readings": [
           "jian",
@@ -2073,38 +1580,6 @@
       "yan"
     ],
     "word": "大麻鳽"
-  },
-  {
-    "mismatches": [
-      {
-        "character": "姆",
-        "known_readings": [
-          "mu"
-        ],
-        "position": 0,
-        "syllable": "m"
-      }
-    ],
-    "provenance": [
-      {
-        "line": 30469,
-        "priority": 50,
-        "raw_syllables": [
-          "m1",
-          "ma1"
-        ],
-        "simplified": "姆妈",
-        "source_id": "cc-cedict-official-2026",
-        "source_key": "姆妈",
-        "traditional": "姆媽"
-      }
-    ],
-    "selected": false,
-    "syllables": [
-      "m",
-      "ma"
-    ],
-    "word": "姆妈"
   },
   {
     "mismatches": [
@@ -2159,18 +1634,6 @@
         ],
         "source_id": "cc-cedict",
         "source_key": "宏碁"
-      },
-      {
-        "line": 32300,
-        "priority": 50,
-        "raw_syllables": [
-          "Hong2",
-          "ji1"
-        ],
-        "simplified": "宏碁",
-        "source_id": "cc-cedict-official-2026",
-        "source_key": "宏碁",
-        "traditional": "宏碁"
       }
     ],
     "selected": true,
@@ -2203,20 +1666,6 @@
         ],
         "source_id": "cc-cedict",
         "source_key": "宏碁集团"
-      },
-      {
-        "line": 32301,
-        "priority": 50,
-        "raw_syllables": [
-          "Hong2",
-          "ji1",
-          "Ji2",
-          "tuan2"
-        ],
-        "simplified": "宏碁集团",
-        "source_id": "cc-cedict-official-2026",
-        "source_key": "宏碁集团",
-        "traditional": "宏碁集團"
       }
     ],
     "selected": true,
@@ -2263,72 +1712,6 @@
       "tuan"
     ],
     "word": "宏碁集團"
-  },
-  {
-    "mismatches": [
-      {
-        "character": "宕",
-        "known_readings": [
-          "dang"
-        ],
-        "position": 0,
-        "syllable": "tan"
-      }
-    ],
-    "provenance": [
-      {
-        "line": 32314,
-        "priority": 50,
-        "raw_syllables": [
-          "Tan4",
-          "chang1"
-        ],
-        "simplified": "宕昌",
-        "source_id": "cc-cedict-official-2026",
-        "source_key": "宕昌",
-        "traditional": "宕昌"
-      }
-    ],
-    "selected": false,
-    "syllables": [
-      "tan",
-      "chang"
-    ],
-    "word": "宕昌"
-  },
-  {
-    "mismatches": [
-      {
-        "character": "宕",
-        "known_readings": [
-          "dang"
-        ],
-        "position": 0,
-        "syllable": "tan"
-      }
-    ],
-    "provenance": [
-      {
-        "line": 32315,
-        "priority": 50,
-        "raw_syllables": [
-          "Tan4",
-          "chang1",
-          "Xian4"
-        ],
-        "simplified": "宕昌县",
-        "source_id": "cc-cedict-official-2026",
-        "source_key": "宕昌县",
-        "traditional": "宕昌縣"
-      }
-    ],
-    "selected": false,
-    "syllables": [
-      "tan",
-      "chang",
-      "xian"
-    ],
-    "word": "宕昌县"
   },
   {
     "mismatches": [
@@ -2425,32 +1808,6 @@
         ],
         "source_id": "cc-cedict",
         "source_key": "师兄弟"
-      },
-      {
-        "line": 35027,
-        "priority": 40,
-        "raw_syllables": [
-          "shi1",
-          "xing1",
-          "di4"
-        ],
-        "simplified": "师兄弟",
-        "source_id": "cc-cedict-historical-2019",
-        "source_key": "师兄弟",
-        "traditional": "師兄弟"
-      },
-      {
-        "line": 32351,
-        "priority": 30,
-        "raw_syllables": [
-          "shi1",
-          "xing1",
-          "di4"
-        ],
-        "simplified": "师兄弟",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "师兄弟",
-        "traditional": "師兄弟"
       }
     ],
     "selected": true,
@@ -2944,34 +2301,6 @@
         ],
         "source_id": "cc-cedict",
         "source_key": "弦诵不缀"
-      },
-      {
-        "line": 36771,
-        "priority": 40,
-        "raw_syllables": [
-          "xian2",
-          "song4",
-          "bu4",
-          "chuo4"
-        ],
-        "simplified": "弦诵不缀",
-        "source_id": "cc-cedict-historical-2019",
-        "source_key": "弦诵不缀",
-        "traditional": "弦誦不綴"
-      },
-      {
-        "line": 33981,
-        "priority": 30,
-        "raw_syllables": [
-          "xian2",
-          "song4",
-          "bu4",
-          "chuo4"
-        ],
-        "simplified": "弦诵不缀",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "弦诵不缀",
-        "traditional": "弦誦不綴"
       }
     ],
     "selected": true,
@@ -3041,32 +2370,6 @@
         ],
         "source_id": "cc-cedict",
         "source_key": "徐继畲"
-      },
-      {
-        "line": 37669,
-        "priority": 40,
-        "raw_syllables": [
-          "Xu2",
-          "Ji4",
-          "yu2"
-        ],
-        "simplified": "徐继畲",
-        "source_id": "cc-cedict-historical-2019",
-        "source_key": "徐继畲",
-        "traditional": "徐繼畬"
-      },
-      {
-        "line": 34810,
-        "priority": 30,
-        "raw_syllables": [
-          "Xu2",
-          "Ji4",
-          "yu2"
-        ],
-        "simplified": "徐继畲",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "徐继畲",
-        "traditional": "徐繼畬"
       }
     ],
     "selected": true,
@@ -3223,39 +2526,6 @@
         ],
         "simplified": "揘毕",
         "source_id": "cc-cedict-official-2026",
-        "source_key": "揘毕",
-        "traditional": "揘畢"
-      }
-    ],
-    "selected": false,
-    "syllables": [
-      "heng",
-      "bi"
-    ],
-    "word": "揘毕"
-  },
-  {
-    "mismatches": [
-      {
-        "character": "揘",
-        "known_readings": [
-          "yong",
-          "huang"
-        ],
-        "position": 0,
-        "syllable": "heng"
-      }
-    ],
-    "provenance": [
-      {
-        "line": 48385,
-        "priority": 50,
-        "raw_syllables": [
-          "heng2",
-          "bi4"
-        ],
-        "simplified": "揘毕",
-        "source_id": "cc-cedict-official-2026",
         "source_key": "揘畢",
         "traditional": "揘畢"
       }
@@ -3288,30 +2558,6 @@
         ],
         "source_id": "cc-cedict",
         "source_key": "斫畲"
-      },
-      {
-        "line": 48352,
-        "priority": 40,
-        "raw_syllables": [
-          "zhuo2",
-          "yu2"
-        ],
-        "simplified": "斫畲",
-        "source_id": "cc-cedict-historical-2019",
-        "source_key": "斫畲",
-        "traditional": "斫畬"
-      },
-      {
-        "line": 44632,
-        "priority": 30,
-        "raw_syllables": [
-          "zhuo2",
-          "yu2"
-        ],
-        "simplified": "斫畲",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "斫畲",
-        "traditional": "斫畬"
       }
     ],
     "selected": true,
@@ -3581,40 +2827,6 @@
   {
     "mismatches": [
       {
-        "character": "顺",
-        "known_readings": [
-          "shun"
-        ],
-        "position": 1,
-        "syllable": "xun"
-      }
-    ],
-    "provenance": [
-      {
-        "line": 49290,
-        "priority": 30,
-        "raw_syllables": [
-          "rou2",
-          "xun4",
-          "ji4"
-        ],
-        "simplified": "柔顺剂",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "柔顺剂",
-        "traditional": "柔順劑"
-      }
-    ],
-    "selected": false,
-    "syllables": [
-      "rou",
-      "xun",
-      "ji"
-    ],
-    "word": "柔顺剂"
-  },
-  {
-    "mismatches": [
-      {
         "character": "栉",
         "known_readings": [
           "zhi"
@@ -3634,32 +2846,6 @@
         ],
         "source_id": "cc-cedict",
         "source_key": "栉水母"
-      },
-      {
-        "line": 56132,
-        "priority": 40,
-        "raw_syllables": [
-          "jie2",
-          "shui3",
-          "mu3"
-        ],
-        "simplified": "栉水母",
-        "source_id": "cc-cedict-historical-2019",
-        "source_key": "栉水母",
-        "traditional": "櫛水母"
-      },
-      {
-        "line": 51729,
-        "priority": 30,
-        "raw_syllables": [
-          "jie2",
-          "shui3",
-          "mu3"
-        ],
-        "simplified": "栉水母",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "栉水母",
-        "traditional": "櫛水母"
       }
     ],
     "selected": true,
@@ -4030,42 +3216,6 @@
   {
     "mismatches": [
       {
-        "character": "组",
-        "known_readings": [
-          "zu"
-        ],
-        "position": 2,
-        "syllable": "zhu"
-      }
-    ],
-    "provenance": [
-      {
-        "line": 51356,
-        "priority": 30,
-        "raw_syllables": [
-          "ju2",
-          "pi2",
-          "zhu3",
-          "zhi1"
-        ],
-        "simplified": "橘皮组织",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "橘皮组织",
-        "traditional": "橘皮組織"
-      }
-    ],
-    "selected": false,
-    "syllables": [
-      "ju",
-      "pi",
-      "zhu",
-      "zhi"
-    ],
-    "word": "橘皮组织"
-  },
-  {
-    "mismatches": [
-      {
         "character": "櫛",
         "known_readings": [
           "zhi"
@@ -4132,45 +3282,6 @@
         ],
         "source_id": "cc-cedict",
         "source_key": "武士彟"
-      },
-      {
-        "line": 60712,
-        "priority": 50,
-        "raw_syllables": [
-          "Wu3",
-          "Shi4",
-          "huo4"
-        ],
-        "simplified": "武士彟",
-        "source_id": "cc-cedict-official-2026",
-        "source_key": "武士彟",
-        "traditional": "武士彠"
-      },
-      {
-        "line": 56900,
-        "priority": 40,
-        "raw_syllables": [
-          "Wu3",
-          "Shi4",
-          "huo4"
-        ],
-        "simplified": "武士彟",
-        "source_id": "cc-cedict-historical-2019",
-        "source_key": "武士彟",
-        "traditional": "武士彠"
-      },
-      {
-        "line": 52425,
-        "priority": 30,
-        "raw_syllables": [
-          "Wu3",
-          "Shi4",
-          "huo4"
-        ],
-        "simplified": "武士彟",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "武士彟",
-        "traditional": "武士彠"
       }
     ],
     "selected": true,
@@ -5477,42 +4588,6 @@
         ],
         "source_id": "cc-cedict",
         "source_key": "焢肉"
-      },
-      {
-        "line": 70236,
-        "priority": 50,
-        "raw_syllables": [
-          "kong4",
-          "rou4"
-        ],
-        "simplified": "焢肉",
-        "source_id": "cc-cedict-official-2026",
-        "source_key": "焢肉",
-        "traditional": "焢肉"
-      },
-      {
-        "line": 65786,
-        "priority": 40,
-        "raw_syllables": [
-          "kong4",
-          "rou4"
-        ],
-        "simplified": "焢肉",
-        "source_id": "cc-cedict-historical-2019",
-        "source_key": "焢肉",
-        "traditional": "焢肉"
-      },
-      {
-        "line": 60594,
-        "priority": 30,
-        "raw_syllables": [
-          "kong4",
-          "rou4"
-        ],
-        "simplified": "焢肉",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "焢肉",
-        "traditional": "焢肉"
       }
     ],
     "selected": true,
@@ -5544,42 +4619,6 @@
         ],
         "source_id": "cc-cedict",
         "source_key": "爌肉"
-      },
-      {
-        "line": 71241,
-        "priority": 50,
-        "raw_syllables": [
-          "kong4",
-          "rou4"
-        ],
-        "simplified": "爌肉",
-        "source_id": "cc-cedict-official-2026",
-        "source_key": "爌肉",
-        "traditional": "爌肉"
-      },
-      {
-        "line": 66715,
-        "priority": 40,
-        "raw_syllables": [
-          "kong4",
-          "rou4"
-        ],
-        "simplified": "爌肉",
-        "source_id": "cc-cedict-historical-2019",
-        "source_key": "爌肉",
-        "traditional": "爌肉"
-      },
-      {
-        "line": 61457,
-        "priority": 30,
-        "raw_syllables": [
-          "kong4",
-          "rou4"
-        ],
-        "simplified": "爌肉",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "爌肉",
-        "traditional": "爌肉"
       }
     ],
     "selected": true,
@@ -5668,30 +4707,6 @@
         ],
         "source_id": "cc-cedict",
         "source_key": "畲乡"
-      },
-      {
-        "line": 70550,
-        "priority": 40,
-        "raw_syllables": [
-          "yu2",
-          "xiang1"
-        ],
-        "simplified": "畲乡",
-        "source_id": "cc-cedict-historical-2019",
-        "source_key": "畲乡",
-        "traditional": "畬鄉"
-      },
-      {
-        "line": 65000,
-        "priority": 30,
-        "raw_syllables": [
-          "yu2",
-          "xiang1"
-        ],
-        "simplified": "畲乡",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "畲乡",
-        "traditional": "畬鄉"
       }
     ],
     "selected": true,
@@ -5700,38 +4715,6 @@
       "xiang"
     ],
     "word": "畲乡"
-  },
-  {
-    "mismatches": [
-      {
-        "character": "瞓",
-        "known_readings": [
-          "fen"
-        ],
-        "position": 1,
-        "syllable": "xun"
-      }
-    ],
-    "provenance": [
-      {
-        "line": 67683,
-        "priority": 30,
-        "raw_syllables": [
-          "yan3",
-          "xun4"
-        ],
-        "simplified": "眼瞓",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "眼瞓",
-        "traditional": "眼瞓"
-      }
-    ],
-    "selected": false,
-    "syllables": [
-      "yan",
-      "xun"
-    ],
-    "word": "眼瞓"
   },
   {
     "mismatches": [
@@ -5754,30 +4737,6 @@
         ],
         "source_id": "cc-cedict",
         "source_key": "睥睨"
-      },
-      {
-        "line": 73725,
-        "priority": 40,
-        "raw_syllables": [
-          "bi4",
-          "ni4"
-        ],
-        "simplified": "睥睨",
-        "source_id": "cc-cedict-historical-2019",
-        "source_key": "睥睨",
-        "traditional": "睥睨"
-      },
-      {
-        "line": 67836,
-        "priority": 30,
-        "raw_syllables": [
-          "bi4",
-          "ni4"
-        ],
-        "simplified": "睥睨",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "睥睨",
-        "traditional": "睥睨"
       }
     ],
     "selected": false,
@@ -5822,38 +4781,6 @@
   {
     "mismatches": [
       {
-        "character": "瞓",
-        "known_readings": [
-          "fen"
-        ],
-        "position": 0,
-        "syllable": "xun"
-      }
-    ],
-    "provenance": [
-      {
-        "line": 67904,
-        "priority": 30,
-        "raw_syllables": [
-          "xun4",
-          "jiao4"
-        ],
-        "simplified": "瞓觉",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "瞓觉",
-        "traditional": "瞓覺"
-      }
-    ],
-    "selected": false,
-    "syllables": [
-      "xun",
-      "jiao"
-    ],
-    "word": "瞓觉"
-  },
-  {
-    "mismatches": [
-      {
         "character": "硙",
         "known_readings": [
           "wei"
@@ -5880,42 +4807,6 @@
         ],
         "source_id": "cc-cedict",
         "source_key": "硙硙"
-      },
-      {
-        "line": 80123,
-        "priority": 50,
-        "raw_syllables": [
-          "ai2",
-          "ai2"
-        ],
-        "simplified": "硙硙",
-        "source_id": "cc-cedict-official-2026",
-        "source_key": "硙硙",
-        "traditional": "磑磑"
-      },
-      {
-        "line": 74995,
-        "priority": 40,
-        "raw_syllables": [
-          "ai2",
-          "ai2"
-        ],
-        "simplified": "硙硙",
-        "source_id": "cc-cedict-historical-2019",
-        "source_key": "硙硙",
-        "traditional": "磑磑"
-      },
-      {
-        "line": 68994,
-        "priority": 30,
-        "raw_syllables": [
-          "ai2",
-          "ai2"
-        ],
-        "simplified": "硙硙",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "硙硙",
-        "traditional": "磑磑"
       }
     ],
     "selected": true,
@@ -6064,34 +4955,6 @@
         ],
         "source_id": "cc-cedict",
         "source_key": "私定终身"
-      },
-      {
-        "line": 75996,
-        "priority": 40,
-        "raw_syllables": [
-          "si1",
-          "ding4",
-          "zhong1",
-          "sheng1"
-        ],
-        "simplified": "私定终身",
-        "source_id": "cc-cedict-historical-2019",
-        "source_key": "私定终身",
-        "traditional": "私定終身"
-      },
-      {
-        "line": 69950,
-        "priority": 30,
-        "raw_syllables": [
-          "si1",
-          "ding4",
-          "zhong1",
-          "sheng1"
-        ],
-        "simplified": "私定终身",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "私定终身",
-        "traditional": "私定終身"
       }
     ],
     "selected": true,
@@ -6137,22 +5000,6 @@
         ],
         "source_id": "cc-cedict",
         "source_key": "简易爆炸装置"
-      },
-      {
-        "line": 78290,
-        "priority": 40,
-        "raw_syllables": [
-          "jian3",
-          "yi4",
-          "zha4",
-          "dan4",
-          "zhuang1",
-          "zhi4"
-        ],
-        "simplified": "简易爆炸装置",
-        "source_id": "cc-cedict-historical-2019",
-        "source_key": "简易爆炸装置",
-        "traditional": "簡易爆炸裝置"
       }
     ],
     "selected": true,
@@ -6522,42 +5369,6 @@
         ],
         "source_id": "cc-cedict",
         "source_key": "绦纶"
-      },
-      {
-        "line": 85787,
-        "priority": 50,
-        "raw_syllables": [
-          "di2",
-          "lun2"
-        ],
-        "simplified": "绦纶",
-        "source_id": "cc-cedict-official-2026",
-        "source_key": "绦纶",
-        "traditional": "絛綸"
-      },
-      {
-        "line": 80203,
-        "priority": 40,
-        "raw_syllables": [
-          "di2",
-          "lun2"
-        ],
-        "simplified": "绦纶",
-        "source_id": "cc-cedict-historical-2019",
-        "source_key": "绦纶",
-        "traditional": "絛綸"
-      },
-      {
-        "line": 73789,
-        "priority": 30,
-        "raw_syllables": [
-          "di2",
-          "lun2"
-        ],
-        "simplified": "绦纶",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "绦纶",
-        "traditional": "絛綸"
       }
     ],
     "selected": true,
@@ -6743,30 +5554,6 @@
         ],
         "source_id": "cc-cedict",
         "source_key": "腼脸"
-      },
-      {
-        "line": 110348,
-        "priority": 40,
-        "raw_syllables": [
-          "tian3",
-          "lian3"
-        ],
-        "simplified": "腼脸",
-        "source_id": "cc-cedict-historical-2019",
-        "source_key": "腼脸",
-        "traditional": "靦臉"
-      },
-      {
-        "line": 101661,
-        "priority": 30,
-        "raw_syllables": [
-          "tian3",
-          "lian3"
-        ],
-        "simplified": "腼脸",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "腼脸",
-        "traditional": "靦臉"
       }
     ],
     "selected": true,
@@ -6798,32 +5585,6 @@
         ],
         "source_id": "cc-cedict",
         "source_key": "臆想狂"
-      },
-      {
-        "line": 85457,
-        "priority": 40,
-        "raw_syllables": [
-          "yi4",
-          "xian3",
-          "kuang2"
-        ],
-        "simplified": "臆想狂",
-        "source_id": "cc-cedict-historical-2019",
-        "source_key": "臆想狂",
-        "traditional": "臆想狂"
-      },
-      {
-        "line": 78590,
-        "priority": 30,
-        "raw_syllables": [
-          "yi4",
-          "xian3",
-          "kuang2"
-        ],
-        "simplified": "臆想狂",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "臆想狂",
-        "traditional": "臆想狂"
       }
     ],
     "selected": true,
@@ -6997,45 +5758,6 @@
         ],
         "source_id": "cc-cedict",
         "source_key": "蚵仔煎"
-      },
-      {
-        "line": 97117,
-        "priority": 50,
-        "raw_syllables": [
-          "e2",
-          "zi3",
-          "jian1"
-        ],
-        "simplified": "蚵仔煎",
-        "source_id": "cc-cedict-official-2026",
-        "source_key": "蚵仔煎",
-        "traditional": "蚵仔煎"
-      },
-      {
-        "line": 90722,
-        "priority": 40,
-        "raw_syllables": [
-          "e2",
-          "zi3",
-          "jian1"
-        ],
-        "simplified": "蚵仔煎",
-        "source_id": "cc-cedict-historical-2019",
-        "source_key": "蚵仔煎",
-        "traditional": "蚵仔煎"
-      },
-      {
-        "line": 83453,
-        "priority": 30,
-        "raw_syllables": [
-          "e2",
-          "zi3",
-          "jian1"
-        ],
-        "simplified": "蚵仔煎",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "蚵仔煎",
-        "traditional": "蚵仔煎"
       }
     ],
     "selected": true,
@@ -7330,48 +6052,6 @@
         ],
         "source_id": "cc-cedict",
         "source_key": "近卫文麿"
-      },
-      {
-        "line": 107146,
-        "priority": 50,
-        "raw_syllables": [
-          "Jin4",
-          "wei4",
-          "Wen2",
-          "mo3"
-        ],
-        "simplified": "近卫文麿",
-        "source_id": "cc-cedict-official-2026",
-        "source_key": "近卫文麿",
-        "traditional": "近衛文麿"
-      },
-      {
-        "line": 99996,
-        "priority": 40,
-        "raw_syllables": [
-          "Jin4",
-          "wei4",
-          "Wen2",
-          "mo3"
-        ],
-        "simplified": "近卫文麿",
-        "source_id": "cc-cedict-historical-2019",
-        "source_key": "近卫文麿",
-        "traditional": "近衛文麿"
-      },
-      {
-        "line": 92021,
-        "priority": 30,
-        "raw_syllables": [
-          "Jin4",
-          "wei4",
-          "Wen2",
-          "mo3"
-        ],
-        "simplified": "近卫文麿",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "近卫文麿",
-        "traditional": "近衛文麿"
       }
     ],
     "selected": true,
@@ -7665,74 +6345,6 @@
       "yu"
     ],
     "word": "釜底游魚"
-  },
-  {
-    "mismatches": [
-      {
-        "character": "釜",
-        "known_readings": [
-          "fu"
-        ],
-        "position": 0,
-        "syllable": "jin"
-      }
-    ],
-    "provenance": [
-      {
-        "line": 95864,
-        "priority": 30,
-        "raw_syllables": [
-          "jin3",
-          "di3",
-          "you2",
-          "yu2"
-        ],
-        "simplified": "釜底游鱼",
-        "source_id": "cc-cedict-historical-2013",
-        "source_key": "釜底游鱼",
-        "traditional": "釜底游魚"
-      }
-    ],
-    "selected": false,
-    "syllables": [
-      "jin",
-      "di",
-      "you",
-      "yu"
-    ],
-    "word": "釜底游鱼"
-  },
-  {
-    "mismatches": [
-      {
-        "character": "桡",
-        "known_readings": [
-          "rao"
-        ],
-        "position": 1,
-        "syllable": "nao"
-      }
-    ],
-    "provenance": [
-      {
-        "line": 114447,
-        "priority": 50,
-        "raw_syllables": [
-          "zu3",
-          "nao2"
-        ],
-        "simplified": "阻桡",
-        "source_id": "cc-cedict-official-2026",
-        "source_key": "阻桡",
-        "traditional": "阻橈"
-      }
-    ],
-    "selected": false,
-    "syllables": [
-      "zu",
-      "nao"
-    ],
-    "word": "阻桡"
   },
   {
     "mismatches": [

@@ -243,7 +243,7 @@ def phrase_lines(source: LockedSource, rejected: list[dict[str, Any]]) -> Any:
         raise ValueError(f"unresolved CC-CEDICT headword aliases: {sorted(pending_aliases)}")
 
 
-def parse_phrase_sources(sources: list[LockedSource], char_map: dict[str, list[str]], rejected: list[dict[str, Any]], baseline: dict[str, list[str]] | None = None) -> tuple[dict[str, list[str]], list[dict[str, Any]], list[dict[str, Any]], dict[str, int], dict[str, list[dict[str, Any]]]]:
+def parse_phrase_sources(sources: list[LockedSource], char_map: dict[str, list[str]], rejected: list[dict[str, Any]], baseline: dict[str, list[str]] | None = None, restoration_keys: set[str] | None = None) -> tuple[dict[str, list[str]], list[dict[str, Any]], list[dict[str, Any]], dict[str, int], dict[str, list[dict[str, Any]]]]:
     known_syllables = {token for readings in char_map.values() for token in readings}
     candidates: dict[str, dict[tuple[str, ...], list[dict[str, Any]]]] = {}
     accepted_rows = 0
@@ -253,7 +253,7 @@ def parse_phrase_sources(sources: list[LockedSource], char_map: dict[str, list[s
             if source.metadata.get("restore_baseline_only"):
                 if baseline is None:
                     raise ValueError("restoration source requires a locked coverage baseline")
-                if word not in baseline:
+                if word not in (restoration_keys if restoration_keys is not None else baseline.keys()):
                     continue
             if not word or (len(word) < 2 and not (baseline and word in baseline)):
                 reject(rejected, source, line_number, raw, "singleton_or_empty", source_key=source_key)
@@ -340,8 +340,8 @@ def build_token_rows(char_map: dict[str, list[str]], word_map: dict[str, list[st
         syllables.update(token for values in word_map.values() for token in values)
     initials = set(INITIALS)
     full = sorted(syllables - initials - VOWEL_TOKENS, key=lambda token: (-len(token), token))
-    vowels = sorted(syllables & VOWEL_TOKENS)
-    return [(token, 1) for token in full] + [(token, 3) for token in vowels] + [(token, 2) for token in INITIALS]
+    vowels = sorted(syllables & (VOWEL_TOKENS | {"m", "n"}))
+    return [(token, 1) for token in full] + [(token, 3) for token in vowels] + [(token, 2) for token in INITIALS if token not in vowels]
 
 
 def build_dataset(lock_path: Path, repo_root: Path = REPO_ROOT) -> BuildResult:
@@ -350,7 +350,14 @@ def build_dataset(lock_path: Path, repo_root: Path = REPO_ROOT) -> BuildResult:
     baseline = load_coverage_baseline(baseline_metadata, repo_root) if baseline_metadata else None
     rejected: list[dict[str, Any]] = []
     char_map = parse_character_source(sources[0], rejected)
-    word_map, conflicts, mismatches, counts, selected_provenance = parse_phrase_sources(sources[1:], char_map, rejected, baseline)
+    initial_metadata = lock.get("initial_p0")
+    initial_sources = [source for source in sources[1:] if
+                       source.metadata["id"] in initial_metadata["source_ids"]] if initial_metadata else [
+                       source for source in sources[1:] if not source.metadata.get("restore_baseline_only")]
+    initial, _, _, _, _ = parse_phrase_sources(initial_sources, char_map, [], None)
+    restoration_keys = set(baseline or {}) - initial.keys()
+    word_map, conflicts, mismatches, counts, selected_provenance = parse_phrase_sources(
+        sources[1:], char_map, rejected, baseline, restoration_keys)
     token_rows = build_token_rows(char_map, word_map)
     rejected.sort(key=lambda item: (item["source_id"], item["line"], item["reason"]))
     artifacts = {
@@ -363,12 +370,6 @@ def build_dataset(lock_path: Path, repo_root: Path = REPO_ROOT) -> BuildResult:
     }
     coverage = None
     if baseline is not None:
-        initial_metadata = lock.get("initial_p0")
-        if initial_metadata:
-            initial_sources = [source for source in sources[1:] if source.metadata["id"] in initial_metadata["source_ids"]]
-        else:
-            initial_sources = [source for source in sources[1:] if not source.metadata.get("restore_baseline_only")]
-        initial, _, _, _, _ = parse_phrase_sources(initial_sources, char_map, [], None)
         if initial_metadata and sha256(csv_bytes((word, " ".join(syllables)) for word, syllables in sorted(initial.items()))) != initial_metadata["words_sha256"]:
             raise ValueError("initial P0 coverage snapshot checksum mismatch")
         coverage = audit_coverage(baseline, initial, word_map, selected_provenance, baseline_metadata)

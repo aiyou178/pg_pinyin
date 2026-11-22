@@ -5,11 +5,11 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_DIR="${OUT_DIR:-$ROOT_DIR/dist}"
 EXT_VERSION="${EXT_VERSION:-$(awk -F'\"' '/^version = / { print $2; exit }' "$ROOT_DIR/Cargo.toml")}"
 DPKG_ARCH="$(dpkg --print-architecture)"
-RPM_ARCH="x86_64"
-
-if [[ "$DPKG_ARCH" == "arm64" ]]; then
-  RPM_ARCH="aarch64"
-fi
+case "$DPKG_ARCH" in
+  amd64) RPM_ARCH=x86_64 ;;
+  arm64) RPM_ARCH=aarch64 ;;
+  *) echo "unsupported package architecture: $DPKG_ARCH" >&2; exit 2 ;;
+esac
 
 if ! command -v fpm >/dev/null 2>&1; then
   echo "fpm is required to build RPM packages" >&2
@@ -22,7 +22,7 @@ if ! command -v dpkg-deb >/dev/null 2>&1; then
 fi
 
 shopt -s nullglob
-DEBS=("$OUT_DIR"/postgresql-*-pg-pinyin_"${EXT_VERSION}"_trixie_*.deb)
+DEBS=("$OUT_DIR"/postgresql-*-pg-pinyin_"${EXT_VERSION}"_trixie_"${DPKG_ARCH}".deb)
 if [[ ${#DEBS[@]} -eq 0 ]]; then
   echo "no DEB artifacts found in $OUT_DIR for version $EXT_VERSION" >&2
   exit 1
@@ -50,11 +50,25 @@ for deb in "${DEBS[@]}"; do
     }
   done
 
+  # PGDG RPMs use /usr/pgsql-N, not the Debian runtime layout.
+  mkdir -p "$root/usr/pgsql-$pg/share" "$root/usr/pgsql-$pg/lib"
+  mv "$root/usr/share/postgresql/$pg/extension" "$root/usr/pgsql-$pg/share/"
+  mv "$root/usr/lib/postgresql/$pg/lib/"* "$root/usr/pgsql-$pg/lib/"
+  rm -rf "$root/usr/share/postgresql" "$root/usr/lib/postgresql"
+  case "$pg" in
+    15) minimum=15.20 ;; 16) minimum=16.16 ;; 17) minimum=17.12 ;;
+    18) minimum=18.7 ;; 19) minimum=19.0 ;; *) exit 2 ;;
+  esac
+
   fpm -s dir -t rpm \
     --name "postgresql-${pg}-pg-pinyin" \
     --version "$EXT_VERSION" \
     --iteration "1" \
     --architecture "$RPM_ARCH" \
+    --depends "postgresql${pg}-server >= $minimum" \
+    --depends "glibc >= 2.41" \
+    --depends "libgcc" \
+    --license 'MIT AND CC-BY-SA-3.0 AND CC-BY-SA-4.0' \
     --maintainer "Liang Zhanzhao <liangzhanzhao1985@gmail.com>" \
     --description "pinyin romanization extension for PostgreSQL" \
     --chdir "$root" \

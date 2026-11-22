@@ -192,10 +192,9 @@ fn normalize_chunks(value: &str) -> Option<Vec<Chunk>> {
     if !current.text.is_empty() {
         chunks.push(current);
     }
-    if chunks
-        .iter()
-        .any(|chunk| chunk.marked_syllabic_initial && chunk.text != "m" && chunk.text != "n")
-    {
+    if chunks.iter().any(|chunk| {
+        chunk.marked_syllabic_initial && !matches!(chunk.text.as_str(), "m" | "n" | "ng")
+    }) {
         return None;
     }
     Some(chunks)
@@ -264,15 +263,17 @@ fn auto_tokens(
             while position < chunk.text.len() {
                 let remainder = &chunk.text[position..];
                 // A legal syllable can still be unfinished: "an" also prefixes "ang".
-                if dictionary.is_prefix(remainder)
-                    && tone_count(chunk, position, chunk.text.len()) == 0
-                {
+                let tones = tone_count(chunk, position, chunk.text.len());
+                if dictionary.is_prefix(remainder) && tones <= 1 {
                     let prefix = !dictionary.is_syllable(remainder)
-                        || dictionary.is_proper_prefix(remainder);
+                        || (tones == 0 && dictionary.is_proper_prefix(remainder));
                     tokens.push((remainder.to_string(), prefix));
                     break;
                 }
                 let length = dictionary.match_syllable_len(remainder)?;
+                if tone_count(chunk, position, position + length) > 1 {
+                    return None;
+                }
                 let token = &remainder[..length];
                 if matches!(token, "m" | "n")
                     && position + length != chunk.text.len()
@@ -337,28 +338,55 @@ fn auto_patterns(
     generated_pinyin: bool,
     dictionary: &PinyinQueryDictionary,
 ) -> Vec<String> {
-    // Do not discard invalid tone metadata when falling back to compatibility parsing.
-    if chunks.iter().any(|chunk| {
-        (!chunk.tone_positions.is_empty() || chunk.numeric_tone)
-            && full_syllable_spans(chunk, dictionary).is_none()
-    }) {
-        return Vec::new();
-    }
-
     if generated_pinyin {
+        if chunks.iter().any(|chunk| {
+            (!chunk.tone_positions.is_empty() || chunk.numeric_tone)
+                && full_syllable_spans(chunk, dictionary).is_none()
+        }) {
+            return Vec::new();
+        }
         return compatibility_patterns(chunks, true, dictionary);
     }
 
-    match auto_tokens(chunks, dictionary) {
-        Some(tokens) => tokens
+    if let Some(tokens) = auto_tokens(chunks, dictionary) {
+        return tokens
             .into_iter()
             .map(
                 |(token, prefix)| {
                     if prefix { format!("{token}.*") } else { token }
                 },
             )
-            .collect(),
-        None => compatibility_patterns(chunks, false, dictionary),
+            .collect();
+    }
+    // A low-confidence later chunk must not erase earlier tone-confirmed spans.
+    let mut patterns = Vec::new();
+    for chunk in chunks {
+        if !chunk.tone_positions.is_empty() || chunk.numeric_tone {
+            if let Some(tokens) = auto_tokens(std::slice::from_ref(chunk), dictionary) {
+                patterns.extend(tokens.into_iter().map(|(token, prefix)| {
+                    if prefix { format!("{token}.*") } else { token }
+                }));
+            } else if full_syllable_spans(chunk, dictionary).is_some() {
+                patterns.extend(compatibility_patterns(
+                    std::slice::from_ref(chunk),
+                    false,
+                    dictionary,
+                ));
+            } else {
+                return Vec::new();
+            }
+        } else {
+            patterns.extend(compatibility_patterns(
+                std::slice::from_ref(chunk),
+                false,
+                dictionary,
+            ));
+        }
+    }
+    if patterns.len() > MAX_OUTPUT_TOKENS {
+        Vec::new()
+    } else {
+        patterns
     }
 }
 
@@ -616,7 +644,7 @@ mod tests {
         assert_eq!(patterns("n\u{01d0}yon", QueryMode::Auto), ["ni", "yon.*"]);
         assert_eq!(
             patterns("n\u{01d0}y\u{00f3}n", QueryMode::Auto),
-            ["ni", "yo", "n.*"]
+            ["ni", "yon.*"]
         );
         assert_eq!(patterns("ni3 h", QueryMode::Auto), ["ni", "h.*"]);
         assert_eq!(patterns("\u{1e3f} \u{0144}", QueryMode::Auto), ["m", "n"]);
