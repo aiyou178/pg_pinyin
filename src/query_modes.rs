@@ -1,8 +1,6 @@
-use std::collections::HashSet;
-
 use unicode_normalization::UnicodeNormalization;
 
-use crate::regex_phrase::{self, RegexTokenDictionary};
+use crate::regex_phrase::{self, AsciiTrie, RegexTokenDictionary};
 
 const MAX_INPUT_SCALARS: usize = 256;
 const MAX_OUTPUT_TOKENS: usize = 64;
@@ -28,14 +26,13 @@ pub fn parse_mode(mode: &str) -> Result<QueryMode, String> {
 }
 
 pub struct PinyinQueryDictionary {
-    syllables_by_first: [Vec<String>; 26],
+    trie: AsciiTrie,
     compatibility_dictionary: RegexTokenDictionary,
 }
 
 impl PinyinQueryDictionary {
     pub fn from_token_csv(csv_text: &str) -> Self {
-        let mut seen = HashSet::new();
-        let mut syllables_by_first: [Vec<String>; 26] = std::array::from_fn(|_| Vec::new());
+        let mut trie = AsciiTrie::new();
 
         for line in csv_text.lines() {
             let Some((token, category)) = line.trim_end_matches('\r').split_once(',') else {
@@ -45,67 +42,48 @@ impl PinyinQueryDictionary {
                 continue;
             }
             let token = token.to_ascii_lowercase();
-            if token.is_empty() || !token.bytes().all(|byte| byte.is_ascii_lowercase()) {
-                continue;
-            }
-            if seen.insert(token.clone()) {
-                syllables_by_first[(token.as_bytes()[0] - b'a') as usize].push(token);
-            }
+            trie.insert(&token);
         }
 
         for syllable in ["m", "n"] {
-            if seen.insert(syllable.to_string()) {
-                syllables_by_first[(syllable.as_bytes()[0] - b'a') as usize]
-                    .push(syllable.to_string());
-            }
-        }
-
-        for bucket in &mut syllables_by_first {
-            bucket
-                .sort_by(|left, right| right.len().cmp(&left.len()).then_with(|| left.cmp(right)));
+            trie.insert(syllable);
         }
 
         Self {
-            syllables_by_first,
+            trie,
             compatibility_dictionary: RegexTokenDictionary::from_tokens(
                 regex_phrase::tokens_from_pinyin_token_csv(csv_text),
             ),
         }
     }
 
+    #[inline]
     fn match_syllable_len(&self, value: &str) -> Option<usize> {
-        let first = *value.as_bytes().first()?;
-        self.syllables_by_first[(first - b'a') as usize]
-            .iter()
-            .find(|syllable| value.starts_with(syllable.as_str()))
-            .map(String::len)
+        self.trie.longest_match_len(value.as_bytes())
     }
 
+    #[inline]
     fn is_prefix(&self, value: &str) -> bool {
-        let Some(&first) = value.as_bytes().first() else {
-            return false;
-        };
-        self.syllables_by_first[(first - b'a') as usize]
-            .iter()
-            .any(|syllable| syllable.starts_with(value))
+        self.trie.lookup(value.as_bytes()).is_some()
     }
 
+    #[inline]
+    fn lookup_prefix(&self, value: &str) -> Option<(bool, bool)> {
+        self.trie.lookup(value.as_bytes())
+    }
+
+    #[cfg(test)]
     fn is_syllable(&self, value: &str) -> bool {
-        let Some(&first) = value.as_bytes().first() else {
-            return false;
-        };
-        self.syllables_by_first[(first - b'a') as usize]
-            .iter()
-            .any(|syllable| syllable == value)
+        self.trie
+            .lookup(value.as_bytes())
+            .is_some_and(|(is_terminal, _)| is_terminal)
     }
 
+    #[inline]
     fn is_proper_prefix(&self, value: &str) -> bool {
-        let Some(&first) = value.as_bytes().first() else {
-            return false;
-        };
-        self.syllables_by_first[(first - b'a') as usize]
-            .iter()
-            .any(|syllable| syllable.len() > value.len() && syllable.starts_with(value))
+        self.trie
+            .lookup(value.as_bytes())
+            .is_some_and(|(_, has_children)| has_children)
     }
 }
 
@@ -124,7 +102,65 @@ struct LastLetter {
     tone: bool,
 }
 
+fn normalize_ascii_chunks(value: &str) -> Option<Vec<Chunk>> {
+    let mut chunks = Vec::new();
+    let mut current = Chunk::default();
+    let mut last_letter: Option<LastLetter> = None;
+
+    for byte in value.bytes() {
+        match byte {
+            b'a'..=b'z' | b'A'..=b'Z' => {
+                let character = byte.to_ascii_lowercase() as char;
+                let position = current.text.len();
+                current.text.push(character);
+                last_letter = Some(LastLetter {
+                    position,
+                    raw: character,
+                    diaeresis: false,
+                    tone: false,
+                });
+            }
+            b':' => {
+                let last = last_letter.as_mut()?;
+                if last.raw != 'u' || last.diaeresis {
+                    return None;
+                }
+                current
+                    .text
+                    .replace_range(last.position..=last.position, "v");
+                last.diaeresis = true;
+            }
+            b'0'..=b'5' => {
+                if current.text.is_empty() {
+                    return None;
+                }
+                current.numeric_tone = true;
+                chunks.push(std::mem::take(&mut current));
+                last_letter = None;
+            }
+            b'\'' | b' ' | b'\t' | b'\n' | b'\x0b' | b'\x0c' | b'\r' => {
+                if !current.text.is_empty() {
+                    chunks.push(std::mem::take(&mut current));
+                }
+                last_letter = None;
+            }
+            _ => return None,
+        }
+    }
+
+    if !current.text.is_empty() {
+        chunks.push(current);
+    }
+    Some(chunks)
+}
+
 fn normalize_chunks(value: &str) -> Option<Vec<Chunk>> {
+    if value.is_ascii() {
+        if value.len() > MAX_INPUT_SCALARS {
+            return None;
+        }
+        return normalize_ascii_chunks(value);
+    }
     if value.chars().take(MAX_INPUT_SCALARS + 1).count() > MAX_INPUT_SCALARS {
         return None;
     }
@@ -236,6 +272,26 @@ fn tone_count(chunk: &Chunk, start: usize, end: usize) -> usize {
         .count()
 }
 
+fn non_final_auto_tokens(
+    chunk: &Chunk,
+    dictionary: &PinyinQueryDictionary,
+) -> Option<Vec<(String, bool)>> {
+    let spans = full_syllable_spans(chunk, dictionary)?;
+    let mut tokens = Vec::with_capacity(spans.len());
+    for (start, end) in spans {
+        let token = &chunk.text[start..end];
+        // Bare m/n may be an initial; a numeric tone belongs only to this chunk's last span.
+        if matches!(token, "m" | "n")
+            && tone_count(chunk, start, end) == 0
+            && !(chunk.numeric_tone && end == chunk.text.len())
+        {
+            return None;
+        }
+        tokens.push((token.to_string(), false));
+    }
+    Some(tokens)
+}
+
 fn auto_tokens(
     chunks: &[Chunk],
     dictionary: &PinyinQueryDictionary,
@@ -264,9 +320,11 @@ fn auto_tokens(
                 let remainder = &chunk.text[position..];
                 // A legal syllable can still be unfinished: "an" also prefixes "ang".
                 let tones = tone_count(chunk, position, chunk.text.len());
-                if dictionary.is_prefix(remainder) && tones <= 1 {
-                    let prefix = !dictionary.is_syllable(remainder)
-                        || (tones == 0 && dictionary.is_proper_prefix(remainder));
+                if tones <= 1
+                    && let Some((is_syllable, is_proper_prefix)) =
+                        dictionary.lookup_prefix(remainder)
+                {
+                    let prefix = !is_syllable || (tones == 0 && is_proper_prefix);
                     tokens.push((remainder.to_string(), prefix));
                     break;
                 }
@@ -315,22 +373,21 @@ fn compatibility_patterns(
     generated_pinyin: bool,
     dictionary: &PinyinQueryDictionary,
 ) -> Vec<String> {
-    let normalized = chunks
-        .iter()
-        .map(|chunk| chunk.text.as_str())
-        .collect::<Vec<_>>()
-        .join(" ");
-    let patterns = regex_phrase::pinyin_regex_phrase_patterns(
-        &normalized,
-        generated_pinyin,
-        &dictionary.compatibility_dictionary,
-    )
-    .unwrap_or_default();
-    if patterns.len() > MAX_OUTPUT_TOKENS {
-        Vec::new()
-    } else {
-        patterns
+    let mut patterns = Vec::new();
+    for chunk in chunks {
+        if !dictionary
+            .compatibility_dictionary
+            .append_patterns_for_lower_chunk(
+                &chunk.text,
+                generated_pinyin,
+                MAX_OUTPUT_TOKENS,
+                &mut patterns,
+            )
+        {
+            return Vec::new();
+        }
     }
+    patterns
 }
 
 fn auto_patterns(
@@ -360,9 +417,15 @@ fn auto_patterns(
     }
     // A low-confidence later chunk must not erase earlier tone-confirmed spans.
     let mut patterns = Vec::new();
-    for chunk in chunks {
+    for (chunk_index, chunk) in chunks.iter().enumerate() {
+        let final_chunk = chunk_index + 1 == chunks.len();
         if !chunk.tone_positions.is_empty() || chunk.numeric_tone {
-            if let Some(tokens) = auto_tokens(std::slice::from_ref(chunk), dictionary) {
+            let chunk_tokens = if final_chunk {
+                auto_tokens(std::slice::from_ref(chunk), dictionary)
+            } else {
+                non_final_auto_tokens(chunk, dictionary)
+            };
+            if let Some(tokens) = chunk_tokens {
                 patterns.extend(tokens.into_iter().map(|(token, prefix)| {
                     if prefix { format!("{token}.*") } else { token }
                 }));
@@ -555,7 +618,7 @@ mod tests {
             assert_eq!(patterns(value, QueryMode::Auto), expected, "{value}");
         }
         let dictionary = dictionary();
-        for syllable in dictionary.syllables_by_first.iter().flatten() {
+        for syllable in dictionary.trie.collect_all() {
             for end in 1..=syllable.len() {
                 let token = &syllable[..end];
                 let expected =
@@ -825,7 +888,7 @@ mod tests {
     #[test]
     fn autocomplete_keeps_every_valid_final_syllable_prefix_whole() {
         let dictionary = dictionary();
-        for syllable in dictionary.syllables_by_first.iter().flatten() {
+        for syllable in dictionary.trie.collect_all() {
             for end in 1..=syllable.len() {
                 let prefix = &syllable[..end];
                 assert_eq!(
@@ -1063,5 +1126,23 @@ mod tests {
             MAX_OUTPUT_TOKENS
         );
         assert!(patterns(&"a1".repeat(MAX_OUTPUT_TOKENS + 1), QueryMode::Full).is_empty());
+    }
+
+    #[test]
+    fn auto_rejects_incomplete_non_final_toned_chunks_and_keeps_final_toned_prefixes() {
+        assert!(patterns("w\u{00fa}h whh", QueryMode::Auto).is_empty());
+        assert!(patterns("w\u{00fa}h h\u{01ce}o", QueryMode::Auto).is_empty());
+        assert_eq!(
+            patterns("whh w\u{00fa}h", QueryMode::Auto),
+            ["w.*", "h.*", "h.*", "wu", "h.*"]
+        );
+        assert_eq!(
+            patterns("mni1 whh", QueryMode::Auto),
+            ["m.*", "ni.*", "w.*", "h.*", "h.*"]
+        );
+        assert_eq!(
+            pinyin_regex_phrase_patterns("mni1", QueryMode::Auto, true, &dictionary()),
+            [r".*\|m.*", r".*\|ni.*"]
+        );
     }
 }

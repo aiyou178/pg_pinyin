@@ -110,3 +110,73 @@ class RuntimeRemediationTests(unittest.TestCase):
             conn.execute(sql.SQL("GRANT EXECUTE ON FUNCTION public.remediation_cast(public.remediation_token) TO {}").format(sql.Identifier(role)))
             conn.execute(sql.SQL("SET ROLE {}").format(sql.Identifier(role)))
             self.assertEqual(conn.execute("SELECT public.pinyin_word_romanize('probe'::public.remediation_token)").fetchone()[0], "jia")
+
+    def test_cached_direct_cast_tracks_acl_role_membership_and_cast_ddl(self):
+        parent_role = "pinyin_cast_parent_" + uuid.uuid4().hex[:10]
+        member_role = "pinyin_cast_member_" + uuid.uuid4().hex[:10]
+        with self.connect() as conn:
+            conn.execute(sql.SQL("CREATE ROLE {}").format(sql.Identifier(parent_role)))
+            conn.execute(sql.SQL("CREATE ROLE {}").format(sql.Identifier(member_role)))
+        def drop_roles():
+            with self.connect() as conn:
+                for role in (member_role, parent_role):
+                    conn.execute(sql.SQL("DROP OWNED BY {}").format(sql.Identifier(role)))
+                    conn.execute(sql.SQL("DROP ROLE {}").format(sql.Identifier(role)))
+        self.addCleanup(drop_roles)
+        with self.connect() as conn:
+            conn.execute("CREATE TYPE public.cached_token AS ENUM ('probe')")
+            conn.execute("CREATE FUNCTION public.cached_cast_v1(public.cached_token) RETURNS text[] "
+                         "LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE AS $$SELECT ARRAY['甲']::text[]$$")
+            conn.execute("CREATE FUNCTION public.cached_cast_v2(public.cached_token) RETURNS text[] "
+                         "LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE AS $$SELECT ARRAY['v2']::text[]$$")
+            conn.execute("CREATE CAST (public.cached_token AS text[]) WITH FUNCTION public.cached_cast_v1(public.cached_token)")
+            conn.execute("REVOKE EXECUTE ON FUNCTION public.cached_cast_v1(public.cached_token) FROM PUBLIC")
+            conn.execute(sql.SQL("GRANT USAGE ON SCHEMA pinyin TO {}").format(sql.Identifier(member_role)))
+            conn.execute(sql.SQL("GRANT SELECT ON ALL TABLES IN SCHEMA pinyin TO {}").format(sql.Identifier(member_role)))
+            conn.execute(sql.SQL("GRANT EXECUTE ON FUNCTION public.cached_cast_v1(public.cached_token) TO {}").format(sql.Identifier(parent_role)))
+            conn.execute(sql.SQL("GRANT {} TO {}").format(sql.Identifier(parent_role), sql.Identifier(member_role)))
+
+            # Exercise multi-row fn_extra reuse and prepared statement invalidation.
+            conn.execute("PREPARE cached_probe(public.cached_token) AS SELECT public.pinyin_word_romanize($1)")
+            self.assertEqual(
+                conn.execute("SELECT array_agg(public.pinyin_word_romanize(v)) FROM unnest(ARRAY['probe','probe']::public.cached_token[]) AS v").fetchone()[0],
+                ["jia", "jia"],
+            )
+            conn.execute(sql.SQL("SET ROLE {}").format(sql.Identifier(member_role)))
+            self.assertEqual(conn.execute("EXECUTE cached_probe('probe')").fetchone()[0], "jia")
+            conn.execute("RESET ROLE")
+            conn.execute(sql.SQL("REVOKE {} FROM {}").format(sql.Identifier(parent_role), sql.Identifier(member_role)))
+            conn.execute(sql.SQL("SET ROLE {}").format(sql.Identifier(member_role)))
+            with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+                conn.execute("EXECUTE cached_probe('probe')")
+            conn.execute("RESET ROLE")
+
+            conn.execute("DROP CAST (public.cached_token AS text[])")
+            conn.execute("CREATE CAST (public.cached_token AS text[]) WITH FUNCTION public.cached_cast_v2(public.cached_token)")
+            self.assertEqual(conn.execute("EXECUTE cached_probe('probe')").fetchone()[0], "v2")
+
+            conn.execute("CREATE OR REPLACE FUNCTION public.cached_cast_v2(public.cached_token) RETURNS text[] "
+                         "LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE AS $$SELECT ARRAY['v3']::text[]$$")
+            self.assertEqual(conn.execute("EXECUTE cached_probe('probe')").fetchone()[0], "v3")
+
+            conn.execute("DROP CAST (public.cached_token AS text[])")
+            with self.assertRaises(psycopg.errors.CannotCoerce):
+                conn.execute("EXECUTE cached_probe('probe')")
+
+    def test_direct_cast_returning_null_is_not_invoked_twice(self):
+        with self.connect() as conn:
+            notices = []
+            conn.add_notice_handler(lambda diag: notices.append(diag.message_primary))
+            conn.execute("CREATE TYPE public.null_cast_token AS ENUM ('probe')")
+            conn.execute(
+                "CREATE FUNCTION public.null_cast_fn(public.null_cast_token) RETURNS text[] "
+                "LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE AS "
+                "$$ BEGIN RAISE NOTICE 'null_cast_fn_invoked'; RETURN NULL; END; $$"
+            )
+            conn.execute("CREATE CAST (public.null_cast_token AS text[]) WITH FUNCTION public.null_cast_fn(public.null_cast_token)")
+            result = conn.execute(
+                "SELECT public.pinyin_word_romanize(v) "
+                "FROM (VALUES ('probe'::public.null_cast_token)) AS t(v)"
+            ).fetchone()[0]
+            self.assertEqual(result, "probe")
+            self.assertEqual(notices.count("null_cast_fn_invoked"), 1)

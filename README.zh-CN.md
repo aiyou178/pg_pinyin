@@ -25,7 +25,7 @@
 
 支持各稳定主版本内后续的小版本。这些最低版本包含 PostgreSQL composite-datum
 安全修复；用这些头文件构建的二进制不能在更早的小版本上加载。不再支持 PG14。
-源码构建需要 Rust 1.99.1 与 cargo-pgrx 0.20.0。
+源码构建需要 Rust 1.99.1 与 cargo-pgrx 0.20.1。
 
 安装 0.0.9 二进制和升级 SQL 后，从新连接执行：
 
@@ -453,11 +453,10 @@ Rust 扩展测试：
 cargo pgrx test pg18 --features pg18
 ```
 
-当前构建要求 Rust 1.99.1、`cargo-pgrx` 0.20.0，以及同一 LLVM 主版本的
+当前构建要求 Rust 1.99.1、`cargo-pgrx` 0.20.1，以及同一 LLVM 主版本的
 `clang`、`llvm`、`libclang-dev`。支持 PG15-19，不再支持 PG14。
 使用修补后的头文件（15.20、16.16、17.12、18.7、19.0 或更高版本）。
-请显式指定已安装的正式版 PostgreSQL 19 的 `pg_config`；
-pgrx 0.20.0 的 `cargo pgrx init --pg19=download` 仍默认下载 19rc2：
+请指定已安装的正式版 PostgreSQL 19 的 `pg_config`：
 
 ```bash
 cargo pgrx init --pg19=/usr/lib/postgresql/19/bin/pg_config
@@ -550,6 +549,32 @@ DOCKER_BUILDKIT=1 docker build -f docker/Dockerfile.test-trixie -t pg_pinyin/tes
 ```
 
 ## Benchmark
+
+### pgrx 0.20.1 升级与运行时优化
+
+[pgrx 0.20.1 benchmark 报告](benchmarks/pgrx_0201.md) 在相同编译器、词典与
+release 配置下对比了 `origin/main`（`pgrx` 0.20.0）与升级到 `pgrx` 0.20.1
+并引入紧凑数组/前缀树词典、delta-only 后缀覆盖与 syscache 查表、查询级
+`fn_extra` cast 缓存及扁平 ASCII Trie 解析器后的表现（每轮 2 万文档，3 轮轮换新库；
+PG18.7 含 `pg_search` 0.27.0 与 2 千次 Top-10 查询，PG19.0 为核心扩展）。耗时中位数：
+
+| 任务 | PG18 优化前 / 后 (ms) | PG19 优化前 / 后 (ms) |
+| --- | ---: | ---: |
+| 字级拼音化，2 万行 | 12.617 / 6.086 (-51.8%) | 11.707 / 5.487 (-53.1%) |
+| 词级拼音化，2 万行 | 17.449 / 8.564 (-50.9%) | 16.795 / 9.365 (-44.2%) |
+| 原生 `text[]` token | 22.473 / 13.829 (-38.5%) | 19.001 / 13.024 (-31.5%) |
+| 每批 512 文档 | 26.554 / 16.416 (-38.2%) | 21.163 / 15.097 (-28.7%) |
+| 真实 `pdb.icu` cast | 68.780 / 49.412 (-28.2%) | n/a |
+| 动态 legacy pattern 解析 | 17.264 / 12.848 (-25.6%) | 16.194 / 13.816 (-14.7%) |
+| 带 stored 拼音列 COPY（PG18 含 BM25） | 197.600 / 124.549 (-37.0%) | 173.232 / 105.427 (-39.1%) |
+| 排序 Top-10，2 千次查询 | 1458.338 / 1419.671 (-2.6%) | n/a |
+
+首次 backend 冷加载（`word_text`）在 PG18（154.045 -> 73.950 ms）和 PG19（161.252 ->
+77.414 ms）均降低 52.0%；单进程词级 RSS 增量降低约 34%（PG18 76.887 -> 50.957 MiB，
+PG19 70.066 -> 45.953 MiB）。PG18 上后缀词典查询耗时降低约 90-91%（命中 135.357 ->
+13.504 ms，缺失 136.801 -> 11.780 ms），同时加载 5 个小型后缀覆盖表时 RSS 增量减少
+82.6%（236.121 -> 41.105 MiB）。收益主要来自上述数据结构与运行时优化，而非单纯
+`pgrx` 0.20.1 补丁升级。
 
 ### PostgreSQL 19 正式版与 pg_search 0.27.0
 

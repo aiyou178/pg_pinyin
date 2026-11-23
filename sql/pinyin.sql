@@ -139,9 +139,13 @@ STRICT
 PARALLEL SAFE
 AS $$
   WITH word_hit AS (
-    SELECT string_agg('|' || trim(both '|' from token) || '|', ' ' ORDER BY ord) AS pinyin
+    SELECT COALESCE(
+      string_agg('|' || trim(both '|' from token) || '|', ' ' ORDER BY ord)
+        FILTER (WHERE trim(both '|' from token) <> ''),
+      ''
+    ) AS pinyin
     FROM pinyin.pinyin_words
-    CROSS JOIN LATERAL regexp_split_to_table(lower(pinyin), '\s+') WITH ORDINALITY AS t(token,ord)
+    CROSS JOIN LATERAL regexp_split_to_table(btrim(lower(pinyin)), '\s+') WITH ORDINALITY AS t(token, ord)
     WHERE word = characters
     GROUP BY word
   ),
