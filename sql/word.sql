@@ -4,65 +4,23 @@
 
 CREATE OR REPLACE FUNCTION public.icu_romanize_tokens(tokens text[])
 RETURNS text
-LANGUAGE sql
+LANGUAGE plpgsql
 IMMUTABLE
 STRICT
 PARALLEL SAFE
 AS $$
-  WITH input_tokens AS (
-    SELECT
-      t.token,
-      t.position
-    FROM unnest(tokens) WITH ORDINALITY AS t(token, position)
-  ),
-  word_hits AS (
-    SELECT
-      input_tokens.position,
-      input_tokens.token,
-      pinyin_words.pinyin
-    FROM input_tokens
-    LEFT JOIN pinyin.pinyin_words
-      ON input_tokens.token = pinyin_words.word
-  ),
-  char_candidates AS (
-    SELECT
-      word_hits.position,
-      chars.ch,
-      chars.ord
-    FROM word_hits
-    JOIN LATERAL (
-      SELECT
-        x.ch,
-        x.ord
-      FROM unnest(string_to_array(word_hits.token, NULL)) WITH ORDINALITY AS x(ch, ord)
-    ) AS chars ON word_hits.pinyin IS NULL
-  ),
-  char_hits AS (
-    SELECT
-      char_candidates.position,
-      char_candidates.ord,
-      COALESCE(pinyin_mapping.pinyin, char_candidates.ch) AS pinyin
-    FROM char_candidates
-    LEFT JOIN pinyin.pinyin_mapping
-      ON char_candidates.ch = pinyin_mapping.character
-  ),
-  char_agg AS (
-    SELECT
-      char_hits.position,
-      string_agg(char_hits.pinyin, ' ' ORDER BY char_hits.ord) AS pinyin
-    FROM char_hits
-    GROUP BY char_hits.position
-  ),
-  combined AS (
-    SELECT
-      word_hits.position,
-      COALESCE(word_hits.pinyin, char_agg.pinyin, word_hits.token) AS pinyin
-    FROM word_hits
-    LEFT JOIN char_agg
-      ON word_hits.position = char_agg.position
+BEGIN
+  IF EXISTS (SELECT 1 FROM unnest(tokens) AS t(token) WHERE token IS NULL) THEN
+    RAISE EXCEPTION 'tokenizer text[] input must not contain NULL elements';
+  END IF;
+  RETURN (WITH input_tokens AS (
+    SELECT t.token,t.position FROM unnest(tokens) WITH ORDINALITY AS t(token,position)
+  ), normalized AS (
+    SELECT t.position, public.characters2romanize(t.token) AS pinyin FROM input_tokens t
   )
-  SELECT string_agg(combined.pinyin, ' ' ORDER BY combined.position)
-  FROM combined;
+  SELECT COALESCE(string_agg(pinyin,' ' ORDER BY position) FILTER (WHERE pinyin <> ''),'')
+  FROM normalized);
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION public.icu_romanize(tokenizer_input pdb.icu)
@@ -223,6 +181,10 @@ DECLARE
   prefix_exists boolean;
   auto_prefix boolean := false;
   auto_fallback boolean := false;
+  pattern_chunks integer[] := ARRAY[]::integer[];
+  resolved_patterns text[];
+  validation_remaining text;
+  validation_consumed integer;
 BEGIN
   IF value IS NULL OR mode IS NULL OR generated_pinyin IS NULL THEN
     RETURN NULL;
@@ -281,7 +243,7 @@ BEGIN
       IF ch ~ '^[0-5]$' AND current_chunk = '' THEN
         RETURN ARRAY[]::text[];
       END IF;
-      IF syllabic_tone AND current_chunk NOT IN ('m', 'n') THEN
+      IF syllabic_tone AND current_chunk NOT IN ('m', 'n', 'ng') THEN
         RETURN ARRAY[]::text[];
       END IF;
       IF current_chunk <> '' THEN
@@ -322,149 +284,106 @@ BEGIN
   inventory_text := '|' || inventory_text || '|';
 
   IF mode = 'auto' THEN
-    -- Tone-bearing chunks must remain valid complete syllables even when
-    -- initials later require compatibility fallback.
+    SELECT '^(?:' || string_agg(t.character, '|' ORDER BY char_length(t.character) DESC, t.character COLLATE "C") || ')'
+    INTO compat_pattern FROM (
+      SELECT character FROM pinyin.pinyin_token WHERE category = 1 AND character ~ '^[a-z]+$'
+      UNION SELECT 'zh' UNION SELECT 'ch' UNION SELECT 'sh'
+    ) AS t;
+
     FOR chunk_index IN 1..cardinality(chunks) LOOP
-      IF NOT numeric_tones[chunk_index] AND NOT chunk_has_tones[chunk_index] THEN
-        CONTINUE;
-      END IF;
       remaining := chunks[chunk_index];
       consumed := 0;
       WHILE remaining <> '' LOOP
-        matched := substring(remaining FROM inventory_pattern);
+        matched := NULL;
+        is_prefix := false;
+        SELECT count(*) INTO tone_count FROM generate_subscripts(tone_positions,1) AS j
+        WHERE tone_chunks[j] = chunk_index AND tone_positions[j] > consumed;
+        IF NOT generated_pinyin AND chunk_index = cardinality(chunks)
+           AND NOT numeric_tones[chunk_index] AND tone_count <= 1
+           AND strpos(inventory_text, '|' || remaining) > 0 THEN
+          matched := remaining;
+          is_prefix := NOT (matched = ANY(inventory)) OR
+            (tone_count = 0 AND substr(inventory_text,
+             strpos(inventory_text, '|' || matched) + char_length(matched) + 1,1) <> '|');
+        END IF;
+        IF matched IS NULL THEN matched := substring(remaining FROM inventory_pattern); END IF;
+        IF matched IS NOT NULL THEN
+          SELECT count(*) INTO tone_count FROM generate_subscripts(tone_positions,1) AS j
+          WHERE tone_chunks[j] = chunk_index AND tone_positions[j] > consumed
+            AND tone_positions[j] <= consumed + char_length(matched);
+          IF tone_count > 1 OR (remaining = matched AND numeric_tones[chunk_index] AND tone_count > 0) THEN
+            RETURN ARRAY[]::text[];
+          END IF;
+          IF matched IN ('m','n') AND (remaining <> matched OR chunk_index < cardinality(chunks))
+             AND tone_count = 0 AND NOT (numeric_tones[chunk_index] AND remaining = matched) THEN
+            matched := NULL;
+          END IF;
+        END IF;
         IF matched IS NULL THEN
-          RETURN ARRAY[]::text[];
-        END IF;
-        remaining := substr(remaining, char_length(matched) + 1);
-        tone_count := 0;
-        FOR tone_index IN 1..cardinality(tone_positions) LOOP
-          IF tone_chunks[tone_index] = chunk_index
-             AND tone_positions[tone_index] > consumed
-             AND tone_positions[tone_index] <= consumed + char_length(matched) THEN
-            tone_count := tone_count + 1;
+          auto_fallback := true;
+          IF chunk_has_tones[chunk_index] OR numeric_tones[chunk_index] THEN
+            validation_remaining := remaining;
+            validation_consumed := consumed;
+            WHILE validation_remaining <> '' LOOP
+              matched := substring(validation_remaining FROM inventory_pattern);
+              IF matched IS NULL THEN RETURN ARRAY[]::text[]; END IF;
+              SELECT count(*) INTO tone_count FROM generate_subscripts(tone_positions,1) AS j
+              WHERE tone_chunks[j] = chunk_index AND tone_positions[j] > validation_consumed
+                AND tone_positions[j] <= validation_consumed + char_length(matched);
+              IF tone_count > 1 OR (validation_remaining = matched AND numeric_tones[chunk_index] AND tone_count > 0) THEN
+                RETURN ARRAY[]::text[];
+              END IF;
+              validation_remaining := substr(validation_remaining,char_length(matched)+1);
+              validation_consumed := validation_consumed + char_length(matched);
+            END LOOP;
           END IF;
-        END LOOP;
-        IF tone_count > 1 OR (remaining = '' AND numeric_tones[chunk_index] AND tone_count > 0) THEN
-          RETURN ARRAY[]::text[];
-        END IF;
-        consumed := consumed + char_length(matched);
-      END LOOP;
-    END LOOP;
-
-    auto_fallback := generated_pinyin;
-    IF NOT auto_fallback THEN
-      <<auto_chunks>>
-      FOR chunk_index IN 1..cardinality(chunks) LOOP
-        remaining := chunks[chunk_index];
-        consumed := 0;
-        WHILE remaining <> '' LOOP
-          matched := NULL;
-          is_prefix := false;
-          tone_count := 0;
-          FOR tone_index IN 1..cardinality(tone_positions) LOOP
-            IF tone_chunks[tone_index] = chunk_index
-               AND tone_positions[tone_index] > consumed THEN
-              tone_count := tone_count + 1;
-            END IF;
+          WHILE remaining <> '' LOOP
+            matched := COALESCE(substring(remaining FROM compat_pattern),left(remaining,1));
+            patterns := array_append(patterns, matched || '.*');
+            pattern_chunks := array_append(pattern_chunks,chunk_index);
+            remaining := substr(remaining,char_length(matched)+1);
           END LOOP;
-          -- A final valid prefix stays whole, including yon rather than yo+n.
-          IF chunk_index = cardinality(chunks) AND NOT numeric_tones[chunk_index]
-             AND tone_count = 0 THEN
-            IF strpos(inventory_text, '|' || remaining) > 0 THEN
-              matched := remaining;
-            END IF;
-          END IF;
-          IF matched IS NULL THEN
-            matched := substring(remaining FROM inventory_pattern);
-          END IF;
-          IF matched IS NULL THEN
-            auto_fallback := true;
-            EXIT auto_chunks;
-          END IF;
-          remaining := substr(remaining, char_length(matched) + 1);
-          tone_count := 0;
-          FOR tone_index IN 1..cardinality(tone_positions) LOOP
-            IF tone_chunks[tone_index] = chunk_index
-               AND tone_positions[tone_index] > consumed
-               AND tone_positions[tone_index] <= consumed + char_length(matched) THEN
-              tone_count := tone_count + 1;
-            END IF;
-          END LOOP;
-          IF tone_count > 1 OR (remaining = '' AND numeric_tones[chunk_index] AND tone_count > 0) THEN
-            RETURN ARRAY[]::text[];
-          END IF;
-          -- Bare leading m/n may be initials, not syllabic interjections.
-          -- Only that token's own tone or numeric completion resolves it.
-          IF matched IN ('m', 'n')
-             AND (remaining <> '' OR chunk_index < cardinality(chunks))
-             AND tone_count = 0
-             AND NOT (numeric_tones[chunk_index] AND remaining = '') THEN
-            auto_fallback := true;
-            EXIT auto_chunks;
-          END IF;
-          IF chunk_index = cardinality(chunks) AND remaining = ''
-             AND NOT numeric_tones[chunk_index] AND tone_count = 0 THEN
-            is_prefix := NOT (matched = ANY(inventory));
-            IF NOT is_prefix THEN
-              is_prefix := substr(inventory_text,
-                strpos(inventory_text, '|' || matched) + char_length(matched) + 1, 1) <> '|';
-            END IF;
-          END IF;
-          auto_prefix := is_prefix;
-          tokens := array_append(tokens, matched);
-          IF cardinality(tokens) > 64 THEN
-            RETURN ARRAY[]::text[];
-          END IF;
+        ELSE
+          patterns := array_append(patterns,
+            CASE WHEN generated_pinyin THEN '.*\|' || matched || '.*'
+                 ELSE matched || CASE WHEN is_prefix THEN '.*' ELSE '' END END);
+          pattern_chunks := array_append(pattern_chunks,chunk_index);
           consumed := consumed + char_length(matched);
-        END LOOP;
-      END LOOP auto_chunks;
-    END IF;
-
-    IF NOT auto_fallback AND cardinality(tokens) > 1
-       AND NOT (true = ANY(numeric_tones))
-       AND NOT (true = ANY(chunk_has_tones)) THEN
-      -- Multiple unmarked single letters are an initials query, even when
-      -- some letters also happen to be complete vowel syllables.
-      auto_fallback := true;
-      FOREACH token IN ARRAY tokens LOOP
-        IF char_length(token) <> 1 THEN
-          auto_fallback := false;
-          EXIT;
+          remaining := substr(remaining,char_length(matched)+1);
+        END IF;
+        IF cardinality(patterns) > 64 THEN RETURN ARRAY[]::text[]; END IF;
+      END LOOP;
+    END LOOP;
+    IF auto_fallback THEN
+      resolved_patterns := patterns;
+      patterns := ARRAY[]::text[];
+      FOR chunk_index IN 1..cardinality(chunks) LOOP
+        IF numeric_tones[chunk_index] OR chunk_has_tones[chunk_index] THEN
+          FOR position IN 1..cardinality(resolved_patterns) LOOP
+            IF pattern_chunks[position] = chunk_index THEN
+              patterns := array_append(patterns,resolved_patterns[position]);
+            END IF;
+          END LOOP;
+        ELSE
+          remaining := chunks[chunk_index];
+          WHILE remaining <> '' LOOP
+            matched := COALESCE(substring(remaining FROM compat_pattern),left(remaining,1));
+            patterns := array_append(patterns,
+              CASE WHEN generated_pinyin THEN '.*\|' ELSE '' END || matched || '.*');
+            remaining := substr(remaining,char_length(matched)+1);
+          END LOOP;
         END IF;
       END LOOP;
     END IF;
-
-    IF auto_fallback THEN
-      tokens := ARRAY[]::text[];
-      SELECT '^(?:' || string_agg(t.character, '|' ORDER BY char_length(t.character) DESC, t.character COLLATE "C") || ')'
-      INTO compat_pattern
-      FROM (
-        SELECT character FROM pinyin.pinyin_token
-        WHERE category = 1 AND character ~ '^[a-z]+$'
-        UNION SELECT 'zh'
-        UNION SELECT 'ch'
-        UNION SELECT 'sh'
-      ) AS t;
-      FOREACH remaining IN ARRAY chunks LOOP
-        WHILE remaining <> '' LOOP
-          matched := substring(remaining FROM compat_pattern);
-          matched := COALESCE(matched, left(remaining, 1));
-          tokens := array_append(tokens, matched);
-          IF cardinality(tokens) > 64 THEN
-            RETURN ARRAY[]::text[];
-          END IF;
-          remaining := substr(remaining, char_length(matched) + 1);
-        END LOOP;
-      END LOOP;
+    IF cardinality(patterns) > 64 THEN RETURN ARRAY[]::text[]; END IF;
+    -- Unmarked single-letter sequences remain initials, including bare vowels.
+    IF cardinality(patterns) > 1 AND NOT (true = ANY(numeric_tones))
+       AND NOT (true = ANY(chunk_has_tones)) AND NOT EXISTS (
+         SELECT 1 FROM unnest(patterns) AS p WHERE p !~ '^[a-z]([.][*])?$'
+       ) THEN
+      SELECT array_agg(left(p,1) || '.*' ORDER BY n) INTO patterns
+      FROM unnest(patterns) WITH ORDINALITY AS t(p,n);
     END IF;
-
-    FOR position IN 1..cardinality(tokens) LOOP
-      token := tokens[position];
-      is_prefix := auto_fallback OR (auto_prefix AND position = cardinality(tokens));
-      patterns := array_append(patterns,
-        CASE WHEN generated_pinyin THEN '.*\|' || token || '.*'
-             ELSE token || CASE WHEN is_prefix THEN '.*' ELSE '' END END);
-    END LOOP;
     RETURN patterns;
   END IF;
 
@@ -543,6 +462,10 @@ BEGIN
 END;
 $$;
 
+DO $sql_pinyin_auto_capabilities$
+DECLARE definition text;
+BEGIN
+  definition := $create_function$
 CREATE OR REPLACE FUNCTION public.sql_pinyin_regex_phrase_mode(
   value text,
   mode text,
@@ -611,6 +534,10 @@ BEGIN
   RETURN public.sql_pinyin__regex_phrase_query_from_patterns(patterns, slope, max_expansions);
 END;
 $$;
+$create_function$;
+EXECUTE definition;
+END;
+$sql_pinyin_auto_capabilities$;
 
 DO $sql_pinyin_native_phrase$
 DECLARE

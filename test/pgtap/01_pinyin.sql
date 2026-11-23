@@ -20,12 +20,12 @@ INSERT INTO pinyin.pinyin_token (character, category) VALUES
   ('wang', 1), ('chong', 1), ('yang', 1),
   ('zh', 2), ('ch', 2), ('sh', 2),
   ('w', 2), ('c', 2), ('h', 2), ('y', 2),
-  ('xi', 1), ('an', 1);
+  ('xi', 1), ('an', 1), ('m', 3), ('n', 3);
 
 INSERT INTO pinyin.pinyin_words (word, pinyin)
 VALUES ('郑爽', '|zheng| |shuang|');
 
-SELECT plan(15);
+SELECT plan(18);
 
 SELECT is(public.romanize2text('我们'), '我们', 'romanize2text keeps mapped Han chars');
 SELECT is(public.romanize2text('我ABC们123'), '我ABC们123', 'romanize2text keeps ASCII runs');
@@ -37,7 +37,7 @@ SELECT is(
   'romanize2array splits into Han chars and ASCII runs'
 );
 
-SELECT is(public.characters2romanize('我ABC们123'), '|wo| |ABC| |men| |123|', 'characters2romanize maps Han chars and keeps ASCII');
+SELECT is(public.characters2romanize('我ABC们123'), '|wo| |abc| |men| |123|', 'characters2romanize maps Han chars and lowercases ASCII');
 SELECT is(public.characters2romanize('重起'), '|tong|zhong|chong| |qi|', 'characters2romanize keeps polyphone mapping string');
 SELECT is(public.characters2romanize('郑爽'), '|zheng| |shuang|', 'characters2romanize applies full-word override from pinyin_words');
 
@@ -73,6 +73,11 @@ SELECT is(
 SELECT ok(public.romanize2text(NULL) IS NULL, 'romanize2text(NULL) returns NULL');
 SELECT ok(public.romanize2array(NULL) IS NULL, 'romanize2array(NULL) returns NULL');
 SELECT ok(public.characters2romanize(NULL) IS NULL, 'characters2romanize(NULL) returns NULL');
+SELECT is(public.characters2romanize('!!!'), '', 'punctuation is not indexed as a token');
+SELECT is(public.pinyin_isearch('m n'), E'\\S*\\|m\\|\\S* \\S*\\|n\\|\\S*',
+  'syllabic m and n keep exact boundaries rather than initial prefixes');
+SELECT is((SELECT string_agg(token,' ') FROM public.pinyin_tokenize('xzh') AS token),'x z h',
+  'unmapped initial x is not skipped by tokenization');
 
 SELECT * FROM finish();
 

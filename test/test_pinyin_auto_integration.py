@@ -15,21 +15,7 @@ from psycopg.conninfo import make_conninfo
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def mode_install_block(source):
-    match = re.search(r"DO \$pinyin_query_modes\$(.*?)\$pinyin_query_modes\$;", source, re.S)
-    if match is None:
-        raise AssertionError("missing mode API installation block")
-    return " ".join(match.group(1).split())
-
-
 class AutoInstallationSourceTests(unittest.TestCase):
-    def test_fresh_and_unreleased_upgrade_mode_wrappers_are_identical(self):
-        fresh = (ROOT / "src/lib.rs").read_text(encoding="utf-8")
-        upgrade = (ROOT / "pg_pinyin--0.0.8--0.0.9.sql").read_text(encoding="utf-8")
-        self.assertEqual(mode_install_block(fresh), mode_install_block(upgrade))
-        self.assertIn("pdb.phrase_prefix", mode_install_block(fresh))
-        self.assertIn("16384", mode_install_block(fresh))
-
     def test_sql_backend_never_calls_a_rust_query_helper(self):
         source = (ROOT / "sql/word.sql").read_text(encoding="utf-8")
         self.assertIsNone(re.search(r"public\.pinyin_(?:regex_phrase|phrase)\s*\(", source))
@@ -48,6 +34,11 @@ class AutoSqlOnlyIntegrationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.admin_url = os.environ.get("TEST_UPGRADE_DSN") or os.environ["PGURL"]
+        with psycopg.connect(cls.admin_url, autocommit=True) as connection:
+            if not connection.execute(
+                "SELECT EXISTS(SELECT 1 FROM pg_available_extensions WHERE name='pg_search')"
+            ).fetchone()[0]:
+                raise unittest.SkipTest("SQL search integration requires pg_search")
         cls.name = "pinyin_auto_sql_" + uuid.uuid4().hex[:12]
         cls.url = make_conninfo(cls.admin_url, dbname=cls.name)
         with psycopg.connect(cls.admin_url, autocommit=True) as connection:

@@ -139,13 +139,15 @@ STRICT
 PARALLEL SAFE
 AS $$
   WITH word_hit AS (
-    SELECT pinyin
+    SELECT string_agg('|' || trim(both '|' from token) || '|', ' ' ORDER BY ord) AS pinyin
     FROM pinyin.pinyin_words
+    CROSS JOIN LATERAL regexp_split_to_table(lower(pinyin), '\s+') WITH ORDINALITY AS t(token,ord)
     WHERE word = characters
-    LIMIT 1
+    GROUP BY word
   ),
   char_fallback AS (
-    SELECT string_agg(COALESCE(m.pinyin, CONCAT('|', t.token, '|')), ' ' ORDER BY t.ord) AS value
+    SELECT COALESCE(string_agg(COALESCE(m.pinyin, CONCAT('|', lower(t.token), '|')), ' ' ORDER BY t.ord)
+      FILTER (WHERE t.token !~ '^\s*$' AND (m.character IS NOT NULL OR t.token ~ '^[0-9A-Za-z]+$')), '') AS value
     FROM unnest(public.romanize2array(characters)) WITH ORDINALITY AS t(token, ord)
     LEFT JOIN pinyin.pinyin_mapping AS m
       ON m.character = t.token
@@ -179,10 +181,12 @@ BEGIN
     pattern := pattern || '|zh|ch|sh';
   END IF;
 
-  RETURN QUERY EXECUTE format(
-    $re$SELECT (regexp_matches(lower($1), '(%s|[a-z])', 'g'))[1]$re$,
-    pattern
-  ) USING characters;
+  -- Every ASCII consonant is emitted by the final alternative; never silently
+  -- skip punctuation or non-ASCII input and return a partial query.
+  IF characters !~ '^[A-Za-z[:space:]]*$' THEN RETURN; END IF;
+  RETURN QUERY SELECT matched[1] FROM regexp_matches(
+    lower(characters), '(' || pattern || '|[a-z])', 'g'
+  ) AS matched;
 END;
 $$;
 

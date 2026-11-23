@@ -20,6 +20,7 @@ ENV PATH=/usr/lib/postgresql/${TARGET_PG_MAJOR}/bin:/root/.cargo/bin:$PATH \
     PG_CONFIG=/usr/lib/postgresql/${TARGET_PG_MAJOR}/bin/pg_config \
     CC=clang \
     AR=llvm-ar \
+    BASELINE_CARGO_PGRX=/opt/pgrx-baseline/bin/cargo-pgrx \
     CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
 
 RUN set -eux; \
@@ -64,6 +65,7 @@ RUN --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
   fi; \
   rustup toolchain install "$RUST_VERSION" --profile minimal --component rustfmt; \
   rustup default "$RUST_VERSION"; \
+  cargo install --locked cargo-pgrx --version 0.19.3 --root /opt/pgrx-baseline; \
   cargo install --locked cargo-pgrx --version 0.20.0
 
 WORKDIR /work

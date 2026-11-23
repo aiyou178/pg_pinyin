@@ -29,6 +29,7 @@ jobs:
 
       - name: Verify Cargo and control version
         run: |
+          cmp pg_pinyin.control src/pg_pinyin.control
           CARGO_VERSION="$(awk -F'\"' '/^version = / { print $2; exit }' Cargo.toml)"
           CONTROL_VERSION="$(awk -F"'" '/^default_version = / { print $2; exit }' pg_pinyin.control)"
           if [[ "$CARGO_VERSION" != "$EXT_VERSION" ]]; then

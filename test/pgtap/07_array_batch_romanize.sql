@@ -148,12 +148,16 @@ SELECT ok(:'hidden_suffix_empty_ok'::boolean, 'empty suffix batch needs no dicti
 SELECT ok(:'hidden_suffix_null_ok'::boolean, 'all-NULL suffix batch needs no dictionary lookup');
 
 CREATE DOMAIN pinyin_array_batch_test.token_domain AS text[];
+SELECT is(public.pinyin_word_romanize('不看僧面看佛面'::pdb.icu),
+          'bu kan seng mian kan fo mian', 'real ICU cast keeps greedy phrase reading across tokenizer chunks');
+SELECT is(public.pinyin_word_romanize('郑爽ABC！'::pdb.icu),
+          'zheng shuang abc', 'real ICU cast normalizes mixed Han and ASCII without a backend crash');
 CREATE TEMP TABLE token_gold(tokens text[], expected text);
 INSERT INTO token_gold VALUES
   (ARRAY[' 吕梁 ', '', ' ', 'ABC123'], 'lv liang abc123'),
   (ARRAY['吕', '梁', 'ABC'], 'lv liang abc'),
   (ARRAY[]::text[], ''),
-  (ARRAY['ABC-DEF', 'ABC_DEF', 'A.B', 'Ü', '123'], 'ABC-DEF ABC_DEF A.B Ü 123'),
+  (ARRAY['ABC-DEF', 'ABC_DEF', 'A.B', 'Ü', '123'], 'abc def abc def a b 123'),
   (ARRAY[U&'\3000ABC\00a0', '', U&'\3000'], 'abc'),
   (ARRAY[E'\tABC\n', ' ', E'\t'], 'abc');
 SELECT is(public.pinyin_word_romanize(tokens), expected, 'native token normalization: ' || tokens::text)

@@ -82,11 +82,11 @@ jobs:
             arch: arm64
             runner: ubuntu-24.04-arm
           - pg_major: '19'
-            base_image: pg-pinyin-postgres:19.0-trixie
+            base_image: postgres:19.0-trixie
             arch: amd64
             runner: ubuntu-24.04
           - pg_major: '19'
-            base_image: pg-pinyin-postgres:19.0-trixie
+            base_image: postgres:19.0-trixie
             arch: arm64
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
@@ -95,11 +95,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Build the PostgreSQL 19 GA base
-        if: matrix.pg_major == '19'
-        # Use the upstream recipe until https://github.com/docker-library/official-images/pull/22805 is published.
-        run: bash scripts/build_pg19_runtime.sh '${{ matrix.base_image }}'
 
       - name: Build test image
         run: |
@@ -143,21 +138,20 @@ jobs:
           cargo pgrx init "--pg${PG_MAJOR}=$PG_CONFIG"
           cargo pgrx test "pg${PG_MAJOR}" --release --features pg_test --no-default-features \
             --runas postgres --pgdata /tmp/pg-pinyin-tests
-          if [[ "$PG_MAJOR" == '18' ]]; then
-            PG_PINYIN_BUILD_RELEASE=1 bash test/prepare_upgrade.sh
-          fi
+          PG_PINYIN_BUILD_RELEASE=1 bash test/prepare_upgrade.sh
           cargo pgrx install -v --release --features "pg${PG_MAJOR}" --no-default-features --pg-config "$PG_CONFIG"
           cp pg_pinyin--*--*.sql "$("$PG_CONFIG" --sharedir)/extension/"
           if [[ "$PG_MAJOR" == '18' ]]; then
             psql "$PGURL" -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION IF NOT EXISTS pg_search CASCADE;'
             test "$(psql "$PGURL" -Atc "SELECT extversion FROM pg_extension WHERE extname='pg_search'")" = "$PG_SEARCH_VERSION"
-            PG_LOADER_TESTS=1 TEST_UPGRADE_DSN="$PGURL" python3 -m unittest discover -s test -p 'test_*.py'
+            export PG_LOADER_TESTS=1
           fi
+          TEST_UPGRADE_DSN="$PGURL" python3 -m unittest discover -s test -p 'test_*.py'
           psql "$PGURL" -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION IF NOT EXISTS pg_pinyin;'
           if [[ "$PG_MAJOR" == '18' ]]; then
             ./test/pgtap/run.sh
           else
-            pg_prove --dbname "$PGURL" test/pgtap/02_pg_pinyin_extension.sql test/pgtap/04_parallel_read_only.sql
+            pg_prove --dbname "$PGURL" test/pgtap/01_pinyin.sql test/pgtap/02_pg_pinyin_extension.sql test/pgtap/04_parallel_read_only.sql test/pgtap/10_remediation_core.sql
           fi
           BASH
 

@@ -71,7 +71,7 @@ FROM pronunciation_gold ORDER BY id;
 SELECT is(public.pinyin_word_romanize(ARRAY[name]::text[]), expected,
           'Rust tokenizer phrase preserves boundaries: ' || name)
 FROM pronunciation_gold ORDER BY id;
-SELECT is(public.icu_romanize_tokens(ARRAY[name]::text[]), expected,
+SELECT is(public.icu_romanize_tokens(ARRAY[name]::text[]), '|' || replace(expected,' ','| |') || '|',
           'independent SQL phrase backend: ' || name)
 FROM pronunciation_gold ORDER BY id;
 

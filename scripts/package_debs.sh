@@ -6,10 +6,12 @@ OUT_DIR="${OUT_DIR:-$ROOT_DIR/dist}"
 EXT_VERSION="${EXT_VERSION:-$(awk -F'\"' '/^version = / { print $2; exit }' "$ROOT_DIR/Cargo.toml")}"
 PG_VERSIONS=(15 16 17 18 19)
 ARCH="$(dpkg --print-architecture)"
+export CARGO_TARGET_DIR="${PACKAGE_CARGO_TARGET_DIR:-$ROOT_DIR/target/package-build}"
 
 mkdir -p "$OUT_DIR"
 
 cd "$ROOT_DIR"
+cmp pg_pinyin.control src/pg_pinyin.control
 
 data_notices=(NOTICE.md MIT-sources.txt CC-BY-SA-3.0.txt CC-BY-SA-4.0.txt manifest.json)
 for file in "${data_notices[@]}"; do
@@ -23,6 +25,16 @@ for pg in "${PG_VERSIONS[@]}"; do
     echo "missing pg_config for PostgreSQL $pg at $pg_config" >&2
     exit 2
   fi
+  case "$pg" in
+    15) minimum=15.20 ;; 16) minimum=16.16 ;; 17) minimum=17.12 ;;
+    18) minimum=18.7 ;; 19) minimum=19.0 ;;
+  esac
+  for component in postgresql postgresql-server-dev; do
+    version="$(dpkg-query -W -f='${Version}' "$component-$pg")"
+    dpkg --compare-versions "$version" ge "$minimum" || {
+      echo "$component-$pg $version is below $minimum" >&2; exit 2;
+    }
+  done
 done
 
 shopt -s nullglob
@@ -42,15 +54,18 @@ cargo pgrx init \
 for pg in "${PG_VERSIONS[@]}"; do
   echo "[package] PostgreSQL $pg"
   pg_config="/usr/lib/postgresql/$pg/bin/pg_config"
-  cargo pgrx install \
+  build_dir="$ROOT_DIR/target/pgrx-pkg/pg$pg"
+  package_dir="$build_dir/package"
+  rm -rf "$package_dir"
+  cargo pgrx package \
     -v \
-    --release \
     --features "pg$pg" \
     --no-default-features \
+    --out-dir "$package_dir" \
     --pg-config "$pg_config"
 
-  ext_dir="/usr/share/postgresql/$pg/extension"
-  lib_dir="/usr/lib/postgresql/$pg/lib"
+  ext_dir="$package_dir/usr/share/postgresql/$pg/extension"
+  lib_dir="$package_dir/usr/lib/postgresql/$pg/lib"
   if [[ ! -d "$ext_dir" || ! -d "$lib_dir" ]]; then
     echo "missing extension/lib install dirs for PostgreSQL $pg" >&2
     exit 1
@@ -63,7 +78,6 @@ for pg in "${PG_VERSIONS[@]}"; do
     exit 1
   fi
 
-  build_dir="$ROOT_DIR/target/pgrx-pkg/pg$pg"
   deb_root="$build_dir/deb"
   rm -rf "$deb_root"
   mkdir -p \
@@ -92,7 +106,7 @@ Section: database
 Priority: optional
 Architecture: ${ARCH}
 Maintainer: Liang Zhanzhao <liangzhanzhao1985@gmail.com>
-Depends: postgresql-${pg} (>= ${pg_package_version})
+Depends: postgresql-${pg} (>= ${pg_package_version}), libc6 (>= 2.41), libgcc-s1
 Description: pinyin romanization extension for PostgreSQL
  Rust+pgrx extension with character and word-level pinyin romanization.
 CONTROL

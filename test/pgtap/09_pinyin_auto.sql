@@ -125,6 +125,13 @@ FROM (VALUES
 
 CREATE TEMP TABLE auto_pattern_gold(label text,value text,generated boolean,expected text[]);
 INSERT INTO auto_pattern_gold VALUES
+  ('toned trailing consonant', 'wúh', false, ARRAY['wu','h.*']),
+  ('toned terminal prefix', 'nǐyón', false, ARRAY['ni','yon.*']),
+  ('numeric completed first syllable', 'ni3hao', false, ARRAY['ni','hao']),
+  ('exact tone survives later initials', 'ni3 whh', false, ARRAY['ni','w.*','h.*','h.*']),
+  ('nasal acute', 'ńg', false, ARRAY['ng']),
+  ('nasal caron', 'ňg', false, ARRAY['ng']),
+  ('nasal grave', 'ǹg', false, ARRAY['ng']),
   ('complete unambiguous single', 'ang', false, ARRAY['ang']),
   ('ambiguous complete single keeps prefix', 'an', false, ARRAY['an.*']),
   ('unambiguous complete phrase', 'xi ang', false, ARRAY['xi','ang']),
@@ -154,7 +161,6 @@ INSERT INTO auto_pattern_gold VALUES
   ('compact incomplete prefix is not split', 'niyon', false, ARRAY['ni','yon.*']),
   ('tone on prior syllable keeps whole terminal prefix', 'nǐyon', false, ARRAY['ni','yon.*']),
   ('numeric tone boundary keeps whole terminal prefix', 'ni3yon', false, ARRAY['ni','yon.*']),
-  ('marked complete substring retains greedy grammar', 'nǐyón', false, ARRAY['ni','yo','n.*']),
   ('marked complete last syllable is exact', 'nǐyǒng', false, ARRAY['ni','yong']),
   ('numeric tones explicitly complete', 'xi1 an1', false, ARRAY['xi','an']),
   ('marked terminal syllable explicitly complete', 'xi ān', false, ARRAY['xi','an']),

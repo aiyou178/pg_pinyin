@@ -58,12 +58,28 @@ class SqlLoaderTests(unittest.TestCase):
                 "public.icu_romanize_tokens(ARRAY['西安','吕梁','善感']), "
                 "public.sql_pinyin_regex_phrase_patterns('whh')"
             ).fetchone()
-            self.assertEqual(row, (True, "xi an lv liang shan gan", ["w.*", "h.*", "h.*"]))
+            self.assertEqual(row, (True, "|xi| |an| |lv| |liang| |shan| |gan|", ["w.*", "h.*", "h.*"]))
             analyzed = connection.execute(
                 "SELECT bool_and(last_analyze IS NOT NULL) FROM pg_stat_user_tables "
                 "WHERE schemaname='pinyin' AND relname IN ('pinyin_mapping','pinyin_token','pinyin_words')"
             ).fetchone()[0]
             self.assertTrue(analyzed)
+
+    def test_generated_phrase_output_matches_generated_query_patterns(self):
+        with psycopg.connect(self.url, autocommit=True) as connection:
+            connection.execute("CREATE TEMP TABLE generated_pairing(id bigint PRIMARY KEY, body text)")
+            connection.execute("INSERT INTO generated_pairing VALUES (1, public.icu_romanize_tokens(ARRAY['西安'])),(2,public.icu_romanize_tokens(ARRAY['吕梁']))")
+            connection.execute("CREATE INDEX ON generated_pairing USING bm25(id,(body::pdb.whitespace))")
+            self.assertEqual(connection.execute(
+                "SELECT id FROM generated_pairing WHERE body @@@ public.sql_pinyin_regex_phrase_mode('xi an','full',NULL,NULL,true) ORDER BY id"
+            ).fetchall(), [(1,)])
+            self.assertEqual(connection.execute(
+                "SELECT public.icu_romanize_tokens(ARRAY['西安ABC','！']),"
+                "public.icu_romanize_tokens(ARRAY[]::text[]),"
+                "public.icu_romanize_tokens(ARRAY[['西安','ABC'],['！','吕梁']])"
+            ).fetchone(), ("|xi| |an| |abc|", "", "|xi| |an| |abc| |lv| |liang|"))
+            with self.assertRaisesRegex(psycopg.errors.RaiseException, "must not contain NULL"):
+                connection.execute("SELECT public.icu_romanize_tokens(ARRAY[['西安',NULL]])")
 
     def test_sql_matching_mode_patterns_and_legacy_null_resolution(self):
         cases = [
