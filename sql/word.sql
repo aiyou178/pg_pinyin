@@ -339,7 +339,8 @@ BEGIN
           END IF;
           WHILE remaining <> '' LOOP
             matched := COALESCE(substring(remaining FROM compat_pattern),left(remaining,1));
-            patterns := array_append(patterns, matched || '.*');
+            patterns := array_append(patterns,
+              CASE WHEN generated_pinyin THEN '.*\|' ELSE '' END || matched || '.*');
             pattern_chunks := array_append(pattern_chunks,chunk_index);
             remaining := substr(remaining,char_length(matched)+1);
           END LOOP;

@@ -1,58 +1,190 @@
-use std::collections::HashSet;
+use std::borrow::Cow;
 
 const EXTRA_INITIALS: [&str; 3] = ["zh", "ch", "sh"];
 
+#[derive(Clone, Copy)]
+struct AsciiTrieNode {
+    next: [u16; 26],
+    is_terminal: bool,
+    has_children: bool,
+}
+
+impl AsciiTrieNode {
+    const EMPTY: Self = Self {
+        next: [0; 26],
+        is_terminal: false,
+        has_children: false,
+    };
+}
+
+pub(crate) struct AsciiTrie {
+    nodes: Vec<AsciiTrieNode>,
+}
+
+impl AsciiTrie {
+    pub(crate) fn new() -> Self {
+        Self {
+            nodes: vec![AsciiTrieNode::EMPTY],
+        }
+    }
+
+    pub(crate) fn insert(&mut self, token: &str) -> bool {
+        if token.is_empty() || !token.bytes().all(|byte| byte.is_ascii_lowercase()) {
+            return false;
+        }
+        let mut node = 0usize;
+        for byte in token.bytes() {
+            let slot = (byte - b'a') as usize;
+            let child = self.nodes[node].next[slot];
+            if child == 0 {
+                let next_idx =
+                    u16::try_from(self.nodes.len()).expect("ASCII trie node count exceeded u16");
+                self.nodes.push(AsciiTrieNode::EMPTY);
+                self.nodes[node].next[slot] = next_idx;
+                self.nodes[node].has_children = true;
+                node = next_idx as usize;
+            } else {
+                node = child as usize;
+            }
+        }
+        let was_terminal = self.nodes[node].is_terminal;
+        self.nodes[node].is_terminal = true;
+        !was_terminal
+    }
+
+    #[inline]
+    pub(crate) fn longest_match_len(&self, bytes: &[u8]) -> Option<usize> {
+        let mut node = 0usize;
+        let mut best = None;
+        for (idx, &byte) in bytes.iter().enumerate() {
+            if !byte.is_ascii_lowercase() {
+                break;
+            }
+            let child = self.nodes[node].next[(byte - b'a') as usize];
+            if child == 0 {
+                break;
+            }
+            node = child as usize;
+            if self.nodes[node].is_terminal {
+                best = Some(idx + 1);
+            }
+        }
+        best
+    }
+
+    #[inline]
+    pub(crate) fn lookup(&self, bytes: &[u8]) -> Option<(bool, bool)> {
+        if bytes.is_empty() {
+            return None;
+        }
+        let mut node = 0usize;
+        for &byte in bytes {
+            if !byte.is_ascii_lowercase() {
+                return None;
+            }
+            let child = self.nodes[node].next[(byte - b'a') as usize];
+            if child == 0 {
+                return None;
+            }
+            node = child as usize;
+        }
+        let entry = self.nodes[node];
+        Some((entry.is_terminal, entry.has_children))
+    }
+
+    #[cfg(test)]
+    pub(crate) fn collect_all(&self) -> Vec<String> {
+        fn visit(nodes: &[AsciiTrieNode], idx: usize, buf: &mut String, out: &mut Vec<String>) {
+            let node = nodes[idx];
+            if node.is_terminal {
+                out.push(buf.clone());
+            }
+            for (slot, &child) in node.next.iter().enumerate() {
+                if child != 0 {
+                    buf.push((b'a' + slot as u8) as char);
+                    visit(nodes, child as usize, buf, out);
+                    buf.pop();
+                }
+            }
+        }
+        let mut out = Vec::new();
+        let mut buf = String::new();
+        visit(&self.nodes, 0, &mut buf, &mut out);
+        out
+    }
+}
+
 pub struct RegexTokenDictionary {
-    tokens_by_first: [Vec<String>; 26],
+    trie: AsciiTrie,
     token_count: usize,
 }
 
 impl RegexTokenDictionary {
     pub fn from_tokens(tokens: impl IntoIterator<Item = String>) -> Self {
-        let mut seen = HashSet::new();
-        let mut tokens_by_first: [Vec<String>; 26] = std::array::from_fn(|_| Vec::new());
+        let mut trie = AsciiTrie::new();
+        let mut token_count = 0usize;
 
         for token in tokens {
             let token = token.to_ascii_lowercase();
-            if token.is_empty() || !token.bytes().all(|byte| byte.is_ascii_lowercase()) {
-                continue;
+            if trie.insert(&token) {
+                token_count += 1;
             }
-            if !seen.insert(token.clone()) {
-                continue;
-            }
-
-            let first = token.as_bytes()[0];
-            tokens_by_first[(first - b'a') as usize].push(token);
         }
 
         for token in EXTRA_INITIALS {
-            if seen.insert(token.to_string()) {
-                tokens_by_first[(token.as_bytes()[0] - b'a') as usize].push(token.to_string());
+            if trie.insert(token) {
+                token_count += 1;
             }
         }
 
-        for bucket in &mut tokens_by_first {
-            bucket.sort_by(|a, b| b.len().cmp(&a.len()).then_with(|| a.cmp(b)));
-        }
-
-        Self {
-            tokens_by_first,
-            token_count: seen.len(),
-        }
+        Self { trie, token_count }
     }
 
     pub fn token_count(&self) -> usize {
         self.token_count
     }
 
+    #[inline]
     fn match_token_len(&self, lower: &str, idx: usize) -> usize {
-        let byte = lower.as_bytes()[idx];
-        let bucket = &self.tokens_by_first[(byte - b'a') as usize];
-        bucket
-            .iter()
-            .find(|token| lower[idx..].starts_with(token.as_str()))
-            .map(String::len)
+        self.trie
+            .longest_match_len(&lower.as_bytes()[idx..])
             .unwrap_or(1)
+    }
+
+    pub(crate) fn append_patterns_for_lower_chunk(
+        &self,
+        chunk: &str,
+        generated_pinyin: bool,
+        max_patterns: usize,
+        out: &mut Vec<String>,
+    ) -> bool {
+        let mut idx = 0usize;
+        while idx < chunk.len() {
+            if out.len() >= max_patterns {
+                return false;
+            }
+            let token_len = self.match_token_len(chunk, idx);
+            let token = &chunk[idx..idx + token_len];
+            push_regex_pattern(token, generated_pinyin, out);
+            idx += token_len;
+        }
+        true
+    }
+}
+
+#[inline]
+fn push_regex_pattern(token: &str, generated_pinyin: bool, patterns: &mut Vec<String>) {
+    if generated_pinyin {
+        let mut pattern = String::with_capacity(token.len() + 5);
+        pattern.push_str(r".*\|");
+        pattern.push_str(token);
+        pattern.push_str(".*");
+        patterns.push(pattern);
+    } else {
+        let mut pattern = String::with_capacity(token.len() + 2);
+        pattern.push_str(token);
+        pattern.push_str(".*");
+        patterns.push(pattern);
     }
 }
 
@@ -82,12 +214,12 @@ pub fn pinyin_regex_phrase_patterns(
         return Some(Vec::new());
     };
 
-    let token_count = token_count_normalized(&lower, dictionary);
-    let mut patterns = Vec::with_capacity(token_count);
+    let bytes = lower.as_bytes();
+    let mut patterns = Vec::with_capacity(bytes.len().div_ceil(2).min(16));
     let mut idx = 0usize;
 
-    while idx < lower.len() {
-        let byte = lower.as_bytes()[idx];
+    while idx < bytes.len() {
+        let byte = bytes[idx];
         if byte.is_ascii_whitespace() {
             idx += 1;
             continue;
@@ -95,18 +227,7 @@ pub fn pinyin_regex_phrase_patterns(
 
         let token_len = dictionary.match_token_len(&lower, idx);
         let token = &lower[idx..idx + token_len];
-        if generated_pinyin {
-            let mut pattern = String::with_capacity(token.len() + 5);
-            pattern.push_str(r".*\|");
-            pattern.push_str(token);
-            pattern.push_str(".*");
-            patterns.push(pattern);
-        } else {
-            let mut pattern = String::with_capacity(token.len() + 2);
-            pattern.push_str(token);
-            pattern.push_str(".*");
-            patterns.push(pattern);
-        }
+        push_regex_pattern(token, generated_pinyin, &mut patterns);
         idx += token_len;
     }
 
@@ -122,16 +243,30 @@ pub fn pinyin_regex_phrase_token_count(
     if count == 0 { None } else { Some(count) }
 }
 
-fn normalize_input(value: &str) -> Option<String> {
+fn normalize_input(value: &str) -> Option<Cow<'_, str>> {
     if value.is_empty() {
         return None;
     }
 
-    if value
-        .bytes()
-        .all(|byte| byte.is_ascii_alphabetic() || byte.is_ascii_whitespace())
-    {
-        return Some(value.to_ascii_lowercase());
+    let mut needs_lowercase = false;
+    let mut all_ascii_simple = true;
+    for byte in value.bytes() {
+        if byte.is_ascii_lowercase() || byte.is_ascii_whitespace() {
+            continue;
+        }
+        if byte.is_ascii_uppercase() {
+            needs_lowercase = true;
+            continue;
+        }
+        all_ascii_simple = false;
+        break;
+    }
+    if all_ascii_simple {
+        return if needs_lowercase {
+            Some(Cow::Owned(value.to_ascii_lowercase()))
+        } else {
+            Some(Cow::Borrowed(value))
+        };
     }
 
     let mut lower = String::with_capacity(value.len());
@@ -144,7 +279,7 @@ fn normalize_input(value: &str) -> Option<String> {
             _ => return None,
         }
     }
-    Some(lower)
+    Some(Cow::Owned(lower))
 }
 
 fn token_count_normalized(lower: &str, dictionary: &RegexTokenDictionary) -> usize {

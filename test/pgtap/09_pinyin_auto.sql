@@ -349,6 +349,31 @@ ROLLBACK TO live_sql_inventory;
 SELECT ok(:'rust_static_inventory'::boolean,'Rust Auto dictionary remains embedded and SPI-free');
 SELECT ok(:'sql_live_inventory'::boolean,'independent SQL Auto keeps its live token inventory');
 
+SELECT is(
+  public.pinyin_regex_phrase_patterns_mode(value, 'auto', generated),
+  expected,
+  'Rust Auto boundary/generated parity: ' || value || ' (' || generated || ')'
+)
+FROM (VALUES
+  ('wúh whh', false, ARRAY[]::text[]),
+  ('wúh hǎo', false, ARRAY[]::text[]),
+  ('whh wúh', false, ARRAY['w.*', 'h.*', 'h.*', 'wu', 'h.*']),
+  ('mni1 whh', false, ARRAY['m.*', 'ni.*', 'w.*', 'h.*', 'h.*']),
+  ('mni1', true, ARRAY['.*\|m.*', '.*\|ni.*'])
+) AS cases(value, generated, expected);
+SELECT is(
+  public.sql_pinyin_regex_phrase_patterns_mode(value, 'auto', generated),
+  public.pinyin_regex_phrase_patterns_mode(value, 'auto', generated),
+  'SQL Auto matches Rust on toned boundaries and generated fallback: ' || value || ' (' || generated || ')'
+)
+FROM (VALUES
+  ('wúh whh', false),
+  ('wúh hǎo', false),
+  ('whh wúh', false),
+  ('mni1 whh', false),
+  ('mni1', true)
+) AS cases(value, generated);
+
 SELECT * FROM finish();
 ROLLBACK;
 DROP SCHEMA pinyin_auto_test CASCADE;

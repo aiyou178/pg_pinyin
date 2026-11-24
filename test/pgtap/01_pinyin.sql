@@ -25,7 +25,7 @@ INSERT INTO pinyin.pinyin_token (character, category) VALUES
 INSERT INTO pinyin.pinyin_words (word, pinyin)
 VALUES ('郑爽', '|zheng| |shuang|');
 
-SELECT plan(18);
+SELECT plan(19);
 
 SELECT is(public.romanize2text('我们'), '我们', 'romanize2text keeps mapped Han chars');
 SELECT is(public.romanize2text('我ABC们123'), '我ABC们123', 'romanize2text keeps ASCII runs');
@@ -78,6 +78,11 @@ SELECT is(public.pinyin_isearch('m n'), E'\\S*\\|m\\|\\S* \\S*\\|n\\|\\S*',
   'syllabic m and n keep exact boundaries rather than initial prefixes');
 SELECT is((SELECT string_agg(token,' ') FROM public.pinyin_tokenize('xzh') AS token),'x z h',
   'unmapped initial x is not skipped by tokenization');
+
+INSERT INTO pinyin.pinyin_words (word, pinyin)
+VALUES ('我们', '  |wo|  |||  |men|  ');
+SELECT is(public.characters2romanize('我们'), '|wo| |men|',
+  'characters2romanize trims outer whitespace and empty pipe tokens in pinyin_words');
 
 SELECT * FROM finish();
 
