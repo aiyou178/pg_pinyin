@@ -113,6 +113,89 @@ FROM voice
 WHERE pinyin @@@ public.sql_pinyin_regex_phrase('zhengshuang');
 ```
 
+### 配合中文分词器使用
+
+`pinyin_word_romanize(anyelement)` 接收 PostgreSQL 可以转换为 `text[]` 的
+tokenizer 值；当前优化路径主要覆盖 `name::pdb.icu::text[]` 这类 pg_search
+输入。`zhparser` 和 `pg_jieba` 通过 text-search configuration 生成
+PostgreSQL 全文检索向量，而不是 `text[]`。应把它们用于原始中文字段，把拼音
+字段作为独立检索字段；不要为了调用 tokenizer 重载而把 `tsvector` 强制转换为
+`text[]`。
+
+两个插件都使用 PostgreSQL 全文检索的标准形式：
+
+```sql
+-- 扩展安装和 shared_preload_libraries 配置取决于具体发行版。
+CREATE EXTENSION IF NOT EXISTS zhparser;
+CREATE EXTENSION IF NOT EXISTS pg_pinyin;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE TEXT SEARCH CONFIGURATION chinese_zh (PARSER = zhparser);
+ALTER TEXT SEARCH CONFIGURATION chinese_zh
+  ADD MAPPING FOR n,v,a,i,e,l WITH simple;
+
+CREATE TABLE article_zh (
+  id bigserial PRIMARY KEY,
+  content text NOT NULL,
+  pinyin text GENERATED ALWAYS AS (public.pinyin_word_romanize(content)) STORED
+);
+CREATE INDEX article_zh_fts_idx ON article_zh
+  USING gin (to_tsvector('chinese_zh', content));
+CREATE INDEX article_zh_pinyin_idx ON article_zh USING gin (pinyin gin_trgm_ops);
+
+SELECT id, content
+FROM article_zh
+WHERE to_tsvector('chinese_zh', content)
+      @@ plainto_tsquery('chinese_zh', '南京');
+```
+
+`pg_jieba` 也使用相同的 PostgreSQL 全文检索接口。很多发行版直接提供
+`jiebacfg`；如果没有该配置名，应按安装包文档创建自定义 configuration：
+
+```sql
+CREATE EXTENSION IF NOT EXISTS pg_jieba;
+CREATE EXTENSION IF NOT EXISTS pg_pinyin;
+
+CREATE TABLE article_jieba (
+  id bigserial PRIMARY KEY,
+  content text NOT NULL,
+  pinyin text GENERATED ALWAYS AS (public.pinyin_word_romanize(content)) STORED
+);
+CREATE INDEX article_jieba_fts_idx ON article_jieba
+  USING gin (to_tsvector('jiebacfg', content));
+
+SELECT id, content
+FROM article_jieba
+WHERE to_tsvector('jiebacfg', content)
+      @@ plainto_tsquery('jiebacfg', '南京');
+```
+
+很多 `pg_jieba` 发行版还提供 `jiebaqry`（全模式）、`jiebamp`（最大概率）和
+`jiebahmm`（隐马尔可夫模式）。通常使用混合策略的 `jiebacfg`；应根据新词识别
+和召回需求选择配置，并在索引和查询中使用同一个配置名。
+
+按查询路径选择分词器和索引类型：
+
+| 分词器或引擎 | 输出／查询形式 | 与拼音的配合 |
+| --- | --- | --- |
+| `pg_search` `pdb.icu` / `pdb.whitespace` | BM25 索引和 `@@@` 查询 | 支持 `pinyin_word_romanize(name::pdb.icu::text[])`；拼音字段可放入同一个 BM25 索引。 |
+| `zhparser` | PostgreSQL `tsvector` / `tsquery`，通常使用 GIN | 保留 zhparser 全文条件，再单独组合拼音条件；输出不是 tokenizer `text[]`。 |
+| `pg_jieba` | PostgreSQL `tsvector` / `tsquery`，通常使用 GIN | 同样分开组合；`jiebacfg` 决定中文切分和词典映射。 |
+| 内置 `simple` / `english` | PostgreSQL text-search configuration | 适合非中文或已经切好词的文本，不能替代中文分词器。 |
+| `pgroonga` / `pg_bigm` | 扩展自己的索引和操作符 | 它们是搜索／索引引擎，不是 PostgreSQL text-search parser；拼音转换应保持独立。 |
+
+应用查询可以显式组合两类条件：
+
+```sql
+SELECT id, content
+FROM article_jieba
+WHERE to_tsvector('jiebacfg', content) @@ plainto_tsquery('jiebacfg', $1)
+   OR pinyin @@@ public.pinyin_regex_phrase($2);
+```
+
+不同发行版的 parser 名称、预加载要求、词典和 token-type mapping 可能不同。
+在复制配置到另一台服务器前，先检查已安装扩展文档以及
+`pg_ts_parser`／`pg_ts_config` catalog。
+
 ### 显式音节边界
 
 默认的 `pinyin_regex_phrase` 和 `compat` 现在把 ASCII 撇号 `'` 及弯引号
@@ -465,8 +548,9 @@ cargo pgrx install --features pg19 --no-default-features --pg-config /usr/lib/po
 
 完整 Python 集成与真实升级测试需要 psycopg 3、能创建数据库的管理员 `PGURL`，
 以及预加载的 pg_search 0.27.0。初始化 pgrx 后，先在隔离的 Cargo target 中
-安装旧 catalog，再恢复当前动态库后测试（以下以 PG18 集成测试为例）。旧源码
-需要配套的 cargo-pgrx 0.19.3；测试镜像已经单独安装：
+安装旧 catalog，再恢复当前动态库后测试（以下以 PG18 集成测试为例）。测试镜像
+的 baseline CLI 使用上一次测试过的版本，目前为 cargo-pgrx 0.20.0；当前 CLI 为
+0.20.1：
 
 ```bash
 export PG_CONFIG=/usr/lib/postgresql/18/bin/pg_config
@@ -478,6 +562,9 @@ PGURL="$PGURL" PG_LOADER_TESTS=1 TEST_UPGRADE_DSN="$PGURL" python3 -m unittest d
 python3 -m unittest discover -s scripts/data/tests
 cargo test --lib --no-default-features --locked
 ```
+
+PG19 beta4 兼容镜像属于独立的历史测试基础设施，继续使用其 ParadeDB 兼容的
+pgrx 版本。
 
 数据库测试独立创建并清理临时库。pgTAP 还确认真实 parallel worker 执行
 带模式的公开 query API 和 pattern API。
