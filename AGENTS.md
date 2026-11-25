@@ -12,6 +12,9 @@
   `docker/Dockerfile.test-trixie` in the same change.
 - The current development baseline is `cargo-pgrx 0.20.0` for the `0.20.1`
   test build. Do not keep `0.19.3` as the default baseline for new test images.
+- Keep versioned legacy CLI slots for archived extension sources when their
+  `Cargo.toml` requires an older pgrx dependency; `test/prepare_upgrade.sh`
+  selects `/opt/pgrx-<version>/bin/cargo-pgrx` from that archived manifest.
 - `docker/Dockerfile.test-pg19beta4-trixie` is historical compatibility
   infrastructure for the pinned ParadeDB beta-4 build. Its `0.19.3` pin is
   intentionally separate from the current PG15-19 test-image baseline.
