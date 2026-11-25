@@ -117,6 +117,93 @@ FROM voice
 WHERE pinyin @@@ public.sql_pinyin_regex_phrase('zhengshuang');
 ```
 
+### Working with Chinese Parsers
+
+`pinyin_word_romanize(anyelement)` accepts tokenizer values that PostgreSQL can
+coerce to `text[]`; the optimized integration currently covers pg_search values
+such as `name::pdb.icu::text[]`. `zhparser` and `pg_jieba` produce PostgreSQL
+full-text-search vectors through a text-search configuration, not `text[]`.
+Use those parsers for the original Chinese field and keep the pinyin field as a
+separate search field. Do not cast a `tsvector` to `text[]` just to call the
+tokenizer overload.
+
+The standard PostgreSQL full-text-search shape works with both parser plugins:
+
+```sql
+-- The extension installation and shared_preload_libraries setup are parser-specific.
+CREATE EXTENSION IF NOT EXISTS zhparser;
+CREATE EXTENSION IF NOT EXISTS pg_pinyin;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE TEXT SEARCH CONFIGURATION chinese_zh (PARSER = zhparser);
+ALTER TEXT SEARCH CONFIGURATION chinese_zh
+  ADD MAPPING FOR n,v,a,i,e,l WITH simple;
+
+CREATE TABLE article_zh (
+  id bigserial PRIMARY KEY,
+  content text NOT NULL,
+  pinyin text GENERATED ALWAYS AS (public.pinyin_word_romanize(content)) STORED
+);
+CREATE INDEX article_zh_fts_idx ON article_zh
+  USING gin (to_tsvector('chinese_zh', content));
+CREATE INDEX article_zh_pinyin_idx ON article_zh USING gin (pinyin gin_trgm_ops);
+
+SELECT id, content
+FROM article_zh
+WHERE to_tsvector('chinese_zh', content)
+      @@ plainto_tsquery('chinese_zh', '南京');
+```
+
+`pg_jieba` uses the same PostgreSQL text-search interface. Its packaged
+configuration is commonly named `jiebacfg`; use a custom configuration when
+the installation does not provide that name:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS pg_jieba;
+CREATE EXTENSION IF NOT EXISTS pg_pinyin;
+
+CREATE TABLE article_jieba (
+  id bigserial PRIMARY KEY,
+  content text NOT NULL,
+  pinyin text GENERATED ALWAYS AS (public.pinyin_word_romanize(content)) STORED
+);
+CREATE INDEX article_jieba_fts_idx ON article_jieba
+  USING gin (to_tsvector('jiebacfg', content));
+
+SELECT id, content
+FROM article_jieba
+WHERE to_tsvector('jiebacfg', content)
+      @@ plainto_tsquery('jiebacfg', '南京');
+```
+
+Many `pg_jieba` packages also expose `jiebaqry` (full mode), `jiebamp` (maximum
+probability) and `jiebahmm` (hidden Markov mode). `jiebacfg` is the usual mixed
+configuration; choose the configuration that matches the application's
+new-word and recall requirements, then use that same name for both the index
+and the query.
+
+Choose the parser and index family according to the query path:
+
+| Parser or engine | Output/query shape | Pinyin integration |
+| --- | --- | --- |
+| `pg_search` `pdb.icu` / `pdb.whitespace` | BM25 index and `@@@` query | `pinyin_word_romanize(name::pdb.icu::text[])` is supported; use the pinyin column in the same BM25 index. |
+| `zhparser` | PostgreSQL `tsvector` / `tsquery`, usually GIN | Keep the zhparser FTS predicate and pinyin predicate separate; the parser output is not a tokenizer `text[]`. |
+| `pg_jieba` | PostgreSQL `tsvector` / `tsquery`, usually GIN | Same separation; `jiebacfg` controls Chinese segmentation and dictionary mapping. |
+| Built-in `simple` / `english` | PostgreSQL text-search configurations | Useful for non-Chinese or already-tokenized text; it does not replace a Chinese segmenter. |
+| `pgroonga` / `pg_bigm` | Extension-specific index and operators | These are search/index engines rather than PostgreSQL text-search parsers; keep their predicate separate from pinyin conversion. |
+
+For a combined application query, compose the independent predicates explicitly:
+
+```sql
+SELECT id, content
+FROM article_jieba
+WHERE to_tsvector('jiebacfg', content) @@ plainto_tsquery('jiebacfg', $1)
+   OR pinyin @@@ public.pinyin_regex_phrase($2);
+```
+
+Parser names, preload requirements, dictionaries and token-type mappings vary
+by package. Check the installed extension's README and `pg_ts_parser`/
+`pg_ts_config` catalogs before copying a configuration between servers.
+
 ### Explicit Syllable Boundaries
 
 The default `pinyin_regex_phrase` helper and `compat` mode now accept straight
@@ -568,8 +655,9 @@ cargo pgrx install --features pg19 --no-default-features --pg-config /usr/lib/po
 Full Python integration and genuine upgrade tests require psycopg 3, an admin
 `PGURL` able to create databases, and preloaded pg_search 0.27.0. After initializing
 pgrx for the server, install the old catalog in its isolated Cargo target, then
-restore the current library before testing (PG18 integration example). The old
-source needs cargo-pgrx 0.19.3; the test image installs it separately:
+restore the current library before testing (PG18 integration example). The test
+image's baseline CLI is the previous tested version, currently cargo-pgrx 0.20.0;
+the current CLI is 0.20.1:
 
 ```bash
 export PG_CONFIG=/usr/lib/postgresql/18/bin/pg_config
@@ -581,6 +669,9 @@ PGURL="$PGURL" PG_LOADER_TESTS=1 TEST_UPGRADE_DSN="$PGURL" python3 -m unittest d
 python3 -m unittest discover -s scripts/data/tests
 cargo test --lib --no-default-features --locked
 ```
+
+The released PG19 beta-4 compatibility image is separate historical
+infrastructure and remains pinned to its own ParadeDB-compatible pgrx version.
 
 The database tests create and clean up their own temporary databases. pgTAP also
 checks real parallel workers executing both mode-aware public and pattern APIs.

@@ -6,6 +6,9 @@ FROM ${BASE_IMAGE}
 ARG DEBIAN_FRONTEND=noninteractive
 ARG PG_SEARCH_VERSION=0.27.0
 ARG RUST_VERSION=1.99.1
+ARG BASELINE_CARGO_PGRX_VERSION=0.20.0
+ARG CARGO_PGRX_VERSION=0.20.1
+ARG LEGACY_CARGO_PGRX_VERSION=0.19.3
 ARG DEBIAN_MIRROR=
 ARG DEBIAN_SECURITY_MIRROR=
 ARG PGDG_MIRROR=
@@ -19,6 +22,7 @@ ENV PATH=/usr/lib/postgresql/18/bin:/root/.cargo/bin:$PATH \
     CC=clang \
     AR=llvm-ar \
     BASELINE_CARGO_PGRX=/opt/pgrx-baseline/bin/cargo-pgrx \
+    BASELINE_CARGO_PGRX_VERSION=${BASELINE_CARGO_PGRX_VERSION} \
     CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
 
 RUN set -eux; \
@@ -84,8 +88,9 @@ RUN --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
   fi; \
   rustup toolchain install "$RUST_VERSION" --profile minimal --component rustfmt --component clippy; \
   rustup default "$RUST_VERSION"; \
-  cargo install --locked cargo-pgrx --version 0.19.3 --root /opt/pgrx-baseline; \
-  cargo install --locked cargo-pgrx --version 0.20.1
+  cargo install --locked cargo-pgrx --version "$BASELINE_CARGO_PGRX_VERSION" --root /opt/pgrx-baseline; \
+  cargo install --locked cargo-pgrx --version "$LEGACY_CARGO_PGRX_VERSION" --root "/opt/pgrx-$LEGACY_CARGO_PGRX_VERSION"; \
+  cargo install --locked cargo-pgrx --version "$CARGO_PGRX_VERSION"
 
 WORKDIR /work
 COPY . /work
