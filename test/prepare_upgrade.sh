@@ -13,6 +13,11 @@ git -c safe.directory="$ROOT_DIR" -C "$ROOT_DIR" archive --format=tar --output="
 tar -xf "$BASE_DIR/source.tar" -C "$BASE_DIR"
 BASE_COMMIT="$(git -c safe.directory="$ROOT_DIR" -C "$ROOT_DIR" rev-parse "${BASE_REF}^{commit}")"
 BASE_VERSION="$(sed -n "s/^default_version = '\([^']*\)'$/\1/p" "$BASE_DIR/pg_pinyin.control")"
+BASE_PGRX_VERSION="$(sed -n 's/^pgrx = { version = "=\([^"]*\)".*$/\1/p' "$BASE_DIR/Cargo.toml" | head -n 1)"
+if [ -z "$BASE_PGRX_VERSION" ]; then
+  printf '%s\n' 'could not determine the archived source pgrx version' >&2
+  exit 1
+fi
 # Shared final .so paths can retain a newer build even when Cargo reports the
 # archived package as fresh. Keep the baseline artifact namespace independent.
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$ROOT_DIR/target}/upgrade-baseline-${BASE_COMMIT}"
@@ -21,8 +26,18 @@ BUILD_FLAGS=()
 if [ "${PG_PINYIN_BUILD_RELEASE:-0}" = "1" ]; then
   BUILD_FLAGS+=(--release)
 fi
-# Old source must use its matching cargo-pgrx, independently of the new CLI.
+# Select an exact CLI for the archived source when the test image provides one.
+# The current baseline path points to the previous tested version; released
+# sources can retain an older pgrx dependency and use /opt/pgrx-<version>.
 if [ -n "${BASELINE_CARGO_PGRX:-}" ]; then
+  VERSIONED_CARGO_PGRX="/opt/pgrx-${BASE_PGRX_VERSION}/bin/cargo-pgrx"
+  if [ -x "$VERSIONED_CARGO_PGRX" ]; then
+    BASELINE_CARGO_PGRX="$VERSIONED_CARGO_PGRX"
+  elif [ "$BASE_PGRX_VERSION" != "${BASELINE_CARGO_PGRX_VERSION:-}" ]; then
+    printf 'missing cargo-pgrx %s for archived source (baseline CLI is %s)\n' \
+      "$BASE_PGRX_VERSION" "${BASELINE_CARGO_PGRX_VERSION:-unknown}" >&2
+    exit 1
+  fi
   "$BASELINE_CARGO_PGRX" pgrx install "${BUILD_FLAGS[@]}" --features "$PG_FEATURE" --no-default-features --pg-config "$PG_CONFIG"
 else
   cargo pgrx install "${BUILD_FLAGS[@]}" --features "$PG_FEATURE" --no-default-features --pg-config "$PG_CONFIG"
